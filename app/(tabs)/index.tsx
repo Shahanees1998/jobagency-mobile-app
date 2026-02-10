@@ -1,98 +1,502 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { JobCard, SearchBar } from '@/components/jobs';
+import { APP_COLORS, APP_SPACING } from '@/constants/appTheme';
+import { useAuth } from '@/contexts/AuthContext';
+import { apiClient } from '@/lib/api';
+import { storage, type JobFilters } from '@/lib/storage';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { router, useFocusEffect } from 'expo-router';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import {
+    ActivityIndicator,
+    FlatList,
+    RefreshControl,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
+} from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+function CandidateJobsScreen() {
+  const { user } = useAuth();
+  const [jobs, setJobs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [savedJobIds, setSavedJobIds] = useState<string[]>([]);
+  const [filters, setFilters] = useState<JobFilters | null>(null);
+  const loadingMoreRef = useRef(false);
 
-export default function HomeScreen() {
+  const firstName = user?.firstName || 'there';
+
+  const loadSavedIds = useCallback(async () => {
+    const ids = await storage.getSavedJobIds();
+    setSavedJobIds(ids);
+  }, []);
+
+  useEffect(() => {
+    loadSavedIds();
+  }, [loadSavedIds]);
+
+  const loadFilters = useCallback(async () => {
+    const f = await storage.getJobFilters();
+    setFilters(f);
+    return f;
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      let isFocused = true;
+      console.log('[Home] useFocusEffect: focus, loading filters...');
+      loadFilters().then((f) => {
+        console.log('[Home] loadFilters resolved, isFocused:', isFocused, 'filters:', f);
+        if (!isFocused) return;
+        setFilters(f ?? null);
+        setPage(1);
+        loadJobs(1, searchQuery, f ?? undefined);
+      });
+      return () => {
+        isFocused = false;
+        console.log('[Home] useFocusEffect: blur');
+      };
+    }, [loadFilters, loadJobs, searchQuery])
+  );
+
+  useEffect(() => {
+    loadFilters().then((f) => {
+      if (f) setFilters(f);
+    });
+  }, []);
+
+  const loadJobs = useCallback(async (pageNum = 1, search = '', filterOverride?: JobFilters | null) => {
+    const f = filterOverride ?? filters;
+    console.log('[Home] loadJobs called, page:', pageNum, 'search:', search, 'filters:', f);
+    if (pageNum > 1) {
+      loadingMoreRef.current = true;
+      setLoading(true);
+    }
+    const employmentType = f?.jobType?.length === 1 ? f.jobType[0] : undefined;
+    try {
+      const response = await apiClient.getJobs({
+        page: pageNum,
+        limit: 20,
+        search: search || undefined,
+        employmentType,
+      });
+      console.log('[Home] getJobs response:', response.success, 'data keys:', response.data ? Object.keys(response.data as object) : null);
+
+      if (response.success && response.data) {
+        const raw = response.data as any;
+        const list = Array.isArray(raw?.jobs) ? raw.jobs : Array.isArray(raw) ? raw : [];
+        const total = typeof raw?.total === 'number' ? raw.total : null;
+        const totalPages = typeof raw?.totalPages === 'number' ? raw.totalPages : null;
+        const limit = 20;
+
+        if (pageNum === 1) {
+          setJobs(list);
+        } else {
+          setJobs((prev) => [...prev, ...list]);
+        }
+        if (totalPages !== null) {
+          setHasMore(pageNum < totalPages);
+        } else if (total !== null) {
+          setHasMore(pageNum * limit < total);
+        } else {
+          setHasMore(list.length >= limit);
+        }
+        console.log('[Home] jobs set, count:', list.length, 'hasMore:', pageNum === 1 ? (list.length >= limit) : 'n/a');
+      } else {
+        console.log('[Home] getJobs not success or no data:', response);
+      }
+    } catch (error) {
+      console.error('[Home] Error loading jobs:', error);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+      loadingMoreRef.current = false;
+      console.log('[Home] loadJobs done, setLoading(false)');
+    }
+  }, [filters]);
+
+  useEffect(() => {
+    loadFilters().then((f) => f && setFilters(f));
+  }, [loadFilters]);
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    setPage(1);
+    loadFilters().then((f) => loadJobs(1, searchQuery, f));
+  }, [searchQuery, loadJobs, loadFilters]);
+
+  const loadMore = useCallback(() => {
+    if (loadingMoreRef.current || loading || !hasMore || jobs.length === 0) return;
+    const next = page + 1;
+    setPage(next);
+    loadJobs(next, searchQuery);
+  }, [loading, hasMore, page, searchQuery, jobs.length, loadJobs]);
+
+  const handleSearch = useCallback((q: string) => {
+    setSearchQuery(q);
+    setPage(1);
+    setLoading(true);
+    loadJobs(1, q);
+  }, [loadJobs]);
+
+  const openFilters = useCallback(() => {
+    router.push('/job-filters');
+  }, []);
+
+  const mapJobToCard = (item: any) => {
+    const benefits = item.benefits
+      ? (Array.isArray(item.benefits) ? item.benefits : [item.benefits])
+      : [];
+    if (!benefits.length && item.perks) {
+      benefits.push(...(Array.isArray(item.perks) ? item.perks : [item.perks]));
+    }
+    const fallbackBenefits = [
+      'Health Insurance',
+      'Paid time off',
+      'RSU',
+      'Life insurance',
+      'Disability insurance',
+    ];
+    return {
+      id: item.id,
+      title: item.title || 'Job Title',
+      companyName: item.employer?.companyName || item.companyName || 'Company',
+      location: item.location || item.employer?.location || 'Location',
+      benefits: benefits.length ? benefits : fallbackBenefits.slice(0, 5),
+      companyLogoLetter: item.employer?.companyName?.charAt(0) || item.companyName?.charAt(0),
+    };
+  };
+
+  const toggleSaved = useCallback(async (item: any) => {
+    const jobId = item.id;
+    const isSaved = savedJobIds.includes(jobId);
+    if (isSaved) {
+      await storage.removeSavedJobId(jobId);
+      setSavedJobIds((prev) => prev.filter((id) => id !== jobId));
+    } else {
+      const summary = mapJobToCard(item);
+      await storage.addSavedJob({
+        id: summary.id,
+        title: summary.title,
+        companyName: summary.companyName,
+        location: summary.location,
+        benefits: summary.benefits,
+        companyLogoLetter: summary.companyLogoLetter,
+      });
+      setSavedJobIds((prev) => (prev.includes(jobId) ? prev : [...prev, jobId]));
+    }
+  }, [savedJobIds]);
+
+  const renderJob = ({ item }: { item: any }) => {
+    const card = mapJobToCard(item);
+    return (
+      <JobCard
+        title={card.title}
+        companyName={card.companyName}
+        location={card.location}
+        benefits={card.benefits}
+        companyLogoLetter={card.companyLogoLetter}
+        saved={savedJobIds.includes(item.id)}
+        onPress={() => router.push(`/job-details/${item.id}`)}
+        onBookmark={() => toggleSaved(item)}
+        onDislike={() => {}}
+      />
+    );
+  };
+
+  if (loading && jobs.length === 0) {
+    console.log('[Home] Candidate: showing loading (loading=true, jobs=0)');
+    return (
+      <SafeAreaView style={styles.safe} edges={['top']}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={APP_COLORS.primary} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
+    <SafeAreaView style={styles.safe} edges={['top']}>
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <View style={styles.greetingBlock}>
+            <Text style={styles.greeting}>Hi, {firstName}</Text>
+            <Text style={styles.subGreeting}>Time to level up your job hunt.</Text>
+          </View>
+          <View style={styles.headerIcons}>
+            <TouchableOpacity onPress={openFilters} style={styles.iconBtn} hitSlop={12}>
+              <Ionicons name="filter-outline" size={24} color={APP_COLORS.textPrimary} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={onRefresh} style={styles.iconBtn} hitSlop={12}>
+              <Ionicons name="refresh-outline" size={24} color={APP_COLORS.textPrimary} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => router.push('/notifications')}
+              style={styles.iconBtn}
+              hitSlop={12}
+            >
+              <Ionicons name="notifications-outline" size={24} color={APP_COLORS.textPrimary} />
+            </TouchableOpacity>
+          </View>
+        </View>
+        <View style={styles.searchWrap}>
+          <SearchBar
+            value={searchQuery}
+            onChangeText={handleSearch}
+            returnKeyType="search"
+          />
+        </View>
+        <Text style={styles.sectionTitle}>Popular Jobs</Text>
+        <FlatList
+          data={jobs}
+          renderItem={renderJob}
+          keyExtractor={(item, index) => item?.id ?? `job-${index}`}
+          contentContainerStyle={styles.list}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={APP_COLORS.primary}
             />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+          }
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.3}
+          ListFooterComponent={
+            hasMore && jobs.length > 0 ? (
+              <View style={styles.footerLoader}>
+                {loading && page > 1 ? (
+                  <ActivityIndicator size="small" color={APP_COLORS.primary} />
+                ) : (
+                  <Text style={styles.footerLoaderText}>Pull up for more</Text>
+                )}
+              </View>
+            ) : null
+          }
+          ListEmptyComponent={
+            <View style={styles.empty}>
+              <Text style={styles.emptyText}>No jobs found</Text>
+              <Text style={styles.emptySubtext}>Check back later or try a different search.</Text>
+            </View>
+          }
+        />
+      </View>
+    </SafeAreaView>
+  );
+}
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+function EmployerDashboardScreen() {
+  const [stats, setStats] = useState({
+    totalJobs: 0,
+    activeJobs: 0,
+    totalApplications: 0,
+    pendingApplications: 0,
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const jobsRes = await apiClient.getEmployerJobs();
+        const jobs = jobsRes.success && jobsRes.data ? jobsRes.data.jobs || [] : [];
+        const totalApplications = jobs.reduce((sum: number, j: any) => sum + (j.applicationCount || 0), 0);
+        setStats({
+          totalJobs: jobs.length,
+          activeJobs: jobs.filter((j: any) => j.status === 'APPROVED').length,
+          totalApplications,
+          pendingApplications: totalApplications,
+        });
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['top']}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={APP_COLORS.primary} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView style={styles.safe} edges={['top']}>
+      <View style={[styles.container, { paddingBottom: 24 }]}>
+        <Text style={styles.dashboardTitle}>Dashboard</Text>
+        <View style={styles.statsGrid}>
+          <View style={styles.statCard}>
+            <Text style={styles.statValue}>{stats.totalJobs}</Text>
+            <Text style={styles.statLabel}>Total Jobs</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={styles.statValue}>{stats.activeJobs}</Text>
+            <Text style={styles.statLabel}>Active Jobs</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={styles.statValue}>{stats.totalApplications}</Text>
+            <Text style={styles.statLabel}>Applications</Text>
+          </View>
+          <View style={styles.statCard}>
+            <Text style={styles.statValue}>{stats.pendingApplications}</Text>
+            <Text style={styles.statLabel}>Pending</Text>
+          </View>
+        </View>
+        <TouchableOpacity
+          style={styles.createJobBtn}
+          onPress={() => router.push('/post-job')}
+          activeOpacity={0.85}
+        >
+          <Ionicons name="add-circle" size={24} color={APP_COLORS.white} />
+          <Text style={styles.createJobBtnText}>Post New Job</Text>
+        </TouchableOpacity>
+      </View>
+    </SafeAreaView>
+  );
+}
+
+export default function IndexScreen() {
+  const { user } = useAuth();
+  console.log('[Home] IndexScreen render, user:', user?.id, 'role:', user?.role);
+  if (user?.role === 'CANDIDATE') return <CandidateJobsScreen />;
+  if (user?.role === 'EMPLOYER') return <EmployerDashboardScreen />;
+  return (
+    <SafeAreaView style={styles.safe} edges={['top']}>
+      <View style={styles.loadingContainer}>
+        <Text style={styles.emptyText}>Admin – use web interface</Text>
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
+  safe: {
+    flex: 1,
+    backgroundColor: APP_COLORS.background,
+  },
+  container: {
+    flex: 1,
+    paddingHorizontal: APP_SPACING.screenPadding,
+    paddingTop: 8,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 16,
+  },
+  greetingBlock: {
+    flex: 1,
+    minWidth: 0,
+  },
+  greeting: {
+    fontSize: 26,
+    fontWeight: '700',
+    color: APP_COLORS.textPrimary,
+    marginBottom: 4,
+  },
+  subGreeting: {
+    fontSize: 15,
+    color: APP_COLORS.textSecondary,
+  },
+  headerIcons: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  iconBtn: {
+    padding: 4,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  searchWrap: {
+    marginBottom: 20,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: APP_COLORS.textPrimary,
+    marginBottom: 16,
+  },
+  list: {
+    paddingBottom: 24,
+  },
+  footerLoader: {
+    paddingVertical: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  footerLoaderText: {
+    fontSize: 13,
+    color: APP_COLORS.textSecondary,
+  },
+  empty: {
+    paddingVertical: 48,
+    alignItems: 'center',
+  },
+  emptyText: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: APP_COLORS.textPrimary,
+  },
+  emptySubtext: {
+    fontSize: 14,
+    color: APP_COLORS.textMuted,
+    marginTop: 8,
+  },
+  dashboardTitle: {
+    fontSize: 26,
+    fontWeight: '700',
+    color: APP_COLORS.textPrimary,
+    marginBottom: 24,
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginBottom: 24,
+  },
+  statCard: {
+    width: '48%',
+    backgroundColor: APP_COLORS.surfaceGray,
+    padding: APP_SPACING.itemPadding,
+    borderRadius: APP_SPACING.borderRadius,
+    marginBottom: 16,
+    alignItems: 'center',
+  },
+  statValue: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: APP_COLORS.primary,
+    marginBottom: 4,
+  },
+  statLabel: {
+    fontSize: 14,
+    color: APP_COLORS.textSecondary,
+  },
+  createJobBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: APP_COLORS.primary,
+    paddingVertical: 16,
+    borderRadius: APP_SPACING.borderRadius,
+    gap: 8,
+  },
+  createJobBtnText: {
+    color: APP_COLORS.white,
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
