@@ -128,6 +128,10 @@ function RootLayoutNav() {
         options={{ title: 'My reviews', headerShown: true, headerBackTitle: 'Back' }}
       />
       <Stack.Screen
+        name="company-reviews/[employerId]"
+        options={{ title: 'Company reviews', headerShown: true, headerBackTitle: 'Back' }}
+      />
+      <Stack.Screen
         name="policies-terms"
         options={{ title: 'Policies & terms', headerShown: true, headerBackTitle: 'Back' }}
       />

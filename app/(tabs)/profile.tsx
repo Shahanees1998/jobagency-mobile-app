@@ -20,6 +20,47 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 const MENU_ICON_COLOR = '#374151';
 
+function ProfileListRow({
+  icon,
+  label,
+  onPress,
+}: {
+  icon: keyof typeof Ionicons.glyphMap;
+  label: string;
+  onPress: () => void;
+}) {
+  return (
+    <TouchableOpacity style={styles.profileRow} onPress={onPress} activeOpacity={0.7}>
+      <View style={styles.profileRowIconCircle}>
+        <Ionicons name={icon} size={20} color={APP_COLORS.white} />
+      </View>
+      <Text style={styles.profileRowLabel}>{label}</Text>
+      <Ionicons name="chevron-forward" size={20} color={APP_COLORS.textMuted} />
+    </TouchableOpacity>
+  );
+}
+
+function ResumeCardRow({
+  updatedText,
+  onPress,
+}: {
+  updatedText: string;
+  onPress: () => void;
+}) {
+  return (
+    <TouchableOpacity style={styles.resumeCard} onPress={onPress} activeOpacity={0.85}>
+      <View style={styles.resumeIconWrap}>
+        <Ionicons name="document-text-outline" size={28} color={APP_COLORS.primary} />
+      </View>
+      <View style={styles.resumeTextCol}>
+        <Text style={styles.resumeTitle}>Next job resume</Text>
+        <Text style={styles.resumeSubtitle}>{updatedText}</Text>
+      </View>
+      <Ionicons name="chevron-forward" size={20} color={APP_COLORS.textMuted} />
+    </TouchableOpacity>
+  );
+}
+
 function MenuRow({
   icon,
   label,
@@ -171,7 +212,7 @@ function CandidateProfileScreen() {
     <>
       <SafeAreaView style={styles.safe} edges={['top']}>
         <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          <View style={styles.header}>
+          <View style={styles.headerCandidate}>
             <TouchableOpacity onPress={handleImagePick} disabled={uploading}>
               <View style={styles.avatarWrap}>
                 {user?.profileImage ? (
@@ -192,45 +233,29 @@ function CandidateProfileScreen() {
             <Text style={styles.email}>{user?.email ?? ''}</Text>
           </View>
 
-          <View style={styles.menuBlock}>
-            <MenuRow
-              icon="person-outline"
-              label="Profile"
-              onPress={() => router.push('/edit-profile')}
-            />
-            <Text style={styles.sectionLabel}>Resume</Text>
-            <MenuRow
-              icon="document-text-outline"
-              label="Next job resume"
-              subtitle={`Updated ${resumeUpdated}`}
-              onPress={() => router.push('/my-resume')}
-              darker
-            />
-            <MenuRow
-              icon="lock-closed-outline"
-              label="Change password"
-              onPress={() => router.push('/change-password')}
-            />
-            <MenuRow
-              icon="star-outline"
-              label="My reviews"
-              onPress={() => router.push('/my-reviews')}
-            />
-            <MenuRow
-              icon="document-text-outline"
-              label="Policies & terms"
-              onPress={() => router.push('/policies-terms')}
-            />
-            <MenuRow
+          <View style={styles.profileList}>
+            <ProfileListRow icon="person-outline" label="Profile" onPress={() => router.push('/edit-profile')} />
+          </View>
+
+          <Text style={styles.sectionLabelCandidate}>Resume</Text>
+          <ResumeCardRow updatedText={`Updated ${resumeUpdated}`} onPress={() => router.push('/my-resume')} />
+
+          <View style={styles.profileList}>
+            <ProfileListRow icon="lock-closed-outline" label="Change password" onPress={() => router.push('/change-password')} />
+            <ProfileListRow icon="star-outline" label="My reviews" onPress={() => router.push('/my-reviews')} />
+            <ProfileListRow icon="document-text-outline" label="Policies & terms" onPress={() => router.push('/policies-terms')} />
+            <ProfileListRow
               icon="trash-outline"
               label="Delete account"
-              onPress={() => showDialog({ title: 'Delete account', message: 'Contact support to delete your account.', primaryButton: { text: 'OK' } })}
+              onPress={() =>
+                showDialog({
+                  title: 'Delete account',
+                  message: 'Contact support to delete your account.',
+                  primaryButton: { text: 'OK' },
+                })
+              }
             />
-            <MenuRow
-              icon="log-out-outline"
-              label="Logout"
-              onPress={() => setLogoutModalVisible(true)}
-            />
+            <ProfileListRow icon="log-out-outline" label="Logout" onPress={() => setLogoutModalVisible(true)} />
           </View>
         </ScrollView>
       </SafeAreaView>
@@ -404,6 +429,13 @@ const styles = StyleSheet.create({
     paddingVertical: 18,
     paddingHorizontal: APP_SPACING.screenPadding,
   },
+  headerCandidate: {
+    backgroundColor: APP_COLORS.background,
+    alignItems: 'center',
+    paddingTop: 26,
+    paddingBottom: 18,
+    paddingHorizontal: APP_SPACING.screenPadding,
+  },
   employerBannerWrap: {
     marginHorizontal: APP_SPACING.screenPadding,
     marginTop: 12,
@@ -463,6 +495,59 @@ const styles = StyleSheet.create({
     color: APP_COLORS.textMuted,
     textAlign: 'center',
   },
+  profileList: {
+    marginHorizontal: APP_SPACING.screenPadding,
+    backgroundColor: APP_COLORS.background,
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  profileRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 18,
+  },
+  profileRowIconCircle: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: APP_COLORS.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 14,
+  },
+  profileRowLabel: { flex: 1, fontSize: 16, fontWeight: '500', color: APP_COLORS.textPrimary },
+  sectionLabelCandidate: {
+    marginTop: 18,
+    marginBottom: 10,
+    paddingHorizontal: APP_SPACING.screenPadding,
+    fontSize: 18,
+    fontWeight: '700',
+    color: APP_COLORS.textPrimary,
+  },
+  resumeCard: {
+    marginHorizontal: APP_SPACING.screenPadding,
+    backgroundColor: '#E8EEF2',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 14,
+  },
+  resumeIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 14,
+  },
+  resumeTextCol: { flex: 1, minWidth: 0 },
+  resumeTitle: { fontSize: 16, fontWeight: '700', color: APP_COLORS.textPrimary, marginBottom: 4 },
+  resumeSubtitle: { fontSize: 13, fontWeight: '600', color: APP_COLORS.textMuted },
   companyName: {
     fontSize: 15,
     fontWeight: '600',

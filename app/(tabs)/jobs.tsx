@@ -83,7 +83,7 @@ export default function EmployerJobsScreen() {
   const renderJobItem = ({ item }: { item: any }) => (
     <TouchableOpacity
       style={[styles.jobCard, { backgroundColor: colors.background, borderColor: colors.icon }]}
-      onPress={() => router.push(`/edit-job/${item.id}`)}
+      onPress={() => router.push(`/job-details/${item.id}`)}
     >
       <View style={styles.jobHeader}>
         <ThemedText type="defaultSemiBold" style={styles.jobTitle}>

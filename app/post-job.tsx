@@ -1,12 +1,21 @@
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Colors } from '@/constants/theme';
+import { APP_COLORS, APP_SPACING } from '@/constants/appTheme';
 import { useDialog } from '@/contexts/DialogContext';
-import { useColorScheme } from '@/hooks/use-color-scheme';
 import { apiClient } from '@/lib/api';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, TextInput, TouchableOpacity, View } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import {
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const EMPLOYMENT_TYPES = [
   'FULL_TIME',
@@ -18,6 +27,7 @@ const EMPLOYMENT_TYPES = [
 ];
 
 export default function PostJobScreen() {
+  const insets = useSafeAreaInsets();
   const { showDialog } = useDialog();
   const [formData, setFormData] = useState({
     title: '',
@@ -30,8 +40,6 @@ export default function PostJobScreen() {
     category: '',
   });
   const [loading, setLoading] = useState(false);
-  const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? 'light'];
 
   const handleSubmit = async () => {
     if (!formData.title.trim() || !formData.description.trim()) {
@@ -58,199 +66,307 @@ export default function PostJobScreen() {
     }
   };
 
+  const setField = <K extends keyof typeof formData>(key: K, value: (typeof formData)[K]) => {
+    setFormData((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const employmentTypeLabel = (t: string) =>
+    t
+      .split('_')
+      .map((p) => p.charAt(0) + p.slice(1).toLowerCase())
+      .join(' ');
+
   return (
-    <ScrollView style={styles.container}>
-      <ThemedView style={styles.content}>
-        <ThemedText type="title" style={styles.title}>Post New Job</ThemedText>
+    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.headerBtn} hitSlop={12}>
+          <Ionicons name="arrow-back" size={24} color={APP_COLORS.textPrimary} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Post a job</Text>
+        <View style={styles.headerBtn} />
+      </View>
 
-        <View style={styles.form}>
-          <View style={styles.inputContainer}>
-            <ThemedText style={styles.label}>Job Title *</ThemedText>
-            <TextInput
-              style={[styles.input, { color: colors.text, borderColor: colors.icon }]}
-              placeholder="e.g., Senior Software Engineer"
-              placeholderTextColor={colors.icon}
-              value={formData.title}
-              onChangeText={(text) => setFormData({ ...formData, title: text })}
-            />
-          </View>
+      <KeyboardAvoidingView style={styles.safe} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom, 24) + 24 }]}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <Text style={styles.requiredNote}>Fields marked * are required.</Text>
 
-          <View style={styles.inputContainer}>
-            <ThemedText style={styles.label}>Description *</ThemedText>
-            <TextInput
-              style={[styles.textArea, { color: colors.text, borderColor: colors.icon }]}
-              placeholder="Job description..."
-              placeholderTextColor={colors.icon}
-              value={formData.description}
-              onChangeText={(text) => setFormData({ ...formData, description: text })}
-              multiline
-              numberOfLines={6}
-            />
-          </View>
+          {/* Basics */}
+          <View style={styles.sectionCard}>
+            <Text style={styles.sectionTitle}>Basics</Text>
 
-          <View style={styles.inputContainer}>
-            <ThemedText style={styles.label}>Requirements</ThemedText>
-            <TextInput
-              style={[styles.textArea, { color: colors.text, borderColor: colors.icon }]}
-              placeholder="Job requirements..."
-              placeholderTextColor={colors.icon}
-              value={formData.requirements}
-              onChangeText={(text) => setFormData({ ...formData, requirements: text })}
-              multiline
-              numberOfLines={4}
-            />
-          </View>
+            <View style={styles.field}>
+              <Text style={styles.label}>
+                Job title <Text style={styles.required}>*</Text>
+              </Text>
+              <View style={styles.inputWrap}>
+                <Ionicons name="briefcase-outline" size={18} color={APP_COLORS.textMuted} style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="e.g., Senior Software Engineer"
+                  placeholderTextColor={APP_COLORS.textMuted}
+                  value={formData.title}
+                  onChangeText={(t) => setField('title', t)}
+                  autoCapitalize="words"
+                  returnKeyType="next"
+                />
+              </View>
+            </View>
 
-          <View style={styles.inputContainer}>
-            <ThemedText style={styles.label}>Responsibilities</ThemedText>
-            <TextInput
-              style={[styles.textArea, { color: colors.text, borderColor: colors.icon }]}
-              placeholder="Job responsibilities..."
-              placeholderTextColor={colors.icon}
-              value={formData.responsibilities}
-              onChangeText={(text) => setFormData({ ...formData, responsibilities: text })}
-              multiline
-              numberOfLines={4}
-            />
-          </View>
-
-          <View style={styles.inputContainer}>
-            <ThemedText style={styles.label}>Location</ThemedText>
-            <TextInput
-              style={[styles.input, { color: colors.text, borderColor: colors.icon }]}
-              placeholder="e.g., New York, NY"
-              placeholderTextColor={colors.icon}
-              value={formData.location}
-              onChangeText={(text) => setFormData({ ...formData, location: text })}
-            />
-          </View>
-
-          <View style={styles.inputContainer}>
-            <ThemedText style={styles.label}>Salary Range</ThemedText>
-            <TextInput
-              style={[styles.input, { color: colors.text, borderColor: colors.icon }]}
-              placeholder="e.g., $50k - $70k"
-              placeholderTextColor={colors.icon}
-              value={formData.salaryRange}
-              onChangeText={(text) => setFormData({ ...formData, salaryRange: text })}
-            />
-          </View>
-
-          <View style={styles.inputContainer}>
-            <ThemedText style={styles.label}>Employment Type</ThemedText>
-            <View style={[styles.pickerContainer, { borderColor: colors.icon }]}>
-              {EMPLOYMENT_TYPES.map((type) => (
-                <TouchableOpacity
-                  key={type}
-                  style={[
-                    styles.pickerOption,
-                    {
-                      backgroundColor:
-                        formData.employmentType === type ? colors.tint : 'transparent',
-                    },
-                  ]}
-                  onPress={() => setFormData({ ...formData, employmentType: type })}
-                >
-                  <ThemedText
-                    style={[
-                      styles.pickerOptionText,
-                      { color: formData.employmentType === type ? '#fff' : colors.text },
-                    ]}
-                  >
-                    {type.replace('_', ' ')}
-                  </ThemedText>
-                </TouchableOpacity>
-              ))}
+            <View style={styles.field}>
+              <Text style={styles.label}>
+                Description <Text style={styles.required}>*</Text>
+              </Text>
+              <TextInput
+                style={[styles.textArea, { minHeight: 132 }]}
+                placeholder="Describe what the candidate will do, the team, and what success looks like."
+                placeholderTextColor={APP_COLORS.textMuted}
+                value={formData.description}
+                onChangeText={(t) => setField('description', t)}
+                multiline
+                textAlignVertical="top"
+              />
             </View>
           </View>
 
-          <View style={styles.inputContainer}>
-            <ThemedText style={styles.label}>Category</ThemedText>
-            <TextInput
-              style={[styles.input, { color: colors.text, borderColor: colors.icon }]}
-              placeholder="e.g., Technology, Healthcare"
-              placeholderTextColor={colors.icon}
-              value={formData.category}
-              onChangeText={(text) => setFormData({ ...formData, category: text })}
-            />
+          {/* Details */}
+          <View style={styles.sectionCard}>
+            <Text style={styles.sectionTitle}>Details</Text>
+
+            <View style={styles.field}>
+              <Text style={styles.label}>Requirements</Text>
+              <TextInput
+                style={[styles.textArea, { minHeight: 110 }]}
+                placeholder="List skills, experience, and must-haves (bullet style works great)."
+                placeholderTextColor={APP_COLORS.textMuted}
+                value={formData.requirements}
+                onChangeText={(t) => setField('requirements', t)}
+                multiline
+                textAlignVertical="top"
+              />
+            </View>
+
+            <View style={styles.field}>
+              <Text style={styles.label}>Responsibilities</Text>
+              <TextInput
+                style={[styles.textArea, { minHeight: 110 }]}
+                placeholder="Day-to-day responsibilities and key deliverables."
+                placeholderTextColor={APP_COLORS.textMuted}
+                value={formData.responsibilities}
+                onChangeText={(t) => setField('responsibilities', t)}
+                multiline
+                textAlignVertical="top"
+              />
+            </View>
           </View>
 
-          <TouchableOpacity
-            style={[styles.submitButton, { backgroundColor: colors.tint }]}
-            onPress={handleSubmit}
-            disabled={loading}
-          >
-            {loading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <ThemedText style={styles.submitButtonText}>Post Job</ThemedText>
-            )}
-          </TouchableOpacity>
-        </View>
-      </ThemedView>
-    </ScrollView>
+          {/* Compensation & location */}
+          <View style={styles.sectionCard}>
+            <Text style={styles.sectionTitle}>Location & compensation</Text>
+
+            <View style={styles.twoColRow}>
+              <View style={[styles.field, styles.col]}>
+                <Text style={styles.label}>Location</Text>
+                <View style={styles.inputWrap}>
+                  <Ionicons name="location-outline" size={18} color={APP_COLORS.textMuted} style={styles.inputIcon} />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="e.g., New York, NY"
+                    placeholderTextColor={APP_COLORS.textMuted}
+                    value={formData.location}
+                    onChangeText={(t) => setField('location', t)}
+                    autoCapitalize="words"
+                  />
+                </View>
+              </View>
+
+              <View style={[styles.field, styles.col]}>
+                <Text style={styles.label}>Salary range</Text>
+                <View style={styles.inputWrap}>
+                  <Ionicons name="cash-outline" size={18} color={APP_COLORS.textMuted} style={styles.inputIcon} />
+                  <TextInput
+                    style={styles.input}
+                    placeholder="e.g., $50k - $70k"
+                    placeholderTextColor={APP_COLORS.textMuted}
+                    value={formData.salaryRange}
+                    onChangeText={(t) => setField('salaryRange', t)}
+                    autoCapitalize="none"
+                  />
+                </View>
+              </View>
+            </View>
+          </View>
+
+          {/* Type & category */}
+          <View style={styles.sectionCard}>
+            <Text style={styles.sectionTitle}>Type & category</Text>
+
+            <View style={styles.field}>
+              <Text style={styles.label}>Employment type</Text>
+              <View style={styles.chipsWrap}>
+                {EMPLOYMENT_TYPES.map((type) => {
+                  const selected = formData.employmentType === type;
+                  return (
+                    <TouchableOpacity
+                      key={type}
+                      onPress={() => setField('employmentType', type)}
+                      activeOpacity={0.85}
+                      style={[styles.chip, selected && styles.chipActive]}
+                    >
+                      <Text style={[styles.chipText, selected && styles.chipTextActive]}>{employmentTypeLabel(type)}</Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            </View>
+
+            <View style={styles.field}>
+              <Text style={styles.label}>Category</Text>
+              <View style={styles.inputWrap}>
+                <Ionicons name="pricetag-outline" size={18} color={APP_COLORS.textMuted} style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="e.g., Technology, Healthcare"
+                  placeholderTextColor={APP_COLORS.textMuted}
+                  value={formData.category}
+                  onChangeText={(t) => setField('category', t)}
+                  autoCapitalize="words"
+                />
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.footer}>
+            <TouchableOpacity
+              style={[styles.submitButton, loading && styles.submitButtonDisabled]}
+              onPress={handleSubmit}
+              disabled={loading}
+              activeOpacity={0.9}
+            >
+              {loading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <>
+                  <Ionicons name="paper-plane-outline" size={18} color="#fff" style={{ marginRight: 10 }} />
+                  <Text style={styles.submitButtonText}>Post job</Text>
+                </>
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.secondaryBtn}
+              onPress={() => router.back()}
+              disabled={loading}
+              activeOpacity={0.9}
+            >
+              <Text style={styles.secondaryBtnText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  content: {
-    padding: 16,
-  },
-  title: {
-    fontSize: 28,
-    marginBottom: 24,
-  },
-  form: {
-    width: '100%',
-  },
-  inputContainer: {
-    marginBottom: 20,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 8,
-  },
-  input: {
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-  },
-  textArea: {
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 16,
-    minHeight: 100,
-    textAlignVertical: 'top',
-  },
-  pickerContainer: {
-    borderWidth: 1,
-    borderRadius: 8,
-    overflow: 'hidden',
-  },
-  pickerOption: {
-    padding: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(0,0,0,0.1)',
-  },
-  pickerOptionText: {
-    fontSize: 16,
-  },
-  submitButton: {
-    padding: 16,
-    borderRadius: 8,
+  safe: { flex: 1, backgroundColor: APP_COLORS.background },
+  header: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 8,
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: APP_COLORS.border,
+    backgroundColor: APP_COLORS.background,
   },
-  submitButtonText: {
-    color: '#fff',
+  headerBtn: { padding: 4, minWidth: 40 },
+  headerTitle: { fontSize: 18, fontWeight: '700', color: APP_COLORS.textPrimary },
+  scroll: { flex: 1 },
+  scrollContent: {
+    paddingHorizontal: APP_SPACING.screenPadding,
+    paddingTop: 16,
+  },
+  requiredNote: { fontSize: 12, color: APP_COLORS.textMuted, fontWeight: '600', marginBottom: 14 },
+
+  sectionCard: {
+    backgroundColor: APP_COLORS.white,
+    borderWidth: 1,
+    borderColor: APP_COLORS.border,
+    borderRadius: APP_SPACING.borderRadiusLg,
+    padding: 16,
+    marginBottom: 12,
+  },
+  sectionTitle: { fontSize: 14, fontWeight: '800', color: APP_COLORS.textSecondary, marginBottom: 12 },
+
+  field: { marginBottom: 14 },
+  label: { fontSize: 13, fontWeight: '700', color: APP_COLORS.textSecondary, marginBottom: 8 },
+  required: { color: APP_COLORS.danger },
+
+  inputWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: APP_SPACING.inputHeight,
+    backgroundColor: APP_COLORS.surfaceGray,
+    borderRadius: APP_SPACING.borderRadius,
+    borderWidth: 1,
+    borderColor: APP_COLORS.border,
+    paddingHorizontal: 14,
+  },
+  inputIcon: { marginRight: 10 },
+  input: { flex: 1, fontSize: 16, color: APP_COLORS.textPrimary, paddingVertical: 0 },
+  textArea: {
+    backgroundColor: APP_COLORS.surfaceGray,
+    borderRadius: APP_SPACING.borderRadius,
+    borderWidth: 1,
+    borderColor: APP_COLORS.border,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
     fontSize: 16,
-    fontWeight: '600',
+    color: APP_COLORS.textPrimary,
   },
+
+  twoColRow: { flexDirection: 'row', gap: 12 },
+  col: { flex: 1 },
+
+  chipsWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  chip: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 999,
+    backgroundColor: APP_COLORS.surfaceGray,
+    borderWidth: 1,
+    borderColor: APP_COLORS.border,
+  },
+  chipActive: { backgroundColor: APP_COLORS.primary, borderColor: APP_COLORS.primary },
+  chipText: { fontSize: 13, fontWeight: '800', color: APP_COLORS.textSecondary },
+  chipTextActive: { color: APP_COLORS.white },
+
+  footer: { marginTop: 8 },
+  submitButton: {
+    height: 54,
+    borderRadius: APP_SPACING.borderRadiusLg,
+    backgroundColor: APP_COLORS.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+  },
+  submitButtonDisabled: { opacity: 0.7 },
+  submitButtonText: { color: '#fff', fontSize: 16, fontWeight: '800' },
+  secondaryBtn: {
+    marginTop: 10,
+    height: 50,
+    borderRadius: APP_SPACING.borderRadiusLg,
+    backgroundColor: APP_COLORS.white,
+    borderWidth: 1,
+    borderColor: APP_COLORS.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  secondaryBtnText: { color: APP_COLORS.textSecondary, fontSize: 15, fontWeight: '800' },
 });
 

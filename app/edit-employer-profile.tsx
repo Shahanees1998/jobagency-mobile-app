@@ -10,6 +10,7 @@ import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { APP_COLORS } from '@/constants/appTheme';
 
 export default function EditEmployerProfileScreen() {
@@ -143,18 +144,32 @@ export default function EditEmployerProfileScreen() {
 
   if (initialLoading) {
     return (
-      <ThemedView style={styles.centerContainer}>
-        <ActivityIndicator size="large" color={colors.tint} />
-      </ThemedView>
+      <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+        <View style={styles.centerContainer}>
+          <ActivityIndicator size="large" color={colors.tint} />
+        </View>
+      </SafeAreaView>
     );
   }
 
   return (
-    <ScrollView style={styles.container}>
-      <ThemedView style={styles.content}>
-        <ThemedText type="title" style={styles.title}>Edit Company Profile</ThemedText>
+    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.headerBtn} hitSlop={12}>
+          <Ionicons name="arrow-back" size={24} color={APP_COLORS.textPrimary} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Company profile</Text>
+        <View style={styles.headerBtn} />
+      </View>
 
-        <View style={styles.form}>
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <ThemedView style={styles.content}>
+          <View style={styles.form}>
           {/* Media section */}
           <View style={styles.mediaBlock}>
             <Text style={styles.mediaLabel}>Company banner</Text>
@@ -281,22 +296,43 @@ export default function EditEmployerProfileScreen() {
             )}
           </TouchableOpacity>
         </View>
-      </ThemedView>
-    </ScrollView>
+        </ThemedView>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safe: {
+    flex: 1,
+    backgroundColor: APP_COLORS.background,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: APP_COLORS.border,
+    backgroundColor: APP_COLORS.background,
+  },
+  headerBtn: { padding: 4, minWidth: 40 },
+  headerTitle: { fontSize: 18, fontWeight: '700', color: APP_COLORS.textPrimary },
   container: {
     flex: 1,
   },
   content: {
     padding: 16,
+    paddingBottom: 24,
   },
   centerContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  scrollContent: {
+    paddingBottom: 24,
   },
   title: {
     fontSize: 28,

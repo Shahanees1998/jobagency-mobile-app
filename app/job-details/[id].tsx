@@ -36,14 +36,19 @@ export default function JobDetailsScreen() {
   const loadJob = useCallback(async () => {
     if (!id) return;
     try {
-      const response = await apiClient.getJobById(id);
+      const isEmployer = user?.role === 'EMPLOYER';
+      const response = isEmployer
+        ? await apiClient.getEmployerJobById(id)
+        : await apiClient.getJobById(id);
       if (response.success && response.data) setJob(response.data);
+      else setJob(null);
     } catch (error) {
       console.error('Error loading job:', error);
+      setJob(null);
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [id, user?.role]);
 
   useEffect(() => {
     loadJob();
@@ -139,7 +144,7 @@ export default function JobDetailsScreen() {
 
   if (loading) {
     return (
-      <SafeAreaView style={styles.safe} edges={['top']}>
+      <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color={APP_COLORS.primary} />
         </View>
@@ -149,7 +154,7 @@ export default function JobDetailsScreen() {
 
   if (!job) {
     return (
-      <SafeAreaView style={styles.safe} edges={['top']}>
+      <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
         <View style={styles.centerContainer}>
           <Text style={styles.notFoundText}>Job not found</Text>
         </View>
@@ -167,7 +172,7 @@ export default function JobDetailsScreen() {
   const showExpand = description.length > 180;
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.headerBtn} hitSlop={12}>
@@ -203,10 +208,19 @@ export default function JobDetailsScreen() {
         <View style={styles.companyRow}>
           <Text style={styles.companyName}>{companyName}</Text>
           <Ionicons name="open-outline" size={16} color={APP_COLORS.textSecondary} style={styles.linkIcon} />
-          <View style={styles.ratingWrap}>
+          <TouchableOpacity
+            style={styles.reviewsPill}
+            onPress={() => {
+              const employerId = job?.employer?.id;
+              if (employerId) router.push(`/company-reviews/${employerId}`);
+              else router.push('/my-reviews');
+            }}
+            activeOpacity={0.85}
+          >
             <Ionicons name="star" size={16} color="#F59E0B" />
-            <Text style={styles.ratingText}>4.6</Text>
-          </View>
+            <Text style={styles.reviewsPillText}>4.6</Text>
+            <Text style={styles.reviewsPillLink}>Reviews</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Job details card */}
@@ -385,8 +399,19 @@ const styles = StyleSheet.create({
     textDecorationLine: 'underline',
   },
   linkIcon: { marginLeft: 2 },
-  ratingWrap: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  ratingText: { fontSize: 14, fontWeight: '600', color: APP_COLORS.textPrimary },
+  reviewsPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: APP_COLORS.surfaceGray,
+    borderWidth: 1,
+    borderColor: APP_COLORS.border,
+  },
+  reviewsPillText: { fontSize: 14, fontWeight: '800', color: APP_COLORS.textPrimary },
+  reviewsPillLink: { fontSize: 13, fontWeight: '700', color: APP_COLORS.link, marginLeft: 2 },
   card: {
     backgroundColor: APP_COLORS.surfaceGray,
     borderRadius: APP_SPACING.borderRadius,
@@ -448,5 +473,5 @@ const styles = StyleSheet.create({
     borderColor: APP_COLORS.primary,
   },
   editButtonText: { fontSize: 16, fontWeight: '600', color: APP_COLORS.primary },
-  bottomPadding: { height: 32 },
+  bottomPadding: { height: 48 },
 });

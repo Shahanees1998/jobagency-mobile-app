@@ -15,6 +15,7 @@ import {
     RefreshControl,
     StyleSheet,
     Text,
+    TextInput,
     TouchableOpacity,
     View,
 } from 'react-native';
@@ -427,6 +428,7 @@ function EmployerApplicationsScreen() {
   const [appHasMore, setAppHasMore] = useState(true);
   const loadingMoreRef = React.useRef(false);
   const [scheduleModalApp, setScheduleModalApp] = useState<any | null>(null);
+  const [statusModalApp, setStatusModalApp] = useState<any | null>(null);
   const [scheduleDate, setScheduleDate] = useState('');
   const [scheduleTime, setScheduleTime] = useState('');
   const [scheduleLocation, setScheduleLocation] = useState('');
@@ -604,24 +606,24 @@ function EmployerApplicationsScreen() {
       )}
       <View style={styles.actionButtons}>
         <TouchableOpacity
-          style={[styles.actionButton, { backgroundColor: '#6B7280' }]}
-          onPress={() => handleStatusUpdate(item.id, 'REVIEWING')}
+          style={[styles.actionButton, styles.actionButtonSecondary]}
+          onPress={() => setStatusModalApp(item)}
+          activeOpacity={0.85}
         >
-          <Text style={styles.actionButtonText}>Reviewing</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.actionButton, { backgroundColor: '#4CAF50' }]} onPress={() => handleStatusUpdate(item.id, 'APPROVED')}>
-          <Text style={styles.actionButtonText}>Approve</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={[styles.actionButton, { backgroundColor: '#F44336' }]} onPress={() => handleStatusUpdate(item.id, 'REJECTED')}>
-          <Text style={styles.actionButtonText}>Reject</Text>
+          <Text style={styles.actionButtonSecondaryText}>Change status ▾</Text>
         </TouchableOpacity>
         <TouchableOpacity
           style={[styles.actionButton, { backgroundColor: APP_COLORS.primaryDark }]}
           onPress={() => openScheduleModal(item)}
+          activeOpacity={0.85}
         >
           <Text style={styles.actionButtonText}>Schedule</Text>
         </TouchableOpacity>
-        <TouchableOpacity style={[styles.actionButton, { backgroundColor: APP_COLORS.primary }]} onPress={() => router.push(`/application-details/${item.id}`)}>
+        <TouchableOpacity
+          style={[styles.actionButton, { backgroundColor: APP_COLORS.primary }]}
+          onPress={() => router.push(`/application-details/${item.id}`)}
+          activeOpacity={0.85}
+        >
           <Text style={styles.actionButtonText}>View</Text>
         </TouchableOpacity>
       </View>
@@ -694,6 +696,71 @@ function EmployerApplicationsScreen() {
                 </View>
               }
             />
+
+            {/* Change status modal */}
+            <Modal visible={!!statusModalApp} transparent animationType="fade">
+              <Pressable style={styles.modalOverlay} onPress={() => setStatusModalApp(null)}>
+                <Pressable style={styles.statusModalCard} onPress={(e) => e.stopPropagation()}>
+                  <View style={styles.statusIconWrap}>
+                    <Ionicons name="swap-vertical" size={26} color={APP_COLORS.primary} />
+                  </View>
+                  <Text style={styles.statusModalTitle}>Update application status</Text>
+                  <Text style={styles.statusModalSubtitle}>
+                    Choose the next step for this candidate.
+                  </Text>
+
+                  <TouchableOpacity
+                    style={styles.statusOption}
+                    onPress={() => {
+                      if (statusModalApp) handleStatusUpdate(statusModalApp.id, 'REVIEWING');
+                      setStatusModalApp(null);
+                    }}
+                    activeOpacity={0.9}
+                  >
+                    <View style={[styles.statusPill, { backgroundColor: '#E5E7EB' }]}>
+                      <Text style={[styles.statusPillText, { color: '#374151' }]}>Reviewing</Text>
+                    </View>
+                    <Text style={styles.statusOptionText}>Keep for now while you review their profile.</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.statusOption}
+                    onPress={() => {
+                      if (statusModalApp) handleStatusUpdate(statusModalApp.id, 'APPROVED');
+                      setStatusModalApp(null);
+                    }}
+                    activeOpacity={0.9}
+                  >
+                    <View style={[styles.statusPill, { backgroundColor: '#DCFCE7' }]}>
+                      <Text style={[styles.statusPillText, { color: '#166534' }]}>Approve</Text>
+                    </View>
+                    <Text style={styles.statusOptionText}>Move this candidate forward in your process.</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.statusOption}
+                    onPress={() => {
+                      if (statusModalApp) handleStatusUpdate(statusModalApp.id, 'REJECTED');
+                      setStatusModalApp(null);
+                    }}
+                    activeOpacity={0.9}
+                  >
+                    <View style={[styles.statusPill, { backgroundColor: '#FEE2E2' }]}>
+                      <Text style={[styles.statusPillText, { color: '#B91C1C' }]}>Reject</Text>
+                    </View>
+                    <Text style={styles.statusOptionText}>Politely decline this application.</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.statusCancelBtn}
+                    onPress={() => setStatusModalApp(null)}
+                    activeOpacity={0.9}
+                  >
+                    <Text style={styles.statusCancelText}>Cancel</Text>
+                  </TouchableOpacity>
+                </Pressable>
+              </Pressable>
+            </Modal>
 
             {/* Schedule interview modal */}
             <Modal visible={!!scheduleModalApp} transparent animationType="fade">
@@ -1004,8 +1071,15 @@ const styles = StyleSheet.create({
   interviewLocationText: { flex: 1, fontSize: 12, color: APP_COLORS.textMuted },
   coverLetter: { fontSize: 14, marginTop: 8, color: APP_COLORS.textSecondary },
   actionButtons: { flexDirection: 'row', marginTop: 12, gap: 8 },
-  actionButton: { flex: 1, padding: 10, borderRadius: 6, alignItems: 'center' },
+  actionButton: { flex: 1, padding: 10, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   actionButtonText: { color: '#fff', fontSize: 14, fontWeight: '600' },
+  actionButtonSecondary: {
+    flex: 1.2,
+    backgroundColor: APP_COLORS.background,
+    borderWidth: 1,
+    borderColor: APP_COLORS.border,
+  },
+  actionButtonSecondaryText: { fontSize: 13, fontWeight: '700', color: APP_COLORS.textSecondary },
   jobFilter: { marginBottom: 16 },
   jobFilterItem: { paddingHorizontal: 16, paddingVertical: 8, borderRadius: 20, marginRight: 8, backgroundColor: APP_COLORS.surfaceGray },
   jobFilterItemActive: { backgroundColor: APP_COLORS.primary },
@@ -1047,4 +1121,44 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     textAlignVertical: 'top',
   },
+  statusModalCard: {
+    width: '100%',
+    maxWidth: 360,
+    backgroundColor: APP_COLORS.white,
+    borderRadius: APP_SPACING.borderRadiusLg,
+    paddingHorizontal: 24,
+    paddingTop: 24,
+    paddingBottom: 18,
+  },
+  statusIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 999,
+    backgroundColor: APP_COLORS.surfaceGray,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  statusModalTitle: { fontSize: 18, fontWeight: '700', color: APP_COLORS.textPrimary, marginBottom: 4 },
+  statusModalSubtitle: { fontSize: 14, color: APP_COLORS.textMuted, marginBottom: 12 },
+  statusOption: {
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: APP_COLORS.border,
+  },
+  statusPill: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    marginBottom: 4,
+  },
+  statusPillText: { fontSize: 12, fontWeight: '700' },
+  statusOptionText: { fontSize: 13, color: APP_COLORS.textSecondary },
+  statusCancelBtn: {
+    marginTop: 10,
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  statusCancelText: { fontSize: 14, fontWeight: '600', color: APP_COLORS.textSecondary },
 });
