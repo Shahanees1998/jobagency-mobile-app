@@ -262,14 +262,23 @@ class ApiClient {
     limit?: number;
     search?: string;
     category?: string;
-    employmentType?: string;
+    employmentType?: string | string[];
+    datePosted?: 'all' | '24h' | '3d' | '7d';
+    sortBy?: 'relevance' | 'date';
+    remote?: string[]; // on-site, remote, hybrid
   }): Promise<ApiResponse<{ jobs: any[]; total: number; page: number; limit: number }>> {
     const queryParams = new URLSearchParams();
     if (params?.page) queryParams.append('page', params.page.toString());
     if (params?.limit) queryParams.append('limit', params.limit.toString());
     if (params?.search) queryParams.append('search', params.search);
     if (params?.category) queryParams.append('category', params.category);
-    if (params?.employmentType) queryParams.append('employmentType', params.employmentType);
+    if (params?.employmentType) {
+      const v = Array.isArray(params.employmentType) ? params.employmentType.join(',') : params.employmentType;
+      queryParams.append('employmentType', v);
+    }
+    if (params?.datePosted) queryParams.append('datePosted', params.datePosted);
+    if (params?.sortBy) queryParams.append('sortBy', params.sortBy);
+    if (params?.remote?.length) queryParams.append('remote', params.remote.join(','));
 
     const query = queryParams.toString();
     return this.request(`/api/jobs${query ? `?${query}` : ''}`);
@@ -404,8 +413,15 @@ class ApiClient {
     });
   }
 
-  async getJobApplications(jobId: string): Promise<ApiResponse<any[]>> {
-    return this.request(`/api/employers/jobs/${jobId}/applications`);
+  async getJobApplications(
+    jobId: string,
+    params?: { page?: number; limit?: number }
+  ): Promise<ApiResponse<any>> {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    const query = queryParams.toString();
+    return this.request(`/api/employers/jobs/${jobId}/applications${query ? `?${query}` : ''}`);
   }
 
   async updateApplicationStatus(
@@ -527,8 +543,16 @@ class ApiClient {
   }
 
   // Chat APIs
-  async getChats(): Promise<ApiResponse<any[]>> {
-    return this.request('/api/chats');
+  async getChats(params?: { page?: number; limit?: number }): Promise<ApiResponse<any>> {
+    const queryParams = new URLSearchParams();
+    if (params?.page) queryParams.append('page', params.page.toString());
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    const query = queryParams.toString();
+    return this.request(`/api/chats${query ? `?${query}` : ''}`);
+  }
+
+  async getChatById(chatId: string): Promise<ApiResponse<any>> {
+    return this.request(`/api/chats/${chatId}`);
   }
 
   async getChatMessages(chatId: string, params?: {

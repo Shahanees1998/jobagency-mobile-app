@@ -43,22 +43,18 @@ export default function ChatDetailScreen() {
     if (!id) return;
     setLoading(true);
     try {
-      const [chatsRes, messagesRes] = await Promise.all([
-        apiClient.getChats(),
+      const [chatRes, messagesRes] = await Promise.all([
+        apiClient.getChatById(id),
         apiClient.getChatMessages(id, { page: 1, limit: 100 }),
       ]);
 
-      if (chatsRes.success && chatsRes.data && Array.isArray(chatsRes.data)) {
-        const chat = chatsRes.data.find((c: any) => c.id === id);
-        if (chat) {
-          const other = chat.application?.job?.employer ?? chat.otherParticipant ?? chat.application?.candidate;
-          const displayName = other?.companyName ?? [other?.user?.firstName, other?.user?.lastName].filter(Boolean).join(' ') ?? 'Chat';
-          const letter = (displayName || '?').charAt(0).toUpperCase();
-          const avatarImage = other?.user?.profileImage ?? other?.profileImage;
-          setChatInfo({ displayName, avatarLetter: letter, avatarImage });
-        } else {
-          setChatInfo({ displayName: 'Chat', avatarLetter: '?' });
-        }
+      if (chatRes.success && chatRes.data) {
+        const chat = chatRes.data as any;
+        const other = chat.application?.job?.employer ?? chat.otherParticipant ?? chat.application?.candidate;
+        const displayName = other?.companyName ?? [other?.user?.firstName, other?.user?.lastName].filter(Boolean).join(' ') ?? 'Chat';
+        const letter = (displayName || '?').charAt(0).toUpperCase();
+        const avatarImage = other?.user?.profileImage ?? other?.profileImage;
+        setChatInfo({ displayName, avatarLetter: letter, avatarImage });
       } else {
         setChatInfo({ displayName: 'Chat', avatarLetter: '?' });
       }

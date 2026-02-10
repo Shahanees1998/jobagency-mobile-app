@@ -21,30 +21,48 @@ export default function EmployerJobsScreen() {
   const [jobs, setJobs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const loadingMoreRef = React.useRef(false);
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
 
   useEffect(() => {
-    loadJobs();
+    loadJobs(1);
   }, []);
 
-  const loadJobs = async () => {
+  const loadJobs = async (pageNum = 1) => {
     try {
-      const response = await apiClient.getEmployerJobs();
+      if (pageNum > 1) loadingMoreRef.current = true;
+      const response = await apiClient.getEmployerJobs({ page: pageNum, limit: 20 });
       if (response.success && response.data) {
-        setJobs(response.data.jobs || []);
+        const raw = response.data as any;
+        const list = raw?.jobs || [];
+        if (pageNum === 1) setJobs(list);
+        else setJobs((prev) => [...prev, ...list]);
+        const totalPages = typeof raw?.totalPages === 'number' ? raw.totalPages : null;
+        setHasMore(totalPages ? pageNum < totalPages : list.length >= 20);
       }
     } catch (error) {
       console.error('Error loading jobs:', error);
     } finally {
       setLoading(false);
       setRefreshing(false);
+      loadingMoreRef.current = false;
     }
   };
 
   const onRefresh = () => {
     setRefreshing(true);
-    loadJobs();
+    setPage(1);
+    loadJobs(1);
+  };
+
+  const loadMore = () => {
+    if (loadingMoreRef.current || loading || !hasMore || jobs.length === 0) return;
+    const next = page + 1;
+    setPage(next);
+    loadJobs(next);
   };
 
   const getStatusColor = (status: string) => {
@@ -137,6 +155,19 @@ export default function EmployerJobsScreen() {
                 <Text style={styles.emptyButtonText}>Post New Job</Text>
               </TouchableOpacity>
             </View>
+          }
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.3}
+          ListFooterComponent={
+            hasMore && jobs.length > 0 ? (
+              <View style={{ paddingVertical: 14, alignItems: 'center' }}>
+                {loading && page > 1 ? (
+                  <ActivityIndicator size="small" color={APP_COLORS.primary} />
+                ) : (
+                  <Text style={{ color: APP_COLORS.textMuted, fontWeight: '600' }}>Pull up for more</Text>
+                )}
+              </View>
+            ) : null
           }
         />
       </View>

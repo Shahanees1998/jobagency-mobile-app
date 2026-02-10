@@ -26,28 +26,46 @@ export default function ChatsScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const loadingMoreRef = React.useRef(false);
 
   useEffect(() => {
-    loadChats();
+    loadChats(1);
   }, []);
 
-  const loadChats = async () => {
+  const loadChats = async (pageNum = 1) => {
     try {
-      const response = await apiClient.getChats();
+      if (pageNum > 1) loadingMoreRef.current = true;
+      const response = await apiClient.getChats({ page: pageNum, limit: 20 });
       if (response.success && response.data) {
-        setChats(response.data || []);
+        const raw = response.data as any;
+        const list = Array.isArray(raw?.chats) ? raw.chats : Array.isArray(raw) ? raw : [];
+        if (pageNum === 1) setChats(list);
+        else setChats((prev) => [...prev, ...list]);
+        const totalPages = typeof raw?.totalPages === 'number' ? raw.totalPages : null;
+        setHasMore(totalPages ? pageNum < totalPages : list.length >= 20);
       }
     } catch (error) {
       console.error('Error loading chats:', error);
     } finally {
       setLoading(false);
       setRefreshing(false);
+      loadingMoreRef.current = false;
     }
   };
 
   const onRefresh = () => {
     setRefreshing(true);
-    loadChats();
+    setPage(1);
+    loadChats(1);
+  };
+
+  const loadMore = () => {
+    if (loadingMoreRef.current || loading || !hasMore || chats.length === 0) return;
+    const next = page + 1;
+    setPage(next);
+    loadChats(next);
   };
 
   const getOtherParticipant = (chat: any) => {
@@ -199,6 +217,19 @@ export default function ChatsScreen() {
               contentContainerStyle={styles.list}
               refreshControl={
                 <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={APP_COLORS.primary} />
+              }
+              onEndReached={loadMore}
+              onEndReachedThreshold={0.3}
+              ListFooterComponent={
+                hasMore && chats.length > 0 ? (
+                  <View style={{ paddingVertical: 14, alignItems: 'center' }}>
+                    {loading && page > 1 ? (
+                      <ActivityIndicator size="small" color={APP_COLORS.primary} />
+                    ) : (
+                      <Text style={{ color: APP_COLORS.textMuted, fontWeight: '600' }}>Pull up for more</Text>
+                    )}
+                  </View>
+                ) : null
               }
               ListEmptyComponent={
                 searchQuery.trim() ? (

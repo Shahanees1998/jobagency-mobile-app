@@ -32,6 +32,9 @@ function CandidateMyJobsScreen() {
   const [applications, setApplications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const loadingMoreRef = React.useRef(false);
   const [withdrawModalApp, setWithdrawModalApp] = useState<any | null>(null);
   const [interviewDetailsVisible, setInterviewDetailsVisible] = useState(false);
   const [selectedInterviewDetails, setSelectedInterviewDetails] = useState<{
@@ -40,7 +43,10 @@ function CandidateMyJobsScreen() {
     location: string;
   } | null>(null);
 
-  const interviews = applications.filter((a) => (a.status || '').toUpperCase() === 'INTERVIEW');
+  const interviews = applications.filter((a) => {
+    const s = String(a?.status || '').toUpperCase();
+    return s === 'INTERVIEW_SCHEDULED' || s === 'INTERVIEW_COMPLETED' || a?.interviewScheduled || a?.interviewDate;
+  });
   const savedCount = savedJobs.length;
   const appliedCount = applications.length;
   const interviewsCount = interviews.length;
@@ -50,24 +56,30 @@ function CandidateMyJobsScreen() {
     setSavedJobs(jobs);
   }, []);
 
-  const loadApplications = useCallback(async () => {
+  const loadApplications = useCallback(async (pageNum = 1) => {
     try {
-      const response = await apiClient.getMyApplications({ page: 1, limit: 100 });
+      if (pageNum > 1) loadingMoreRef.current = true;
+      const response = await apiClient.getMyApplications({ page: pageNum, limit: 20 });
       if (response.success && response.data) {
-        const list = Array.isArray(response.data) ? response.data : response.data?.applications ?? [];
-        setApplications(list);
+        const raw = response.data as any;
+        const list = Array.isArray(raw) ? raw : raw?.applications ?? [];
+        if (pageNum === 1) setApplications(list);
+        else setApplications((prev) => [...prev, ...list]);
+        const totalPages = typeof raw?.totalPages === 'number' ? raw.totalPages : null;
+        setHasMore(totalPages ? pageNum < totalPages : list.length >= 20);
       } else {
-        setApplications([]);
+        if (pageNum === 1) setApplications([]);
       }
     } catch {
-      setApplications([]);
+      if (pageNum === 1) setApplications([]);
     }
   }, []);
 
   const loadAll = useCallback(async () => {
     setLoading(true);
     try {
-      await Promise.all([loadSavedJobs(), loadApplications()]);
+      setPage(1);
+      await Promise.all([loadSavedJobs(), loadApplications(1)]);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -81,6 +93,14 @@ function CandidateMyJobsScreen() {
   const onRefresh = () => {
     setRefreshing(true);
     loadAll();
+  };
+
+  const loadMore = () => {
+    if (activeTab === 'saved') return;
+    if (loadingMoreRef.current || loading || !hasMore || applications.length === 0) return;
+    const next = page + 1;
+    setPage(next);
+    loadApplications(next);
   };
 
   const handleUnsave = useCallback(async (jobId: string) => {
@@ -121,10 +141,13 @@ function CandidateMyJobsScreen() {
 
   const openInterviewDetails = (app: any) => {
     const job = app.job || app;
+    const dt = app.interviewDate ? new Date(app.interviewDate) : null;
+    const date = dt ? dt.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' }) : (job.interviewDate || '');
+    const time = dt ? dt.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' }) : (job.interviewTime || '');
     setSelectedInterviewDetails({
-      date: app.interviewDate || job.interviewDate || '05/02/2026',
-      time: app.interviewTime || job.interviewTime || '12:00 PM',
-      location: app.interviewLocation || job.interviewLocation || 'Office 12, 30 Hudson Street, Jersey city, NJ, 07302',
+      date: date || '—',
+      time: time || '—',
+      location: app.interviewLocation || job.interviewLocation || '—',
     });
     setInterviewDetailsVisible(true);
   };
@@ -156,7 +179,8 @@ function CandidateMyJobsScreen() {
 
   const renderApplicationJob = ({ item }: { item: any }) => {
     const card = applicationToCard(item);
-    const isInterview = ((item.status || '').toUpperCase() === 'INTERVIEW');
+    const s = String(item?.status || '').toUpperCase();
+    const isInterview = s === 'INTERVIEW_SCHEDULED' || s === 'INTERVIEW_COMPLETED' || item?.interviewScheduled || item?.interviewDate;
     return (
       <View style={styles.appliedCardWrap}>
         <TouchableOpacity
@@ -183,6 +207,16 @@ function CandidateMyJobsScreen() {
               <Text style={styles.location} numberOfLines={1}>{card.location}</Text>
             </View>
           </View>
+          {isInterview && (
+            <TouchableOpacity
+              style={styles.interviewInlineBtn}
+              onPress={(e) => { e.stopPropagation(); openInterviewDetails(item); }}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="calendar-outline" size={16} color={APP_COLORS.primaryDark} style={{ marginRight: 8 }} />
+              <Text style={styles.interviewInlineBtnText}>Interview details</Text>
+            </TouchableOpacity>
+          )}
           {card.benefits && card.benefits.length > 0 && (
             <View style={styles.tags}>
               {card.benefits.slice(0, 5).map((b: string, i: number) => (
@@ -309,6 +343,19 @@ function CandidateMyJobsScreen() {
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={APP_COLORS.primary} />
           }
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.3}
+          ListFooterComponent={
+            activeTab !== 'saved' && hasMore && currentList.length > 0 ? (
+              <View style={{ paddingVertical: 14, alignItems: 'center' }}>
+                {loading && page > 1 ? (
+                  <ActivityIndicator size="small" color={APP_COLORS.primary} />
+                ) : (
+                  <Text style={{ color: APP_COLORS.textMuted, fontWeight: '600' }}>Pull up for more</Text>
+                )}
+              </View>
+            ) : null
+          }
           ListEmptyComponent={emptyComponent}
         />
 
@@ -376,6 +423,9 @@ function EmployerApplicationsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [selectedJob, setSelectedJob] = useState<string | null>(null);
   const [jobs, setJobs] = useState<any[]>([]);
+  const [appPage, setAppPage] = useState(1);
+  const [appHasMore, setAppHasMore] = useState(true);
+  const loadingMoreRef = React.useRef(false);
   const [scheduleModalApp, setScheduleModalApp] = useState<any | null>(null);
   const [scheduleDate, setScheduleDate] = useState('');
   const [scheduleTime, setScheduleTime] = useState('');
@@ -387,7 +437,10 @@ function EmployerApplicationsScreen() {
   }, []);
 
   useEffect(() => {
-    if (selectedJob) loadApplications(selectedJob);
+    if (selectedJob) {
+      setAppPage(1);
+      loadApplications(selectedJob, 1);
+    }
   }, [selectedJob]);
 
   const loadJobs = async () => {
@@ -403,22 +456,42 @@ function EmployerApplicationsScreen() {
     }
   };
 
-  const loadApplications = async (jobId: string) => {
+  const loadApplications = async (jobId: string, pageNum = 1) => {
     setLoading(true);
     try {
-      const response = await apiClient.getJobApplications(jobId);
-      if (response.success && response.data) setApplications(response.data || []);
+      if (pageNum > 1) loadingMoreRef.current = true;
+      const response = await apiClient.getJobApplications(jobId, { page: pageNum, limit: 20 });
+      if (response.success && response.data) {
+        const raw = response.data as any;
+        const list = Array.isArray(raw) ? raw : raw?.applications ?? [];
+        if (pageNum === 1) setApplications(list);
+        else setApplications((prev) => [...prev, ...list]);
+        const totalPages = typeof raw?.totalPages === 'number' ? raw.totalPages : null;
+        setAppHasMore(totalPages ? pageNum < totalPages : list.length >= 20);
+      }
     } catch (error) {
       console.error('Error loading applications:', error);
     } finally {
       setLoading(false);
       setRefreshing(false);
+      loadingMoreRef.current = false;
     }
   };
 
   const onRefresh = () => {
     setRefreshing(true);
-    if (selectedJob) loadApplications(selectedJob);
+    if (selectedJob) {
+      setAppPage(1);
+      loadApplications(selectedJob, 1);
+    }
+  };
+
+  const loadMore = () => {
+    if (!selectedJob) return;
+    if (loadingMoreRef.current || loading || !appHasMore || applications.length === 0) return;
+    const next = appPage + 1;
+    setAppPage(next);
+    loadApplications(selectedJob, next);
   };
 
   const handleStatusUpdate = async (applicationId: string, status: string) => {
@@ -602,6 +675,19 @@ function EmployerApplicationsScreen() {
               keyExtractor={(item) => item.id}
               contentContainerStyle={styles.list}
               refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={APP_COLORS.primary} />}
+              onEndReached={loadMore}
+              onEndReachedThreshold={0.3}
+              ListFooterComponent={
+                appHasMore && applications.length > 0 ? (
+                  <View style={{ paddingVertical: 14, alignItems: 'center' }}>
+                    {loading && appPage > 1 ? (
+                      <ActivityIndicator size="small" color={APP_COLORS.primary} />
+                    ) : (
+                      <Text style={{ color: APP_COLORS.textMuted, fontWeight: '600' }}>Pull up for more</Text>
+                    )}
+                  </View>
+                ) : null
+              }
               ListEmptyComponent={
                 <View style={styles.emptyContainer}>
                   <Text style={styles.emptyText}>No applications for this job</Text>
@@ -758,6 +844,19 @@ const styles = StyleSheet.create({
   tags: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   tag: { backgroundColor: APP_COLORS.surfaceGray, paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8 },
   tagText: { fontSize: 12, color: APP_COLORS.textSecondary, fontWeight: '500', maxWidth: 120 },
+  interviewInlineBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 999,
+    backgroundColor: 'rgba(13,148,136,0.10)',
+    borderWidth: 1,
+    borderColor: 'rgba(13,148,136,0.22)',
+    marginBottom: 10,
+  },
+  interviewInlineBtnText: { fontSize: 13, fontWeight: '700', color: APP_COLORS.primaryDark },
   appliedCardActions: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginTop: 12, paddingHorizontal: 4 },
   interviewDetailsBtn: {
     backgroundColor: APP_COLORS.primary,

@@ -77,13 +77,16 @@ function CandidateJobsScreen() {
       loadingMoreRef.current = true;
       setLoading(true);
     }
-    const employmentType = f?.jobType?.length === 1 ? f.jobType[0] : undefined;
+    const employmentType = f?.jobType?.length ? f.jobType : undefined;
     try {
       const response = await apiClient.getJobs({
         page: pageNum,
         limit: 20,
         search: search || undefined,
         employmentType,
+        datePosted: (f?.datePosted ?? 'all') as any,
+        sortBy: (f?.sortBy ?? 'relevance') as any,
+        remote: Array.isArray(f?.remote) ? f!.remote : undefined,
       });
       console.log('[Home] getJobs response:', response.success, 'data keys:', response.data ? Object.keys(response.data as object) : null);
 
