@@ -307,14 +307,13 @@ export default function JobDetailsScreen() {
         )}
 
         {user?.role === 'EMPLOYER' && id && (
-          <View style={styles.employerActions}>
-            <TouchableOpacity style={styles.applyButton} onPress={() => router.push('/(tabs)/applications')} activeOpacity={0.85}>
-              <Text style={styles.applyButtonText}>View Applications</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.editButton} onPress={() => router.push(`/edit-job/${id}`)} activeOpacity={0.85}>
-              <Text style={styles.editButtonText}>Edit Job</Text>
-            </TouchableOpacity>
-          </View>
+          <TouchableOpacity
+            style={styles.applyButton}
+            onPress={() => router.push(`/view-candidates/${id}`)}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.applyButtonText}>View candidates apply.</Text>
+          </TouchableOpacity>
         )}
 
         <View style={styles.bottomPadding} />
@@ -464,14 +463,5 @@ const styles = StyleSheet.create({
   },
   alreadyAppliedIcon: { marginRight: 8 },
   alreadyAppliedText: { fontSize: 16, fontWeight: '600', color: APP_COLORS.textMuted },
-  employerActions: { gap: 12, marginTop: 8 },
-  editButton: {
-    paddingVertical: 16,
-    borderRadius: APP_SPACING.borderRadius,
-    alignItems: 'center',
-    borderWidth: 2,
-    borderColor: APP_COLORS.primary,
-  },
-  editButtonText: { fontSize: 16, fontWeight: '600', color: APP_COLORS.primary },
   bottomPadding: { height: 48 },
 });

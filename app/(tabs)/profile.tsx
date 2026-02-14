@@ -4,7 +4,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useDialog } from '@/contexts/DialogContext';
 import { apiClient } from '@/lib/api';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
@@ -128,24 +127,48 @@ function CandidateProfileScreen() {
   };
 
   const handleImagePick = async () => {
-    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!permissionResult.granted) {
+    try {
+      let ImagePicker: typeof import('expo-image-picker');
+      try {
+        ImagePicker = await import('expo-image-picker');
+      } catch (e) {
+        console.warn('[Profile] ImagePicker module failed to load:', e);
+        showDialog({
+          title: 'Unavailable',
+          message: 'Photo picker is not available in this app build.',
+          primaryButton: { text: 'OK' },
+        });
+        return;
+      }
+
+      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!permissionResult.granted) {
+        showDialog({
+          title: 'Permission required',
+          message: 'Please grant permission to access photos',
+          primaryButton: { text: 'OK' },
+        });
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+
+      if (!result.canceled && result.assets?.[0]) {
+        const asset = result.assets[0];
+        await uploadProfileImage(asset.uri, asset.mimeType || 'image/jpeg');
+      }
+    } catch (error) {
+      console.error('[Profile] handleImagePick error:', error);
       showDialog({
-        title: 'Permission required',
-        message: 'Please grant permission to access photos',
+        title: 'Error',
+        message: 'Could not open photo picker. Please try again.',
         primaryButton: { text: 'OK' },
       });
-      return;
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [1, 1],
-      quality: 0.8,
-    });
-    if (!result.canceled && result.assets[0]) {
-      const asset = result.assets[0];
-      await uploadProfileImage(asset.uri, asset.mimeType || 'image/jpeg');
     }
   };
 
@@ -271,6 +294,7 @@ function CandidateProfileScreen() {
 
 function EmployerProfileScreen() {
   const { user, logout } = useAuth();
+  const { showDialog } = useDialog();
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [logoutModalVisible, setLogoutModalVisible] = useState(false);
@@ -311,24 +335,16 @@ function EmployerProfileScreen() {
     ? (`${user.firstName || ''} ${user.lastName || ''}`.trim() || 'User')
     : 'User';
 
+  const companyDetailsUpdated = profile?.updatedAt
+    ? new Date(profile.updatedAt).toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' })
+    : 'Feb 01, 2026';
+
   return (
     <>
       <SafeAreaView style={styles.safe} edges={['top']}>
         <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-          {/* Company banner preview */}
-          <View style={styles.employerBannerWrap}>
-            {profile?.companyBanner ? (
-              <Image source={{ uri: profile.companyBanner }} style={styles.employerBannerImage} />
-            ) : (
-              <View style={styles.employerBannerPlaceholder}>
-                <Ionicons name="image-outline" size={22} color={APP_COLORS.textMuted} />
-                <Text style={styles.employerBannerPlaceholderText}>Add a company banner</Text>
-              </View>
-            )}
-          </View>
-
           <View style={styles.header}>
-            <View style={styles.avatarWrap}>
+            <View style={styles.employerAvatarWrap}>
               {user?.profileImage ? (
                 <Image source={{ uri: user.profileImage }} style={styles.avatar} />
               ) : (
@@ -337,27 +353,14 @@ function EmployerProfileScreen() {
                 </View>
               )}
             </View>
-
-            {/* Company logo preview */}
-            <View style={styles.companyLogoPreviewWrap}>
-              {profile?.companyLogo ? (
-                <Image source={{ uri: profile.companyLogo }} style={styles.companyLogoPreview} />
-              ) : (
-                <View style={styles.companyLogoPreviewPlaceholder}>
-                  <Ionicons name="business-outline" size={22} color={APP_COLORS.textMuted} />
-                </View>
-              )}
-            </View>
             <Text style={styles.name}>{displayName}</Text>
             <Text style={styles.email}>{user?.email ?? ''}</Text>
-            {profile?.companyName ? (
-              <Text style={styles.companyName}>{profile.companyName}</Text>
-            ) : null}
           </View>
           <View style={styles.menuBlock}>
             <MenuRow
-              icon="person-outline"
-              label="Profile"
+              icon="business-outline"
+              label="Company details"
+              subtitle={`Updated ${companyDetailsUpdated}`}
               onPress={() => router.push('/edit-employer-profile')}
             />
             <MenuRow
@@ -366,14 +369,25 @@ function EmployerProfileScreen() {
               onPress={() => router.push('/change-password')}
             />
             <MenuRow
+              icon="star-outline"
+              label="My reviews"
+              onPress={() => router.push('/my-reviews')}
+            />
+            <MenuRow
               icon="document-text-outline"
               label="Policies & terms"
               onPress={() => router.push('/policies-terms')}
             />
             <MenuRow
-              icon="help-buoy-outline"
-              label="Support"
-              onPress={() => router.push('/support')}
+              icon="trash-outline"
+              label="Delete account"
+              onPress={() =>
+                showDialog({
+                  title: 'Delete account',
+                  message: 'Contact support to delete your account.',
+                  primaryButton: { text: 'OK' },
+                })
+              }
             />
             <MenuRow
               icon="log-out-outline"
@@ -453,6 +467,15 @@ const styles = StyleSheet.create({
     borderRadius: 44,
     overflow: 'hidden',
     marginBottom: 12,
+  },
+  employerAvatarWrap: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    overflow: 'hidden',
+    marginBottom: 12,
+    borderWidth: 2,
+    borderColor: APP_COLORS.primary,
   },
   companyLogoPreviewWrap: {
     width: 72,

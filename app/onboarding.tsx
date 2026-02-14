@@ -17,6 +17,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const ONBOARDING_BG_TOP = '#E8F4FC';
 const SLIDE_WIDTH = SCREEN_WIDTH;
+const IMAGE_HORIZONTAL_MARGIN = 32;
+const IMAGE_MAX_WIDTH = SCREEN_WIDTH - IMAGE_HORIZONTAL_MARGIN * 2;
+const HIGHLIGHT_BLUE = '#2563EB';
 
 type SlideItem = {
   key: string;
@@ -195,7 +198,9 @@ export default function OnboardingScreen() {
         renderItem={({ item }) => (
           <View style={styles.slide}>
             <View style={styles.topSection}>
-              {SlideIllustration(item.illustration, item.bannerImage)}
+              <View style={styles.imageContainer}>
+                {SlideIllustration(item.illustration, item.bannerImage)}
+              </View>
             </View>
             <View style={styles.bottomSection}>
               {renderTitle(item.title, item.boldPart)}
@@ -236,91 +241,119 @@ export default function OnboardingScreen() {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F9FAFB',
   },
   slide: {
     width: SLIDE_WIDTH,
     flex: 1,
   },
   topSection: {
-    height: '38%',
-    backgroundColor: ONBOARDING_BG_TOP,
+    height: '42%',
+    backgroundColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
+    paddingHorizontal: IMAGE_HORIZONTAL_MARGIN,
+  },
+  imageContainer: {
+    width: '100%',
+    maxWidth: IMAGE_MAX_WIDTH,
+    flex: 1,
+    backgroundColor: ONBOARDING_BG_TOP,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
   },
   bannerImage: {
     width: '100%',
     height: '100%',
+    borderRadius: 16,
   },
   bottomSection: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F9FAFB',
     paddingHorizontal: 28,
     paddingTop: 32,
+    alignItems: 'center',
   },
   heading: {
     fontSize: 26,
-    fontWeight: '600',
+    fontWeight: '700',
     color: APP_COLORS.textPrimary,
     lineHeight: 34,
     marginBottom: 16,
+    textAlign: 'center',
   },
   headingBold: {
     fontWeight: '700',
+    color: HIGHLIGHT_BLUE,
   },
   body: {
     fontSize: 15,
-    color: APP_COLORS.textMuted,
+    color: APP_COLORS.textSecondary,
     lineHeight: 22,
+    textAlign: 'center',
   },
   footer: {
     paddingHorizontal: 24,
     paddingBottom: 40,
     paddingTop: 24,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#F9FAFB',
   },
   dots: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 28,
-    gap: 8,
+    gap: 10,
   },
   dot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1.5,
+    borderColor: APP_COLORS.primary,
   },
   dotActive: {
-    width: 24,
+    width: 28,
+    height: 8,
     borderRadius: 4,
     backgroundColor: APP_COLORS.primary,
+    borderWidth: 0,
   },
   buttons: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
+    alignItems: 'stretch',
+    gap: 12,
+    width: '100%',
   },
   skipBtn: {
+    flex: 1,
     paddingVertical: 16,
-    paddingHorizontal: 24,
-    backgroundColor: APP_COLORS.surfaceGray,
+    paddingHorizontal: 16,
+    backgroundColor: '#FFFFFF',
     borderRadius: 12,
-    minWidth: 100,
+    borderWidth: 1.5,
+    borderColor: APP_COLORS.primary,
     alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 0,
   },
   skipText: {
     fontSize: 16,
     fontWeight: '600',
-    color: APP_COLORS.textSecondary,
+    color: APP_COLORS.primary,
   },
   nextBtn: {
     flex: 1,
     paddingVertical: 16,
+    paddingHorizontal: 16,
     borderRadius: 12,
     backgroundColor: APP_COLORS.primary,
     alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 0,
   },
   nextBtnFull: {
     flex: 1,

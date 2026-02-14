@@ -8,7 +8,6 @@ import { apiClient } from '@/lib/api';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
-import * as ImagePicker from 'expo-image-picker';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { APP_COLORS } from '@/constants/appTheme';
@@ -64,18 +63,39 @@ export default function EditEmployerProfileScreen() {
   };
 
   const pickImage = async () => {
-    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (perm.status !== 'granted') {
-      showDialog({ title: 'Permission needed', message: 'Allow photo access to upload images.', primaryButton: { text: 'OK' } });
+    try {
+      let ImagePicker: typeof import('expo-image-picker');
+      try {
+        ImagePicker = await import('expo-image-picker');
+      } catch (e) {
+        console.warn('[EditEmployerProfile] ImagePicker module failed to load:', e);
+        showDialog({
+          title: 'Unavailable',
+          message: 'Photo picker is not available in this app build.',
+          primaryButton: { text: 'OK' },
+        });
+        return null;
+      }
+
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (perm.status !== 'granted') {
+        showDialog({ title: 'Permission needed', message: 'Allow photo access to upload images.', primaryButton: { text: 'OK' } });
+        return null;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        quality: 0.85,
+      });
+
+      const asset = !result.canceled ? result.assets?.[0] : undefined;
+      return asset ?? null;
+    } catch (error) {
+      console.error('[EditEmployerProfile] pickImage error:', error);
+      showDialog({ title: 'Error', message: 'Could not open photo picker. Please try again.', primaryButton: { text: 'OK' } });
       return null;
     }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      quality: 0.85,
-    });
-    if (result.canceled || !result.assets[0]) return null;
-    return result.assets[0];
   };
 
   const handleUploadLogo = async () => {

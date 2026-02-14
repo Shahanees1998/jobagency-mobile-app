@@ -372,6 +372,7 @@ class ApiClient {
     salaryRange?: string;
     employmentType: string;
     category?: string;
+    benefits?: string[];
   }): Promise<ApiResponse<any>> {
     return this.request('/api/employers/jobs', {
       method: 'POST',
@@ -383,11 +384,13 @@ class ApiClient {
     page?: number;
     limit?: number;
     status?: string;
+    search?: string;
   }): Promise<ApiResponse<any>> {
     const queryParams = new URLSearchParams();
     if (params?.page) queryParams.append('page', params.page.toString());
     if (params?.limit) queryParams.append('limit', params.limit.toString());
     if (params?.status) queryParams.append('status', params.status);
+    if (params?.search) queryParams.append('search', params.search);
 
     const query = queryParams.toString();
     return this.request(`/api/employers/jobs${query ? `?${query}` : ''}`);
@@ -404,6 +407,7 @@ class ApiClient {
       salaryRange?: string;
       employmentType?: string;
       category?: string;
+      benefits?: string[];
       status?: 'CLOSED';
     }
   ): Promise<ApiResponse<any>> {

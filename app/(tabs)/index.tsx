@@ -1,6 +1,7 @@
-import { JobCard, SearchBar } from '@/components/jobs';
+import { EmployerJobCard, JobCard, SearchBar } from '@/components/jobs';
 import { APP_COLORS, APP_SPACING } from '@/constants/appTheme';
 import { useAuth } from '@/contexts/AuthContext';
+import { useDialog } from '@/contexts/DialogContext';
 import { apiClient } from '@/lib/api';
 import { storage, type JobFilters } from '@/lib/storage';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -293,35 +294,78 @@ function CandidateJobsScreen() {
 }
 
 function EmployerDashboardScreen() {
-  const [stats, setStats] = useState({
-    totalJobs: 0,
-    activeJobs: 0,
-    totalApplications: 0,
-    pendingApplications: 0,
-  });
+  const { user } = useAuth();
+  const { showDialog } = useDialog();
+  const [jobs, setJobs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [companyName, setCompanyName] = useState('');
 
-  useEffect(() => {
-    (async () => {
-      try {
-        const jobsRes = await apiClient.getEmployerJobs();
-        const jobs = jobsRes.success && jobsRes.data ? jobsRes.data.jobs || [] : [];
-        const totalApplications = jobs.reduce((sum: number, j: any) => sum + (j.applicationCount || 0), 0);
-        setStats({
-          totalJobs: jobs.length,
-          activeJobs: jobs.filter((j: any) => j.status === 'APPROVED').length,
-          totalApplications,
-          pendingApplications: totalApplications,
-        });
-      } catch (e) {
-        console.error(e);
-      } finally {
-        setLoading(false);
+  const firstName = user?.firstName || 'there';
+
+  const loadJobs = useCallback(async (search = '') => {
+    try {
+      const response = await apiClient.getEmployerJobs({ page: 1, limit: 50, search: search || undefined });
+      if (response.success && response.data) {
+        const raw = response.data as any;
+        setJobs(Array.isArray(raw?.jobs) ? raw.jobs : []);
       }
-    })();
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
   }, []);
 
-  if (loading) {
+  const loadEmployerProfile = useCallback(async () => {
+    try {
+      const res = await apiClient.getEmployerProfile();
+      if (res.success && res.data) {
+        const d = res.data as any;
+        setCompanyName(d.companyName || '');
+      }
+    } catch (_) {}
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadEmployerProfile();
+      setLoading(true);
+      loadJobs(searchQuery);
+    }, [loadJobs, searchQuery, loadEmployerProfile])
+  );
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    loadJobs(searchQuery);
+  }, [searchQuery, loadJobs]);
+
+  const handleSearch = useCallback((q: string) => {
+    setSearchQuery(q);
+    setLoading(true);
+    loadJobs(q);
+  }, [loadJobs]);
+
+  const handleDeleteJob = useCallback((item: any) => {
+    showDialog({
+      title: 'Delete job',
+      message: `Are you sure you want to delete "${item.title}"? This cannot be undone.`,
+      primaryButton: { text: 'Yes, Delete', onPress: async () => {
+        try {
+          const res = await apiClient.updateJob(item.id, { status: 'CLOSED' });
+          if (res.success) setJobs((prev) => prev.filter((j) => j.id !== item.id));
+          else showDialog({ title: 'Error', message: res.error || 'Failed to delete', primaryButton: { text: 'OK' } });
+        } catch (e: any) {
+          showDialog({ title: 'Error', message: e?.message || 'Failed to delete', primaryButton: { text: 'OK' } });
+        }
+      } },
+      secondaryButton: { text: 'Cancel' },
+    });
+  }, [showDialog]);
+
+  if (loading && jobs.length === 0) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
         <View style={styles.loadingContainer}>
@@ -333,34 +377,63 @@ function EmployerDashboardScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <View style={[styles.container, { paddingBottom: 24 }]}>
-        <Text style={styles.dashboardTitle}>Dashboard</Text>
-        <View style={styles.statsGrid}>
-          <View style={styles.statCard}>
-            <Text style={styles.statValue}>{stats.totalJobs}</Text>
-            <Text style={styles.statLabel}>Total Jobs</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statValue}>{stats.activeJobs}</Text>
-            <Text style={styles.statLabel}>Active Jobs</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statValue}>{stats.totalApplications}</Text>
-            <Text style={styles.statLabel}>Applications</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statValue}>{stats.pendingApplications}</Text>
-            <Text style={styles.statLabel}>Pending</Text>
+      <View style={styles.container}>
+        <View style={styles.header}>
+          <View style={styles.greetingBlock}>
+            <Text style={styles.greeting}>Hi, {firstName}</Text>
+            <Text style={styles.subGreeting}>Power up your job posting.</Text>
           </View>
         </View>
-        <TouchableOpacity
-          style={styles.createJobBtn}
-          onPress={() => router.push('/post-job')}
-          activeOpacity={0.85}
-        >
-          <Ionicons name="add-circle" size={24} color={APP_COLORS.white} />
-          <Text style={styles.createJobBtnText}>Post New Job</Text>
-        </TouchableOpacity>
+        <View style={styles.searchWrap}>
+          <SearchBar
+            value={searchQuery}
+            onChangeText={handleSearch}
+            placeholder="Search jobs you posted..."
+            returnKeyType="search"
+          />
+        </View>
+        {jobs.length === 0 ? (
+          <View style={styles.employerEmpty}>
+            <View style={styles.employerEmptyIconWrap}>
+              <Ionicons name="paper-plane-outline" size={64} color={APP_COLORS.primary} />
+            </View>
+            <Text style={styles.employerEmptyTitle}>Start hiring with your first job post !!</Text>
+            <Text style={styles.employerEmptySubtext}>
+              Post a job to reach qualified candidates. You can edit or close it anytime.
+            </Text>
+            <TouchableOpacity
+              style={styles.createJobBtn}
+              onPress={() => router.push('/post-job')}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.createJobBtnText}>Post your first job</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <>
+            <Text style={styles.sectionTitle}>Posted Jobs</Text>
+            <FlatList
+              data={jobs}
+              keyExtractor={(item) => item.id}
+              contentContainerStyle={styles.list}
+              refreshControl={
+                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={APP_COLORS.primary} />
+              }
+              renderItem={({ item }) => (
+                <EmployerJobCard
+                  title={item.title}
+                  companyName={companyName || 'Company'}
+                  location={item.location || '—'}
+                  benefits={item.benefits || []}
+                  companyLogoLetter={companyName?.charAt(0)}
+                  onPress={() => router.push(`/job-details/${item.id}`)}
+                  onEdit={() => router.push(`/edit-job/${item.id}`)}
+                  onDelete={() => handleDeleteJob(item)}
+                />
+              )}
+            />
+          </>
+        )}
       </View>
     </SafeAreaView>
   );
@@ -458,44 +531,44 @@ const styles = StyleSheet.create({
     color: APP_COLORS.textMuted,
     marginTop: 8,
   },
-  dashboardTitle: {
-    fontSize: 26,
+  employerEmpty: {
+    flex: 1,
+    paddingVertical: 48,
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  employerEmptyIconWrap: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: APP_COLORS.surfaceGray,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
+    borderWidth: 2,
+    borderColor: APP_COLORS.primary,
+  },
+  employerEmptyTitle: {
+    fontSize: 18,
     fontWeight: '700',
     color: APP_COLORS.textPrimary,
-    marginBottom: 24,
+    textAlign: 'center',
+    marginBottom: 12,
   },
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'space-between',
-    marginBottom: 24,
-  },
-  statCard: {
-    width: '48%',
-    backgroundColor: APP_COLORS.surfaceGray,
-    padding: APP_SPACING.itemPadding,
-    borderRadius: APP_SPACING.borderRadius,
-    marginBottom: 16,
-    alignItems: 'center',
-  },
-  statValue: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: APP_COLORS.primary,
-    marginBottom: 4,
-  },
-  statLabel: {
+  employerEmptySubtext: {
     fontSize: 14,
     color: APP_COLORS.textSecondary,
+    textAlign: 'center',
+    marginBottom: 28,
+    lineHeight: 20,
   },
   createJobBtn: {
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: APP_COLORS.primary,
     paddingVertical: 16,
+    paddingHorizontal: 32,
     borderRadius: APP_SPACING.borderRadius,
-    gap: 8,
   },
   createJobBtnText: {
     color: APP_COLORS.white,

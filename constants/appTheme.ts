@@ -2,8 +2,8 @@
  * App-wide design tokens – matches job portal UI (dark teal primary, light gray surfaces).
  */
 export const APP_COLORS = {
-  primary: '#1E4A6F',
-  primaryDark: '#163a5c',
+  primary: '#1e3a5f',
+  primaryDark: '#152a47',
   white: '#FFFFFF',
   background: '#FFFFFF',
   surface: '#F9FAFB',
@@ -12,7 +12,7 @@ export const APP_COLORS = {
   textPrimary: '#111827',
   textSecondary: '#374151',
   textMuted: '#6B7280',
-  link: '#3B82F6',
+  link: '##000000',
   danger: '#DC2626',
   success: '#059669',
   avatarBg: '#93C5FD',

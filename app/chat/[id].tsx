@@ -12,7 +12,6 @@ import {
   Text,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
-import * as ImagePicker from 'expo-image-picker';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDialog } from '@/contexts/DialogContext';
 import { apiClient } from '@/lib/api';
@@ -22,6 +21,32 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 
 const BUBBLE_MAX_WIDTH = '75%';
 const OTHER_AVATAR_SIZE = 28;
+
+function parseDateSafe(value: any) {
+  const d = new Date(value);
+  return Number.isFinite(d.getTime()) ? d : null;
+}
+
+function formatTimeSafe(d: Date) {
+  try {
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  } catch {
+    const hh = String(d.getHours()).padStart(2, '0');
+    const mm = String(d.getMinutes()).padStart(2, '0');
+    return `${hh}:${mm}`;
+  }
+}
+
+function formatDateLabelSafe(d: Date) {
+  try {
+    return d.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+  } catch {
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const dd = String(d.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  }
+}
 
 export default function ChatDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -119,58 +144,106 @@ export default function ChatDetailScreen() {
   };
 
   const handleAttachment = async () => {
-    const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (status !== 'granted') {
-      showDialog({ title: 'Permission needed', message: 'Allow access to your photos to attach images.', primaryButton: { text: 'OK' } });
-      return;
-    }
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [4, 3],
-      quality: 0.8,
-    });
-    if (!result.canceled && result.assets[0]) {
-      const asset = result.assets[0];
-      await sendImageMessage(asset.uri, asset.mimeType ?? 'image/jpeg');
+    try {
+      let ImagePicker: typeof import('expo-image-picker');
+      try {
+        ImagePicker = await import('expo-image-picker');
+      } catch (e) {
+        console.warn('[Chat] ImagePicker module failed to load:', e);
+        showDialog({
+          title: 'Unavailable',
+          message: 'Attachments are not available in this app build.',
+          primaryButton: { text: 'OK' },
+        });
+        return;
+      }
+
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        showDialog({ title: 'Permission needed', message: 'Allow access to your photos to attach images.', primaryButton: { text: 'OK' } });
+        return;
+      }
+
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.8,
+      });
+
+      const asset = !result.canceled ? result.assets?.[0] : undefined;
+      if (asset?.uri) {
+        await sendImageMessage(asset.uri, asset.mimeType ?? 'image/jpeg');
+      }
+    } catch (error) {
+      console.error('[Chat] handleAttachment error:', error);
+      showDialog({ title: 'Error', message: 'Could not open attachments. Please try again.', primaryButton: { text: 'OK' } });
     }
   };
 
   const handleCamera = async () => {
-    const { status } = await ImagePicker.requestCameraPermissionsAsync();
-    if (status !== 'granted') {
-      showDialog({ title: 'Permission needed', message: 'Allow camera access to take photos.', primaryButton: { text: 'OK' } });
-      return;
-    }
-    const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [4, 3],
-      quality: 0.8,
-    });
-    if (!result.canceled && result.assets[0]) {
-      const asset = result.assets[0];
-      await sendImageMessage(asset.uri, asset.mimeType ?? 'image/jpeg');
+    try {
+      let ImagePicker: typeof import('expo-image-picker');
+      try {
+        ImagePicker = await import('expo-image-picker');
+      } catch (e) {
+        console.warn('[Chat] ImagePicker module failed to load:', e);
+        showDialog({
+          title: 'Unavailable',
+          message: 'Camera is not available in this app build.',
+          primaryButton: { text: 'OK' },
+        });
+        return;
+      }
+
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        showDialog({ title: 'Permission needed', message: 'Allow camera access to take photos.', primaryButton: { text: 'OK' } });
+        return;
+      }
+
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 0.8,
+      });
+
+      const asset = !result.canceled ? result.assets?.[0] : undefined;
+      if (asset?.uri) {
+        await sendImageMessage(asset.uri, asset.mimeType ?? 'image/jpeg');
+      }
+    } catch (error) {
+      console.error('[Chat] handleCamera error:', error);
+      showDialog({ title: 'Error', message: 'Could not open camera. Please try again.', primaryButton: { text: 'OK' } });
     }
   };
 
   const groupMessagesByDate = (msgs: any[]) => {
     const groups: { type: 'date' | 'message'; key: string; dateLabel?: string; message?: any }[] = [];
     let lastDate = '';
-    msgs.forEach((msg) => {
-      const d = new Date(msg.createdAt);
+    msgs.forEach((msg, idx) => {
+      const d = parseDateSafe(msg?.createdAt);
+      if (!d) {
+        const fallbackKey = String(msg?.id ?? msg?._id ?? `idx-${idx}`);
+        groups.push({ type: 'message', key: fallbackKey, message: msg });
+        return;
+      }
+
       const dateKey = d.toDateString();
       if (dateKey !== lastDate) {
         lastDate = dateKey;
         const today = new Date();
         const yesterday = new Date(today);
         yesterday.setDate(yesterday.getDate() - 1);
-        let label = d.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+        let label = formatDateLabelSafe(d);
         if (dateKey === today.toDateString()) label = 'Today';
         else if (dateKey === yesterday.toDateString()) label = 'Yesterday';
         groups.push({ type: 'date', key: `date-${dateKey}`, dateLabel: label });
       }
-      groups.push({ type: 'message', key: msg.id, message: msg });
+
+      const msgKey = String(msg?.id ?? msg?._id ?? `idx-${idx}`);
+      groups.push({ type: 'message', key: msgKey, message: msg });
     });
     return groups;
   };
@@ -187,8 +260,13 @@ export default function ChatDetailScreen() {
     const msg = item.message;
     const isMyMessage = (msg.senderId ?? msg.sender?.id) === user?.id;
 
-    const timeStr = new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    const isImage = msg.messageType === 'IMAGE' && msg.content && (msg.content.startsWith('http') || msg.content.startsWith('https'));
+    const dt = parseDateSafe(msg?.createdAt);
+    const timeStr = dt ? formatTimeSafe(dt) : '';
+    const contentStr = typeof msg?.content === 'string' ? msg.content : String(msg?.content ?? '');
+    const isImage =
+      msg?.messageType === 'IMAGE' &&
+      typeof contentStr === 'string' &&
+      (contentStr.startsWith('http://') || contentStr.startsWith('https://'));
 
     if (isMyMessage) {
       return (
@@ -201,7 +279,7 @@ export default function ChatDetailScreen() {
               </>
             ) : (
               <>
-                <Text style={styles.myBubbleText}>{msg.content}</Text>
+                <Text style={styles.myBubbleText}>{contentStr}</Text>
                 <Text style={styles.myBubbleTime}>{timeStr}</Text>
               </>
             )}
@@ -227,7 +305,7 @@ export default function ChatDetailScreen() {
             </>
           ) : (
             <>
-              <Text style={styles.otherBubbleText}>{msg.content}</Text>
+              <Text style={styles.otherBubbleText}>{contentStr}</Text>
               <Text style={styles.otherBubbleTime}>{timeStr}</Text>
             </>
           )}

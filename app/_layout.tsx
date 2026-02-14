@@ -88,7 +88,31 @@ function RootLayoutNav() {
       />
       <Stack.Screen
         name="post-job"
-        options={{ title: 'Post New Job', headerBackTitle: 'Back' }}
+        options={{ title: 'Post New Job', headerBackTitle: 'Back', headerShown: false }}
+      />
+      <Stack.Screen
+        name="job-posted"
+        options={{ title: 'Job posted', headerShown: false }}
+      />
+      <Stack.Screen
+        name="job-updated"
+        options={{ title: 'Job updated', headerShown: false }}
+      />
+      <Stack.Screen
+        name="schedule-interview"
+        options={{ title: 'Schedule interview', headerShown: false }}
+      />
+      <Stack.Screen
+        name="interview-scheduled"
+        options={{ title: 'Interview scheduled', headerShown: false }}
+      />
+      <Stack.Screen
+        name="edit-interview/[applicationId]"
+        options={{ title: 'Update interview', headerShown: false }}
+      />
+      <Stack.Screen
+        name="interview-updated"
+        options={{ title: 'Interview updated', headerShown: false }}
       />
       <Stack.Screen
         name="job-filters"
@@ -102,6 +126,10 @@ function RootLayoutNav() {
       <Stack.Screen
         name="job-details/[id]"
         options={{ headerShown: false }}
+      />
+      <Stack.Screen
+        name="view-candidates/[jobId]"
+        options={{ title: 'View candidates', headerShown: false }}
       />
       <Stack.Screen
         name="edit-job/[id]"

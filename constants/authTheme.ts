@@ -23,7 +23,7 @@ export const AUTH_COLORS = {
   /** Secondary text (Remember me, footer) */
   textSecondary: '#374151',
   /** "Forget Password?" link – blue */
-  link: '#3B82F6',
+  link: '##000000',
   /** Separator lines and "or" text */
   separator: '#6B7280',
   /** Google button border */

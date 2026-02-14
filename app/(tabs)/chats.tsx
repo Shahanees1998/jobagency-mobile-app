@@ -96,15 +96,28 @@ export default function ChatsScreen() {
 
   const formatTimestamp = (iso: string) => {
     const d = new Date(iso);
+    if (!Number.isFinite(d.getTime())) return '';
     const now = new Date();
     const diffMs = now.getTime() - d.getTime();
     const diffDays = Math.floor(diffMs / (24 * 60 * 60 * 1000));
-    if (diffDays === 0) {
-      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    try {
+      if (diffDays === 0) {
+        return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      }
+      if (diffDays === 1) return 'Yesterday';
+      if (diffDays < 7) return d.toLocaleDateString([], { weekday: 'short' });
+      return d.toLocaleDateString([], { month: '2-digit', day: '2-digit', year: '2-digit' });
+    } catch {
+      if (diffDays === 0) {
+        const hh = String(d.getHours()).padStart(2, '0');
+        const mm = String(d.getMinutes()).padStart(2, '0');
+        return `${hh}:${mm}`;
+      }
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
     }
-    if (diffDays === 1) return 'Yesterday';
-    if (diffDays < 7) return d.toLocaleDateString([], { weekday: 'short' });
-    return d.toLocaleDateString([], { month: '2-digit', day: '2-digit', year: '2-digit' });
   };
 
   const filteredChats = searchQuery.trim()
@@ -213,7 +226,7 @@ export default function ChatsScreen() {
             <FlatList
               data={filteredChats}
               renderItem={renderChatItem}
-              keyExtractor={(item) => item.id}
+              keyExtractor={(item) => String(item.id)}
               contentContainerStyle={styles.list}
               refreshControl={
                 <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={APP_COLORS.primary} />
