@@ -53,7 +53,36 @@ export default function NotificationsScreen() {
       const res = await apiClient.getNotifications({ page: 1, limit: 50 });
       const raw = res.success && res.data ? res.data : {};
       const list = Array.isArray(raw.notifications) ? raw.notifications : Array.isArray(raw) ? raw : [];
-      setNotifications(list);
+
+      // Added static notifications for testing purposes
+      const staticData = [
+        {
+          id: 'static-1',
+          title: 'Zoox Pvt. Ltd. viewed your profile',
+          message: 'Zoox Pvt. Ltd. viewed your profile',
+          createdAt: new Date().toISOString(),
+          isRead: false,
+          company: 'Zoox Pvt. Ltd.'
+        },
+        {
+          id: 'static-2',
+          title: 'BA House Cleaning give approval to chat with you.',
+          message: 'BA House Cleaning give approval to chat with you.',
+          createdAt: new Date(Date.now() - 3600000).toISOString(),
+          isRead: false,
+          company: 'BA House Cleaning'
+        },
+        {
+          id: 'static-3',
+          title: 'Zoox Pvt. Ltd. scheduled interview with you on 5 Feb 2026.',
+          message: 'Zoox Pvt. Ltd. scheduled interview with you on 5 Feb 2026.',
+          createdAt: new Date(Date.now() - 86400000).toISOString(),
+          isRead: true,
+          company: 'Zoox Pvt. Ltd.'
+        }
+      ];
+
+      setNotifications([...staticData, ...list]);
     } catch (e) {
       setNotifications([]);
     } finally {
@@ -93,7 +122,7 @@ export default function NotificationsScreen() {
 
   if (loading && notifications.length === 0) {
     return (
-      <SafeAreaView style={styles.safe} edges={['top']}>
+      <SafeAreaView style={styles.container} edges={['top']}>
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color={APP_COLORS.primary} />
         </View>
@@ -102,18 +131,21 @@ export default function NotificationsScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.headerBtn} hitSlop={12}>
-          <Ionicons name="arrow-back" size={24} color={APP_COLORS.textPrimary} />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Notifications</Text>
-        <View style={styles.headerBtn} />
-      </View>
+    <View style={styles.container}>
+      <SafeAreaView edges={['top']} style={styles.headerArea}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.headerBtn} hitSlop={12}>
+            <Ionicons name="arrow-back" size={24} color="#000" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Notifications</Text>
+          <View style={styles.headerSpacer} />
+        </View>
+      </SafeAreaView>
+
       {groups.length === 0 ? (
         <View style={styles.empty}>
           <View style={styles.emptyIconWrap}>
-            <Ionicons name="notifications-outline" size={40} color={APP_COLORS.primary} />
+            <Ionicons name="notifications-outline" size={32} color="#000" />
           </View>
           <Text style={styles.emptyTitle}>{emptyTitle}</Text>
           <Text style={styles.emptyMessage}>{emptyMessage}</Text>
@@ -133,104 +165,161 @@ export default function NotificationsScreen() {
             if (item.isSection) return <Text style={styles.sectionHeader}>{item.key}</Text>;
             const title = item.title || 'Notification';
             const message = item.message || '';
-            const name = [item.user?.firstName, item.user?.lastName].filter(Boolean).join(' ') || item.user?.email || 'User';
-            const letter = (name || '?').charAt(0).toUpperCase();
-            const timeAgo = getTimeAgo(item.createdAt || item.created_at || '');
+            const company = item.company || item.employer?.companyName || item.user?.companyName || 'Company';
+            const letter = (company || '?').charAt(0).toUpperCase();
+
+            const d = new Date(item.createdAt || item.created_at);
+            const dateStr = d.toLocaleDateString('en-GB');
+            const timeStr = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            const statusLabel = `${dateStr} • ${timeStr}`;
+
             return (
               <TouchableOpacity
-                style={[styles.card, !item.isRead && styles.cardUnread]}
-                onPress={() => { if (item.id) apiClient.markNotificationAsRead(item.id); loadNotifications(); }}
+                style={[styles.card, !item.isRead ? styles.cardUnread : styles.cardRead]}
+                onPress={() => { if (item.id && !item.id.startsWith('static-')) apiClient.markNotificationAsRead(item.id); loadNotifications(); }}
                 activeOpacity={0.85}
               >
-                <View style={styles.avatar}>
-                  <Text style={styles.avatarText}>{letter}</Text>
+                <View style={styles.logoBox}>
+                  <Text style={styles.logoLetter}>{letter}</Text>
                 </View>
                 <View style={styles.cardContent}>
-                  <Text style={styles.cardTitle} numberOfLines={1}>{title}</Text>
-                  <Text style={styles.cardMessage} numberOfLines={2}>{message || title}</Text>
-                  <Text style={styles.cardTime}>{timeAgo}</Text>
+                  <Text style={styles.cardBodyText}>{message}</Text>
+                  <Text style={styles.cardTime}>{statusLabel}</Text>
                 </View>
               </TouchableOpacity>
             );
           }}
         />
       )}
-    </SafeAreaView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: APP_COLORS.background },
-  centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  container: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
+  headerArea: {
+    backgroundColor: '#FFFFFF',
+  },
   header: {
+    height: 56,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: APP_COLORS.border,
-    backgroundColor: APP_COLORS.background,
   },
-  headerBtn: { padding: 4, minWidth: 40 },
-  headerTitle: { fontSize: 18, fontWeight: '700', color: APP_COLORS.textPrimary },
+  headerBtn: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitle: {
+    fontFamily: 'Kanit',
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#000',
+  },
+  headerSpacer: {
+    width: 40,
+  },
+  centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   list: { paddingHorizontal: APP_SPACING.screenPadding, paddingBottom: 24 },
   sectionHeader: {
-    fontSize: 14,
+    fontFamily: 'Kanit',
+    fontSize: 16,
     fontWeight: '700',
-    color: APP_COLORS.textMuted,
+    color: '#031019',
     marginTop: 20,
-    marginBottom: 10,
+    marginBottom: 12,
   },
   card: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    backgroundColor: APP_COLORS.surfaceGray,
-    borderRadius: APP_SPACING.borderRadius,
-    padding: 14,
-    marginBottom: 10,
-    borderWidth: 1,
-    borderColor: APP_COLORS.border,
+    alignItems: 'center',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
   },
-  cardUnread: { backgroundColor: APP_COLORS.white },
-  avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: APP_COLORS.primary,
+  cardUnread: {
+    backgroundColor: '#F2F7FB' // Light blue
+  },
+  cardRead: {
+    backgroundColor: '#F9FAFB' // Light gray
+  },
+  logoBox: {
+    width: 48,
+    height: 48,
+    borderRadius: 4,
+    backgroundColor: '#031019',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
   },
-  avatarText: { fontSize: 18, fontWeight: '700', color: APP_COLORS.white },
+  logoLetter: { fontSize: 20, fontWeight: '700', color: '#FFFFFF' },
   cardContent: { flex: 1, minWidth: 0 },
-  cardTitle: { fontSize: 15, fontWeight: '600', color: APP_COLORS.textPrimary },
-  cardMessage: { fontSize: 14, color: APP_COLORS.textSecondary, marginTop: 4 },
-  cardTime: { fontSize: 12, color: APP_COLORS.textMuted, marginTop: 6 },
+  cardBodyText: {
+    fontFamily: 'Kanit',
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#031019',
+    lineHeight: 20,
+  },
+  cardTime: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    marginTop: 4,
+  },
   empty: {
     flex: 1,
-    paddingHorizontal: APP_SPACING.screenPadding,
-    paddingTop: 48,
+    paddingHorizontal: 24,
+    justifyContent: 'center',
     alignItems: 'center',
+    paddingBottom: 80,
   },
   emptyIconWrap: {
-    width: 72,
-    height: 72,
-    borderRadius: 16,
-    backgroundColor: APP_COLORS.primary,
+    width: 80,
+    height: 80,
+    borderRadius: 12,
+    backgroundColor: '#72A4BF',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: '#1E4154',
+    marginBottom: 40,
   },
-  emptyTitle: { fontSize: 22, fontWeight: '700', color: APP_COLORS.textPrimary, textAlign: 'center', marginBottom: 16 },
-  emptyMessage: { fontSize: 16, color: APP_COLORS.textSecondary, textAlign: 'center', lineHeight: 24, marginBottom: 32 },
+  emptyTitle: {
+    fontFamily: 'Kanit',
+    fontWeight: '700',
+    fontSize: 32,
+    textAlign: 'center',
+    color: '#000',
+    marginBottom: 20,
+    lineHeight: 38,
+  },
+  emptyMessage: {
+    fontFamily: 'Kanit',
+    fontWeight: '300',
+    fontSize: 16,
+    textAlign: 'center',
+    color: '#000',
+    lineHeight: 18,
+    marginBottom: 48,
+    paddingHorizontal: 10,
+  },
   button: {
     width: '100%',
-    height: 52,
-    backgroundColor: APP_COLORS.primary,
-    borderRadius: APP_SPACING.borderRadius,
+    height: 56,
+    backgroundColor: '#1E4154',
+    borderRadius: 56,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  buttonText: { fontSize: 16, fontWeight: '600', color: APP_COLORS.white },
+  buttonText: {
+    fontFamily: 'Kanit',
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
 });

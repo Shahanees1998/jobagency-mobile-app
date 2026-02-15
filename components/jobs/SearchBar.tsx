@@ -1,4 +1,3 @@
-import { APP_COLORS, APP_SPACING } from '@/constants/appTheme';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React from 'react';
 import { StyleSheet, TextInput, TextInputProps, View, ViewStyle } from 'react-native';
@@ -13,13 +12,13 @@ export function SearchBar({ containerStyle, ...inputProps }: SearchBarProps) {
       <Ionicons
         name="search-outline"
         size={22}
-        color={APP_COLORS.textMuted}
+        color="#6B7280"
         style={styles.icon}
       />
       <TextInput
         style={styles.input}
         placeholder="Find jobs near you ...."
-        placeholderTextColor={APP_COLORS.textMuted}
+        placeholderTextColor="#9CA3AF"
         {...inputProps}
       />
     </View>
@@ -30,20 +29,20 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: APP_COLORS.surfaceGray,
-    borderRadius: APP_SPACING.borderRadiusLg,
-    paddingHorizontal: 16,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 56,
+    paddingHorizontal: 20,
     height: 52,
-    borderWidth: 1,
-    borderColor: APP_COLORS.border,
+    borderWidth: 0,
   },
   icon: {
-    marginRight: 12,
+    marginRight: 10,
   },
   input: {
     flex: 1,
     fontSize: 16,
-    color: APP_COLORS.textPrimary,
+    fontFamily: 'Kanit',
+    color: '#031019',
     paddingVertical: 0,
   },
 });

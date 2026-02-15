@@ -3,7 +3,7 @@ import { AUTH_COLORS, AUTH_SPACING, AUTH_TYPO } from '@/constants/authTheme';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const CHECK_ICON_BG = '#E8F4FC';
@@ -17,24 +17,34 @@ export default function OtpSentScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <View style={styles.content}>
-        <View style={styles.iconWrap}>
-          <Ionicons
-            name="checkmark-circle"
-            size={64}
-            color={AUTH_COLORS.primary}
+      <View style={styles.container}>
+        <ScrollView
+          contentContainerStyle={styles.scroll}
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.content}>
+            <View style={styles.iconWrap}>
+              <Ionicons
+                name="checkmark-circle"
+                size={64}
+                color={AUTH_COLORS.primary}
+              />
+            </View>
+            <Text style={styles.title}>OTP sent successfully!</Text>
+            <Text style={styles.description}>
+              We've sent a one-time password (OTP) to your email. Please check your inbox (and spam folder) to complete the verification process.
+            </Text>
+          </View>
+        </ScrollView>
+
+        <View style={styles.buttonContainer}>
+          <PrimaryButton
+            title="Enter OTP"
+            onPress={handleEnterOTP}
+            showArrow={false}
+            style={styles.primaryBtn}
           />
         </View>
-        <Text style={styles.title}>OTP sent successfully!</Text>
-        <Text style={styles.description}>
-          We've sent a one-time password (OTP) to your email. Please check your inbox (and spam folder) to complete the verification process.
-        </Text>
-        <PrimaryButton
-          title="Enter OTP"
-          onPress={handleEnterOTP}
-          showArrow={false}
-          style={styles.primaryBtn}
-        />
       </View>
     </SafeAreaView>
   );
@@ -45,10 +55,15 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: AUTH_COLORS.white,
   },
-  content: {
+  container: {
     flex: 1,
+  },
+  scroll: {
+    flexGrow: 1,
     paddingHorizontal: AUTH_SPACING.contentPaddingH + 8,
     paddingTop: 48,
+  },
+  content: {
     alignItems: 'center',
     maxWidth: 400,
     width: '100%',
@@ -79,4 +94,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
   primaryBtn: { width: '100%' },
+  buttonContainer: {
+    paddingHorizontal: AUTH_SPACING.contentPaddingH + 8,
+    paddingBottom: AUTH_SPACING.contentPaddingV * 2,
+    paddingTop: 12,
+  },
 });

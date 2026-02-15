@@ -88,11 +88,14 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   headline: {
-    fontSize: 20,
-    fontWeight: '700',
+    fontFamily: 'Kanit_400Regular',
+    fontSize: 36,
+    fontWeight: '400',
     color: AUTH_COLORS.textPrimary,
     marginBottom: AUTH_SPACING.gapSection,
-    lineHeight: 26,
+    lineHeight: 50,
+    letterSpacing: 0,
+    textAlign: 'center',
   },
   segment: {
     marginBottom: AUTH_SPACING.gapSection,

@@ -53,9 +53,11 @@ export function PrimaryButton({
 
 const styles = StyleSheet.create({
   button: {
-    height: AUTH_SPACING.buttonHeight,
-    backgroundColor: AUTH_COLORS.primary,
-    borderRadius: AUTH_SPACING.buttonBorderRadius,
+    height: 56,
+    backgroundColor: '#1E4154',
+    borderRadius: 56,
+    borderWidth: 1,
+    borderColor: '#1E4154',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -64,14 +66,20 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   text: {
-    color: AUTH_COLORS.white,
-    fontSize: AUTH_TYPO.button,
-    fontWeight: '600',
+    color: '#FFFFFF',
+    fontFamily: 'Kanit_500Medium',
+    fontSize: 18,
+    fontWeight: '500',
+    lineHeight: 18,
+    letterSpacing: 3,
   },
   arrow: {
-    color: AUTH_COLORS.white,
-    fontSize: AUTH_TYPO.button,
-    fontWeight: '600',
+    color: '#FFFFFF',
+    fontFamily: 'Kanit_500Medium',
+    fontSize: 18,
+    fontWeight: '500',
+    lineHeight: 18,
+    letterSpacing: 3,
     marginLeft: 2,
   },
 });

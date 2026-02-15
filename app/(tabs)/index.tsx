@@ -8,13 +8,13 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-    ActivityIndicator,
-    FlatList,
-    RefreshControl,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  FlatList,
+  RefreshControl,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -37,38 +37,10 @@ function CandidateJobsScreen() {
     setSavedJobIds(ids);
   }, []);
 
-  useEffect(() => {
-    loadSavedIds();
-  }, [loadSavedIds]);
-
   const loadFilters = useCallback(async () => {
     const f = await storage.getJobFilters();
     setFilters(f);
     return f;
-  }, []);
-
-  useFocusEffect(
-    useCallback(() => {
-      let isFocused = true;
-      console.log('[Home] useFocusEffect: focus, loading filters...');
-      loadFilters().then((f) => {
-        console.log('[Home] loadFilters resolved, isFocused:', isFocused, 'filters:', f);
-        if (!isFocused) return;
-        setFilters(f ?? null);
-        setPage(1);
-        loadJobs(1, searchQuery, f ?? undefined);
-      });
-      return () => {
-        isFocused = false;
-        console.log('[Home] useFocusEffect: blur');
-      };
-    }, [loadFilters, loadJobs, searchQuery])
-  );
-
-  useEffect(() => {
-    loadFilters().then((f) => {
-      if (f) setFilters(f);
-    });
   }, []);
 
   const loadJobs = useCallback(async (pageNum = 1, search = '', filterOverride?: JobFilters | null) => {
@@ -125,7 +97,31 @@ function CandidateJobsScreen() {
   }, [filters]);
 
   useEffect(() => {
-    loadFilters().then((f) => f && setFilters(f));
+    loadSavedIds();
+  }, [loadSavedIds]);
+
+  useFocusEffect(
+    useCallback(() => {
+      let isFocused = true;
+      console.log('[Home] useFocusEffect: focus, loading filters...');
+      loadFilters().then((f) => {
+        console.log('[Home] loadFilters resolved, isFocused:', isFocused, 'filters:', f);
+        if (!isFocused) return;
+        setFilters(f ?? null);
+        setPage(1);
+        loadJobs(1, searchQuery, f ?? undefined);
+      });
+      return () => {
+        isFocused = false;
+        console.log('[Home] useFocusEffect: blur');
+      };
+    }, [loadFilters, loadJobs, searchQuery])
+  );
+
+  useEffect(() => {
+    loadFilters().then((f) => {
+      if (f) setFilters(f);
+    });
   }, [loadFilters]);
 
   const onRefresh = useCallback(() => {
@@ -208,7 +204,7 @@ function CandidateJobsScreen() {
         saved={savedJobIds.includes(item.id)}
         onPress={() => router.push(`/job-details/${item.id}`)}
         onBookmark={() => toggleSaved(item)}
-        onDislike={() => {}}
+        onDislike={() => { }}
       />
     );
   };
@@ -233,11 +229,8 @@ function CandidateJobsScreen() {
             <Text style={styles.subGreeting}>Time to level up your job hunt.</Text>
           </View>
           <View style={styles.headerIcons}>
-            <TouchableOpacity onPress={openFilters} style={styles.iconBtn} hitSlop={12}>
-              <Ionicons name="filter-outline" size={24} color={APP_COLORS.textPrimary} />
-            </TouchableOpacity>
             <TouchableOpacity onPress={onRefresh} style={styles.iconBtn} hitSlop={12}>
-              <Ionicons name="refresh-outline" size={24} color={APP_COLORS.textPrimary} />
+              <Ionicons name="timer-outline" size={24} color={APP_COLORS.textPrimary} />
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => router.push('/notifications')}
@@ -326,7 +319,7 @@ function EmployerDashboardScreen() {
         const d = res.data as any;
         setCompanyName(d.companyName || '');
       }
-    } catch (_) {}
+    } catch (_) { }
   }, []);
 
   useFocusEffect(
@@ -352,15 +345,17 @@ function EmployerDashboardScreen() {
     showDialog({
       title: 'Delete job',
       message: `Are you sure you want to delete "${item.title}"? This cannot be undone.`,
-      primaryButton: { text: 'Yes, Delete', onPress: async () => {
-        try {
-          const res = await apiClient.updateJob(item.id, { status: 'CLOSED' });
-          if (res.success) setJobs((prev) => prev.filter((j) => j.id !== item.id));
-          else showDialog({ title: 'Error', message: res.error || 'Failed to delete', primaryButton: { text: 'OK' } });
-        } catch (e: any) {
-          showDialog({ title: 'Error', message: e?.message || 'Failed to delete', primaryButton: { text: 'OK' } });
+      primaryButton: {
+        text: 'Yes, Delete', onPress: async () => {
+          try {
+            const res = await apiClient.updateJob(item.id, { status: 'CLOSED' });
+            if (res.success) setJobs((prev) => prev.filter((j) => j.id !== item.id));
+            else showDialog({ title: 'Error', message: res.error || 'Failed to delete', primaryButton: { text: 'OK' } });
+          } catch (e: any) {
+            showDialog({ title: 'Error', message: e?.message || 'Failed to delete', primaryButton: { text: 'OK' } });
+          }
         }
-      } },
+      },
       secondaryButton: { text: 'Cancel' },
     });
   }, [showDialog]);
@@ -471,39 +466,43 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 16,
+    alignItems: 'center',
+    marginBottom: 20,
+    marginTop: 10,
   },
   greetingBlock: {
     flex: 1,
-    minWidth: 0,
   },
   greeting: {
-    fontSize: 26,
+    fontFamily: 'Kanit',
+    fontSize: 24,
     fontWeight: '700',
-    color: APP_COLORS.textPrimary,
-    marginBottom: 4,
+    color: '#031019',
+    marginBottom: 2,
   },
   subGreeting: {
-    fontSize: 15,
-    color: APP_COLORS.textSecondary,
+    fontFamily: 'Kanit',
+    fontSize: 14,
+    color: '#6B7280',
+    fontWeight: '400',
   },
   headerIcons: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 12,
   },
   iconBtn: {
     padding: 4,
   },
   searchWrap: {
-    marginBottom: 20,
+    marginBottom: 28,
   },
   sectionTitle: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: APP_COLORS.textPrimary,
-    marginBottom: 16,
+    fontFamily: 'Kanit',
+    fontSize: 18,
+    fontWeight: '500',
+    color: '#031019',
+    marginBottom: 20,
   },
   list: {
     paddingBottom: 24,
@@ -550,7 +549,7 @@ const styles = StyleSheet.create({
   },
   employerEmptyTitle: {
     fontSize: 18,
-    fontWeight: '700',
+    fontWeight: '800',
     color: APP_COLORS.textPrimary,
     textAlign: 'center',
     marginBottom: 12,

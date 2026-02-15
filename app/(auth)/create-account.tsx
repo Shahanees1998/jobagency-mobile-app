@@ -104,10 +104,9 @@ export default function CreateAccountScreen() {
             title={TITLES[role]}
             showLogo={true}
             subtitle={undefined}
+            googleButton={<GoogleButton onPress={handleGoogle} />}
           />
           <View style={styles.content}>
-            <GoogleButton onPress={handleGoogle} style={styles.googleBtn} />
-            <OrDivider />
             <AuthInput
               icon="person"
               placeholder="Full Name"
@@ -185,9 +184,6 @@ const styles = StyleSheet.create({
     maxWidth: 400,
     width: '100%',
     alignSelf: 'center',
-  },
-  googleBtn: {
-    marginBottom: 0,
   },
   input: {
     marginTop: AUTH_SPACING.gapInputs,

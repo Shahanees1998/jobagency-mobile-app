@@ -42,12 +42,12 @@ export function AuthInput({
       <Ionicons
         name={ICON_MAP[icon]}
         size={20}
-        color={AUTH_COLORS.inputPlaceholder}
+        color="#031019"
         style={styles.iconLeft}
       />
       <TextInput
         style={styles.input}
-        placeholderTextColor={AUTH_COLORS.inputPlaceholder}
+        placeholderTextColor="#031019"
         secureTextEntry={isSecret && !showPassword}
         {...inputProps}
       />
@@ -60,7 +60,7 @@ export function AuthInput({
           <Ionicons
             name={showPassword ? 'eye-off-outline' : 'eye-outline'}
             size={20}
-            color={AUTH_COLORS.inputPlaceholder}
+            color="#031019"
           />
         </TouchableOpacity>
       ) : null}
@@ -76,7 +76,7 @@ const styles = StyleSheet.create({
     backgroundColor: AUTH_COLORS.inputBg,
     borderRadius: AUTH_SPACING.inputBorderRadius,
     borderWidth: 1,
-    borderColor: AUTH_COLORS.inputBorder,
+    borderColor: '#E6E6E6',
     paddingHorizontal: 16,
   },
   iconLeft: {
@@ -84,9 +84,12 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    fontSize: AUTH_TYPO.body,
+    fontFamily: 'Kanit_300Light',
+    fontSize: 16,
+    fontWeight: '300',
     color: AUTH_COLORS.textPrimary,
     paddingVertical: 0,
+    lineHeight: 16,
   },
   iconRight: {
     paddingLeft: 8,

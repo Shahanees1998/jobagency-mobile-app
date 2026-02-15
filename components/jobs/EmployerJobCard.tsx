@@ -1,4 +1,3 @@
-import { APP_COLORS, APP_SPACING } from '@/constants/appTheme';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
@@ -34,36 +33,43 @@ export function EmployerJobCard({
       onPress={onPress}
       activeOpacity={0.85}
     >
-      <View style={styles.header}>
+      {/* Top Row: Title */}
+      <View style={styles.topRow}>
         <Text style={styles.title} numberOfLines={1}>
           {title}
         </Text>
+      </View>
+
+      {/* Middle Row: Logo, Company Info, and Actions */}
+      <View style={styles.middleRow}>
+        <View style={styles.logoAndInfo}>
+          <View style={styles.logo}>
+            <Text style={styles.logoText}>{letter}</Text>
+          </View>
+          <View style={styles.companyInfo}>
+            <Text style={styles.companyName} numberOfLines={1}>{companyName}</Text>
+            <Text style={styles.location} numberOfLines={1}>{location}</Text>
+          </View>
+        </View>
         <View style={styles.actions}>
           <TouchableOpacity
             onPress={(e) => { e?.stopPropagation?.(); onEdit?.(); }}
-            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            hitSlop={8}
             style={styles.iconBtn}
           >
-            <Ionicons name="pencil-outline" size={22} color={APP_COLORS.textSecondary} />
+            <Ionicons name="pencil-outline" size={20} color="#6B7280" />
           </TouchableOpacity>
           <TouchableOpacity
             onPress={(e) => { e?.stopPropagation?.(); onDelete?.(); }}
-            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            hitSlop={8}
             style={styles.iconBtn}
           >
-            <Ionicons name="trash-outline" size={22} color={APP_COLORS.danger} />
+            <Ionicons name="trash-outline" size={20} color="#EF4444" />
           </TouchableOpacity>
         </View>
       </View>
-      <View style={styles.companyRow}>
-        <View style={styles.logo}>
-          <Text style={styles.logoText}>{letter}</Text>
-        </View>
-        <View style={styles.companyInfo}>
-          <Text style={styles.companyName} numberOfLines={1}>{companyName}</Text>
-          <Text style={styles.location} numberOfLines={1}>{location}</Text>
-        </View>
-      </View>
+
+      {/* Bottom Row: Tags */}
       {benefits.length > 0 && (
         <View style={styles.tags}>
           {benefits.slice(0, 6).map((b, i) => (
@@ -79,56 +85,43 @@ export function EmployerJobCard({
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: APP_SPACING.borderRadiusLg,
-    padding: APP_SPACING.itemPadding,
-    marginBottom: 12,
-    borderWidth: 1,
-    borderColor: APP_COLORS.border,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.06,
-    shadowRadius: 4,
-    elevation: 2,
+    backgroundColor: '#F2F7FB',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
   },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
+  topRow: {
     marginBottom: 12,
   },
   title: {
-    fontSize: 18,
+    fontFamily: 'Kanit',
+    fontSize: 20,
     fontWeight: '700',
-    color: APP_COLORS.textPrimary,
+    color: '#031019',
+  },
+  middleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  logoAndInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
     flex: 1,
-    marginRight: 8,
-  },
-  actions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  iconBtn: {
-    padding: 4,
-  },
-  companyRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
   },
   logo: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    backgroundColor: APP_COLORS.primary,
+    width: 48,
+    height: 48,
+    borderRadius: 8,
+    backgroundColor: '#031019',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
   },
   logoText: {
-    color: APP_COLORS.white,
-    fontSize: 18,
+    color: '#FFFFFF',
+    fontSize: 20,
     fontWeight: '700',
   },
   companyInfo: {
@@ -136,14 +129,23 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   companyName: {
-    fontSize: 15,
-    color: APP_COLORS.textPrimary,
-    fontWeight: '500',
+    fontFamily: 'Kanit',
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#031019',
   },
   location: {
     fontSize: 13,
-    color: APP_COLORS.textMuted,
+    color: '#6B7280',
     marginTop: 2,
+  },
+  actions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  iconBtn: {
+    padding: 4,
   },
   tags: {
     flexDirection: 'row',
@@ -151,15 +153,16 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   tag: {
-    backgroundColor: APP_COLORS.surfaceGray,
-    paddingHorizontal: 10,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 8,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#EFEFEF',
   },
   tagText: {
     fontSize: 12,
-    color: APP_COLORS.textSecondary,
+    color: '#4B5563',
     fontWeight: '500',
-    maxWidth: 120,
   },
 });

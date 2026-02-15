@@ -61,6 +61,7 @@ export default function ResetPasswordScreen() {
             <Text style={styles.description}>
               Choose Password different from older one.
             </Text>
+            <Text style={styles.label}>New password</Text>
             <AuthInput
               icon="password"
               placeholder="Create new password"
@@ -70,6 +71,7 @@ export default function ResetPasswordScreen() {
               isPassword
               containerStyle={styles.input}
             />
+            <Text style={styles.label}>Confirm password</Text>
             <AuthInput
               icon="password"
               placeholder="Confirm new password"
@@ -79,16 +81,18 @@ export default function ResetPasswordScreen() {
               isPassword
               containerStyle={styles.input}
             />
-            <PrimaryButton
-              title="Save new password"
-              onPress={handleSave}
-              loading={loading}
-              showArrow={false}
-              style={styles.primaryBtn}
-            />
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+      <View style={styles.footer}>
+        <PrimaryButton
+          title="Save new password"
+          onPress={handleSave}
+          loading={loading}
+          showArrow={false}
+          style={styles.footerBtn}
+        />
+      </View>
     </SafeAreaView>
   );
 }
@@ -100,29 +104,51 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingHorizontal: AUTH_SPACING.contentPaddingH + 8,
     paddingTop: 40,
-    paddingBottom: AUTH_SPACING.contentPaddingV * 2,
+    paddingBottom: AUTH_SPACING.contentPaddingV * 8,
   },
   content: {
     maxWidth: 400,
     width: '100%',
     alignSelf: 'center',
-    alignItems: 'center',
+    alignItems: 'flex-start',
   },
-  logoWrap: { marginBottom: 24 },
-  logo: { width: 64, height: 64 },
+  logoWrap: { marginBottom: 24, alignSelf: 'center' },
+  logo: { width: 96, height: 96 },
+  label: {
+    fontFamily: 'Kanit_400Regular',
+    fontSize: 18,
+    fontWeight: '400',
+    fontStyle: 'normal',
+    color: AUTH_COLORS.textPrimary,
+    marginBottom: 8,
+    alignSelf: 'flex-start',
+  },
   title: {
     fontSize: 22,
     fontWeight: '700',
     color: AUTH_COLORS.textPrimary,
     marginBottom: 8,
-    textAlign: 'center',
+    textAlign: 'left',
+    alignSelf: 'flex-start',
   },
   description: {
     fontSize: AUTH_TYPO.bodySmall,
     color: AUTH_COLORS.textSecondary,
     marginBottom: AUTH_SPACING.gapSection,
-    textAlign: 'center',
+    textAlign: 'left',
+    alignSelf: 'flex-start',
   },
   input: { width: '100%', marginBottom: AUTH_SPACING.gapInputs },
-  primaryBtn: { width: '100%', marginTop: 8 },
+  primaryBtn: { width: '100%', marginTop: 8, alignSelf: 'center' },
+  footer: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 24,
+    paddingHorizontal: AUTH_SPACING.contentPaddingH + 8,
+    paddingBottom: 12,
+    backgroundColor: 'transparent',
+    alignItems: 'center',
+  },
+  footerBtn: { width: '100%' },
 });

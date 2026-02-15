@@ -49,26 +49,27 @@ export function SegmentedControl({ value, onChange, style }: SegmentedControlPro
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    backgroundColor: AUTH_COLORS.inputBg,
-    borderRadius: AUTH_SPACING.inputBorderRadius,
-    padding: 4,
+    borderRadius: 40,
+    borderWidth: 1,
+    borderColor: '#1E4154',
   },
   segment: {
     flex: 1,
     height: 44,
     alignItems: 'center',
     justifyContent: 'center',
-    borderRadius: 8,
+    borderRadius: 39,
+    backgroundColor: 'transparent',
   },
   segmentLeft: {},
   segmentRight: {},
   segmentActive: {
-    backgroundColor: AUTH_COLORS.primary,
+    backgroundColor: '#1E4154',
   },
   label: {
     fontSize: AUTH_TYPO.bodySmall,
     fontWeight: '500',
-    color: AUTH_COLORS.textSecondary,
+    color: '#1E4154',
   },
   labelActive: {
     color: AUTH_COLORS.white,

@@ -1,6 +1,8 @@
 import { AUTH_COLORS, AUTH_SPACING, AUTH_TYPO } from '@/constants/authTheme';
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
+import { Image, StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
+
+const GOOGLE_ICON = require('@/assets/images/google.png');
 
 interface GoogleButtonProps {
   onPress: () => void;
@@ -15,7 +17,11 @@ export function GoogleButton({ onPress, style }: GoogleButtonProps) {
       activeOpacity={0.85}
     >
       <View style={styles.iconWrap}>
-        <Text style={styles.iconText}>G</Text>
+        <Image
+          source={GOOGLE_ICON}
+          style={styles.googleIcon}
+          resizeMode="contain"
+        />
       </View>
       <Text style={styles.text}>Continue With Google</Text>
     </TouchableOpacity>
@@ -24,30 +30,29 @@ export function GoogleButton({ onPress, style }: GoogleButtonProps) {
 
 const styles = StyleSheet.create({
   button: {
-    height: AUTH_SPACING.buttonHeight,
-    backgroundColor: AUTH_COLORS.white,
-    borderRadius: AUTH_SPACING.buttonBorderRadius,
+    height: 56,
+    width: '100%',
+    backgroundColor: '#F5F5F5',
+    borderRadius: 56,
     borderWidth: 1,
-    borderColor: AUTH_COLORS.googleBorder,
+    borderColor: '#E6E6E6',
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 20,
   },
   iconWrap: {
     width: 24,
     height: 24,
     borderRadius: 4,
-    backgroundColor: '#fff',
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
-    borderWidth: 1,
-    borderColor: AUTH_COLORS.googleBorder,
   },
-  iconText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#4285F4',
+  googleIcon: {
+    width: 20,
+    height: 20,
   },
   text: {
     color: AUTH_COLORS.googleText,

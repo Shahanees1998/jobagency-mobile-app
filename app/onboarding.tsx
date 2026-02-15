@@ -4,13 +4,14 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import React, { useRef, useState } from 'react';
 import {
-    Dimensions,
-    FlatList,
-    Image,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Dimensions,
+  FlatList,
+  Image,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -20,6 +21,27 @@ const SLIDE_WIDTH = SCREEN_WIDTH;
 const IMAGE_HORIZONTAL_MARGIN = 32;
 const IMAGE_MAX_WIDTH = SCREEN_WIDTH - IMAGE_HORIZONTAL_MARGIN * 2;
 const HIGHLIGHT_BLUE = '#2563EB';
+
+// Color palette
+const COLORS = {
+  primary: '#1E4154',
+  secondary: '#8692A6',
+  text: '#031019',
+  border: '#E6E6E6',
+  white: '#FFFFFF',
+  lightGray: '#F9FAFB',
+};
+
+// Typography
+const TYPOGRAPHY = {
+  titleFamily: 'Kanit',
+  bodyFamily: 'Kanit',
+  headingSize: 29,
+  headingWeight: '500',
+  headingLineHeight: 40,
+  bodySize: 15,
+  bodyLineHeight: 25,
+};
 
 type SlideItem = {
   key: string;
@@ -42,7 +64,7 @@ const SLIDES: SlideItem[] = [
   {
     key: '2',
     title: 'Apply to Jobs Faster With Just One Tap',
-    boldPart: 'Jobs Faster',
+    boldPart: 'One Tap',
     body: 'Create your professional profile once and use it to apply for multiple jobs instantly. No repeated forms or CV uploads — everything is saved securely for you.',
     illustration: 'phone',
     bannerImage: require('@/assets/images/onboarding-2.png'),
@@ -203,14 +225,20 @@ export default function OnboardingScreen() {
               </View>
             </View>
             <View style={styles.bottomSection}>
-              {renderTitle(item.title, item.boldPart)}
-              <Text style={styles.body}>{item.body}</Text>
+              <ScrollView
+                contentContainerStyle={styles.bottomContent}
+                showsVerticalScrollIndicator={false}
+              >
+                {renderTitle(item.title, item.boldPart)}
+                <Text style={styles.body}>{item.body}</Text>
+              </ScrollView>
             </View>
           </View>
         )}
         keyExtractor={(item) => item.key}
       />
       <View style={styles.footer}>
+        
         <View style={styles.dots}>
           {SLIDES.map((_, i) => (
             <View
@@ -219,6 +247,7 @@ export default function OnboardingScreen() {
             />
           ))}
         </View>
+        <View style={styles.dividerLine} />
         <View style={styles.buttons}>
           {!isLast && (
             <TouchableOpacity style={styles.skipBtn} onPress={handleSkip} activeOpacity={0.8}>
@@ -248,16 +277,17 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   topSection: {
-    height: '42%',
-    backgroundColor: '#FFFFFF',
+    height: '50%',
+    backgroundColor: COLORS.white,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: IMAGE_HORIZONTAL_MARGIN,
+    width: '100%',
   },
   imageContainer: {
     width: '100%',
-    maxWidth: IMAGE_MAX_WIDTH,
-    flex: 1,
+    paddingHorizontal: IMAGE_HORIZONTAL_MARGIN,
+    maxWidth: SCREEN_WIDTH,
+    // flex: 1,
     backgroundColor: ONBOARDING_BG_TOP,
     borderRadius: 16,
     justifyContent: 'center',
@@ -273,54 +303,72 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F9FAFB',
     paddingHorizontal: 28,
-    paddingTop: 32,
+    paddingTop: 12,
+    paddingBottom: 8,
     alignItems: 'center',
+    justifyContent: 'flex-start',
+  },
+  bottomContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 8,
   },
   heading: {
-    fontSize: 26,
-    fontWeight: '700',
-    color: APP_COLORS.textPrimary,
-    lineHeight: 34,
+    fontSize: TYPOGRAPHY.headingSize,
+    fontWeight: TYPOGRAPHY.headingWeight,
+    fontFamily: TYPOGRAPHY.titleFamily,
+    color: COLORS.text,
+    lineHeight: TYPOGRAPHY.headingLineHeight,
     marginBottom: 16,
     textAlign: 'center',
+    letterSpacing: 0,
   },
   headingBold: {
-    fontWeight: '700',
-    color: HIGHLIGHT_BLUE,
+    fontWeight: TYPOGRAPHY.headingWeight,
+    fontFamily: TYPOGRAPHY.titleFamily,
+    color: COLORS.primary,
   },
   body: {
-    fontSize: 15,
-    color: APP_COLORS.textSecondary,
-    lineHeight: 22,
+    fontSize: TYPOGRAPHY.bodySize,
+    fontFamily: TYPOGRAPHY.bodyFamily,
+    color: COLORS.text,
+    lineHeight: TYPOGRAPHY.bodyLineHeight,
     textAlign: 'center',
   },
   footer: {
     paddingHorizontal: 24,
-    paddingBottom: 40,
-    paddingTop: 24,
+    paddingBottom: 32,
+    paddingTop: 12,
     backgroundColor: '#F9FAFB',
   },
   dots: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 28,
-    gap: 10,
+    marginBottom: 12,
+    gap: 8,
   },
   dot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#FFFFFF',
-    borderWidth: 1.5,
-    borderColor: APP_COLORS.primary,
+    width: 24,
+    height: 4,
+    borderRadius: 16,
+    backgroundColor: COLORS.border,
+    opacity: 1,
   },
   dotActive: {
-    width: 28,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: APP_COLORS.primary,
-    borderWidth: 0,
+    width: 24,
+    height: 4,
+    borderRadius: 16,
+    backgroundColor: COLORS.primary,
+    opacity: 1,
+  },
+  dividerLine: {
+    width: '100%',
+    height: 1,
+    backgroundColor: COLORS.secondary,
+    opacity: 0.3,
+    marginBottom: 12,
   },
   buttons: {
     flexDirection: 'row',
@@ -332,10 +380,10 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 16,
     paddingHorizontal: 16,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    borderWidth: 1.5,
-    borderColor: APP_COLORS.primary,
+    backgroundColor: '#F5F5F5',
+    borderRadius: 56,
+    borderWidth: 1,
+    borderColor: COLORS.border,
     alignItems: 'center',
     justifyContent: 'center',
     minWidth: 0,
@@ -343,14 +391,17 @@ const styles = StyleSheet.create({
   skipText: {
     fontSize: 16,
     fontWeight: '600',
-    color: APP_COLORS.primary,
+    fontFamily: TYPOGRAPHY.bodyFamily,
+    color: COLORS.text,
   },
   nextBtn: {
     flex: 1,
     paddingVertical: 16,
     paddingHorizontal: 16,
-    borderRadius: 12,
-    backgroundColor: APP_COLORS.primary,
+    borderRadius: 56,
+    backgroundColor: COLORS.primary,
+    borderWidth: 1,
+    borderColor: COLORS.primary,
     alignItems: 'center',
     justifyContent: 'center',
     minWidth: 0,
@@ -361,7 +412,8 @@ const styles = StyleSheet.create({
   nextText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#FFFFFF',
+    fontFamily: TYPOGRAPHY.bodyFamily,
+    color: COLORS.white,
   },
   illustrationTop: {
     flex: 1,

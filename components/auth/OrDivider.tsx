@@ -25,7 +25,7 @@ const styles = StyleSheet.create({
   line: {
     flex: 1,
     height: 1,
-    backgroundColor: AUTH_COLORS.separator,
+    backgroundColor: '#D9D9D9',
   },
   text: {
     color: AUTH_COLORS.separator,

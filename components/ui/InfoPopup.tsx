@@ -1,13 +1,12 @@
-import { APP_COLORS, APP_SPACING } from '@/constants/appTheme';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React from 'react';
 import {
-    Modal,
-    Pressable,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  Modal,
+  Pressable,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 
 type IconName = keyof typeof Ionicons.glyphMap;
@@ -18,7 +17,15 @@ interface InfoPopupProps {
   icon: IconName;
   title: string;
   message: string;
+  children?: React.ReactNode;
   buttonText: string;
+  onButtonPress?: () => void;
+  secondaryButton?: {
+    text: string;
+    onPress: () => void;
+  };
+  primaryVariant?: 'primary' | 'danger';
+  iconBgColor?: string;
 }
 
 export function InfoPopup({
@@ -27,8 +34,17 @@ export function InfoPopup({
   icon,
   title,
   message,
+  children,
   buttonText,
+  onButtonPress,
+  secondaryButton,
+  primaryVariant = 'primary',
+  iconBgColor,
 }: InfoPopupProps) {
+  const handlePrimaryPress = () => {
+    (onButtonPress || onClose)();
+  };
+
   return (
     <Modal
       visible={visible}
@@ -39,14 +55,36 @@ export function InfoPopup({
     >
       <Pressable style={styles.overlay} onPress={onClose}>
         <Pressable style={styles.card} onPress={(e) => e.stopPropagation()}>
-          <View style={styles.iconWrap}>
-            <Ionicons name={icon} size={32} color={APP_COLORS.white} />
+          <View style={[styles.iconWrap, iconBgColor ? { backgroundColor: iconBgColor } : null]}>
+            <Ionicons name={icon} size={32} color="#000" />
           </View>
           <Text style={styles.title}>{title}</Text>
           <Text style={styles.message}>{message}</Text>
-          <TouchableOpacity style={styles.button} onPress={onClose} activeOpacity={0.85}>
-            <Text style={styles.buttonText}>{buttonText}</Text>
-          </TouchableOpacity>
+
+          {children}
+
+          <View style={styles.buttonContainer}>
+            <TouchableOpacity
+              style={[
+                styles.button,
+                primaryVariant === 'danger' ? styles.buttonDanger : styles.buttonPrimary
+              ]}
+              onPress={handlePrimaryPress}
+              activeOpacity={0.85}
+            >
+              <Text style={styles.buttonText}>{buttonText}</Text>
+            </TouchableOpacity>
+
+            {secondaryButton && (
+              <TouchableOpacity
+                style={[styles.button, styles.buttonSecondary]}
+                onPress={secondaryButton.onPress}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.buttonText}>{secondaryButton.text}</Text>
+              </TouchableOpacity>
+            )}
+          </View>
         </Pressable>
       </Pressable>
     </Modal>
@@ -64,47 +102,65 @@ const styles = StyleSheet.create({
   card: {
     width: '100%',
     maxWidth: 340,
-    backgroundColor: APP_COLORS.surfaceGray,
-    borderRadius: APP_SPACING.borderRadiusLg,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 24,
     paddingHorizontal: 24,
-    paddingTop: 24,
+    paddingTop: 32,
     paddingBottom: 24,
     alignItems: 'center',
   },
   iconWrap: {
-    width: 56,
-    height: 56,
+    width: 80,
+    height: 80,
     borderRadius: 12,
-    backgroundColor: APP_COLORS.primary,
+    backgroundColor: '#72A4BF',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#1E4154',
+    marginBottom: 24,
   },
   title: {
-    fontSize: 18,
+    fontFamily: 'Kanit',
+    fontSize: 20,
     fontWeight: '700',
-    color: APP_COLORS.textPrimary,
+    color: '#000',
     textAlign: 'center',
     marginBottom: 12,
   },
   message: {
+    fontFamily: 'Kanit',
     fontSize: 15,
-    color: APP_COLORS.textSecondary,
+    color: '#000',
     textAlign: 'center',
     lineHeight: 22,
-    marginBottom: 24,
+    marginBottom: 32,
+    fontWeight: '300',
+  },
+  buttonContainer: {
+    width: '100%',
+    gap: 12,
   },
   button: {
     width: '100%',
-    height: 52,
-    backgroundColor: APP_COLORS.primary,
-    borderRadius: APP_SPACING.borderRadius,
+    height: 56,
+    borderRadius: 56,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  buttonPrimary: {
+    backgroundColor: '#1E4154',
+  },
+  buttonDanger: {
+    backgroundColor: '#CA4040', // Red for withdraw
+  },
+  buttonSecondary: {
+    backgroundColor: '#1E3A49', // Dark teal for keep
+  },
   buttonText: {
+    fontFamily: 'Kanit',
     fontSize: 16,
     fontWeight: '600',
-    color: APP_COLORS.white,
+    color: '#FFFFFF',
   },
 });

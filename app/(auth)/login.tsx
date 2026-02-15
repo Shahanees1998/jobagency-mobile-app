@@ -161,11 +161,14 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   info: {
-    fontSize: AUTH_TYPO.bodySmall,
-    color: AUTH_COLORS.textPrimary,
+    fontFamily: 'Kanit_400Regular',
+    fontSize: 18,
+    fontWeight: '400',
+    color: '#031019',
     marginBottom: AUTH_SPACING.gapInputs + 4,
-    lineHeight: 20,
+    lineHeight: 18,
     textAlign: 'center',
+    marginHorizontal: 20,
   },
   input: {
     marginBottom: AUTH_SPACING.gapInputs,
@@ -201,7 +204,7 @@ const styles = StyleSheet.create({
   forgotLink: {
     fontSize: AUTH_TYPO.bodySmall,
     fontWeight: '600',
-    color: AUTH_COLORS.link,
+    color: '#1E4154',
     textDecorationLine: 'underline',
   },
   or: {

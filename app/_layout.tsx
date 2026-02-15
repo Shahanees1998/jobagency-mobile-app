@@ -1,4 +1,6 @@
+import { Kanit_400Regular, Kanit_500Medium, Kanit_600SemiBold, Kanit_700Bold } from '@expo-google-fonts/kanit';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
+import { useFonts } from 'expo-font';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
@@ -43,13 +45,21 @@ function RootLayoutNav() {
   const segments = useSegments();
   const router = useRouter();
 
+  const [fontsLoaded] = useFonts({
+    Kanit_400Regular,
+    Kanit_500Medium,
+    Kanit_600SemiBold,
+    Kanit_700Bold,
+  });
+
   useEffect(() => {
     if (isLoading) return;
     // Avoid redirect during initial mount or when segments are empty
-    const first = segments[0];
-    if (segments.length === 0 || first == null) return;
+    const segmentsArray = segments as string[];
+    const first = segmentsArray[0];
+    if (segmentsArray.length === 0 || first == null) return;
 
-    const onSplash = first === 'index';
+    const onSplash = first === 'index' || first === '';
     const onOnboarding = first === 'onboarding';
     const onLogin = first === 'login';
     if (onSplash || onOnboarding || onLogin) return;
@@ -61,6 +71,10 @@ function RootLayoutNav() {
       router.replace('/(tabs)');
     }
   }, [isAuthenticated, isLoading, segments]);
+
+  if (!fontsLoaded) {
+    return null;
+  }
 
   return (
     <Stack screenOptions={{ headerShown: false }} initialRouteName="index">
@@ -173,11 +187,11 @@ function RootLayoutNav() {
       />
       <Stack.Screen
         name="application-submitted"
-        options={{ title: 'Application submitted', headerShown: true, headerBackTitle: 'Back' }}
+        options={{ title: 'Application submitted', headerShown: false }}
       />
       <Stack.Screen
         name="notifications"
-        options={{ title: 'Notifications', headerShown: true, headerBackTitle: 'Back' }}
+        options={{ title: 'Notifications', headerShown: false }}
       />
       <Stack.Screen name="modal" options={{ presentation: 'modal' }} />
     </Stack>
@@ -192,7 +206,7 @@ export default function RootLayout() {
       <DialogProvider>
         <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
           <RootLayoutNav />
-          <StatusBar style="auto" />
+          <StatusBar hidden={true} />
         </ThemeProvider>
       </DialogProvider>
     </AuthProvider>

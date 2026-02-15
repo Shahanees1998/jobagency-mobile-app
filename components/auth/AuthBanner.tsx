@@ -10,16 +10,17 @@ import {
 } from 'react-native';
 
 const BANNER_IMAGE = require('@/assets/images/auth-banner.png');
-const LOGO_IMAGE = require('@/assets/images/logo.png');
+const LOGO_IMAGE = require('@/assets/images/white-logo.png');
 
 interface AuthBannerProps {
   title: string;
   subtitle?: string;
   showLogo?: boolean;
+  googleButton?: React.ReactNode;
   style?: ViewStyle;
 }
 
-export function AuthBanner({ title, subtitle, showLogo = true, style }: AuthBannerProps) {
+export function AuthBanner({ title, subtitle, showLogo = true, googleButton, style }: AuthBannerProps) {
   return (
     <ImageBackground
       source={BANNER_IMAGE}
@@ -45,6 +46,11 @@ export function AuthBanner({ title, subtitle, showLogo = true, style }: AuthBann
             {subtitle}
           </Text>
         ) : null}
+        {googleButton && (
+          <View style={styles.googleButtonWrap}>
+            {googleButton}
+          </View>
+        )}
       </View>
     </ImageBackground>
   );
@@ -53,13 +59,13 @@ export function AuthBanner({ title, subtitle, showLogo = true, style }: AuthBann
 const styles = StyleSheet.create({
   banner: {
     backgroundColor: AUTH_COLORS.bannerBg,
-    paddingHorizontal: AUTH_SPACING.bannerPaddingH,
-    paddingTop: AUTH_SPACING.bannerPaddingV,
-    paddingBottom: AUTH_SPACING.bannerPaddingV + 20,
+    paddingHorizontal: AUTH_SPACING.bannerPaddingH + 20,
+    paddingTop: AUTH_SPACING.bannerPaddingV + 30,
+    paddingBottom: AUTH_SPACING.bannerPaddingV + 50,
     borderBottomLeftRadius: 28,
     borderBottomRightRadius: 28,
     overflow: 'hidden',
-    minHeight: 220,
+    minHeight: 300,
   },
   bannerImageStyle: {
     borderBottomLeftRadius: 28,
@@ -78,19 +84,29 @@ const styles = StyleSheet.create({
     width: 48,
     height: 48,
   },
+  googleButtonWrap: {
+    marginTop: 20,
+    width: '100%',
+    alignItems: 'center',
+  },
   title: {
     color: AUTH_COLORS.white,
-    fontSize: AUTH_TYPO.bannerTitle,
-    fontWeight: '700',
-    lineHeight: 30,
-    marginBottom: 6,
+    fontFamily: 'Kanit_600SemiBold',
+    fontSize: 28,
+    fontWeight: '600',
+    lineHeight: 32,
+    letterSpacing: 0,
     textAlign: 'center',
+    marginBottom: 6,
   },
   subtitle: {
     color: AUTH_COLORS.white,
-    fontSize: AUTH_TYPO.bannerSubtitle,
+    fontFamily: 'Kanit_400Regular',
+    fontSize: 18,
+    fontWeight: '400',
+    lineHeight: 18,
+    letterSpacing: 0,
     opacity: 0.95,
-    lineHeight: 20,
     textAlign: 'center',
   },
 });

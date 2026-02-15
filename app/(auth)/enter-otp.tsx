@@ -4,10 +4,10 @@ import { apiClient } from '@/lib/api';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { StyleSheet, Text, TouchableOpacity, View, ScrollView } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-const DIGITS = 6;
+const DIGITS = 4;
 const RESEND_COOLDOWN_SEC = 60;
 
 const KEYPAD_ROWS: (string | 'back')[][] = [
@@ -17,7 +17,19 @@ const KEYPAD_ROWS: (string | 'back')[][] = [
   ['', '0', 'back'],
 ];
 
+const KEY_LETTERS: Record<string, string> = {
+  '2': 'ABC',
+  '3': 'DEF',
+  '4': 'GHI',
+  '5': 'JKL',
+  '6': 'MNO',
+  '7': 'PQRS',
+  '8': 'TUV',
+  '9': 'WXYZ',
+};
+
 export default function EnterOtpScreen() {
+  const TEST_IMMEDIATE_NAV = true; // set true to bypass verification for quick testing
   const { email = '' } = useLocalSearchParams<{ email?: string }>();
   const { showDialog } = useDialog();
   const [otp, setOtp] = useState<string[]>(Array(DIGITS).fill(''));
@@ -65,6 +77,10 @@ export default function EnterOtpScreen() {
 
   const handleVerify = async () => {
     if (otpString.length !== DIGITS) return;
+    if (TEST_IMMEDIATE_NAV) {
+      router.push({ pathname: '/(auth)/reset-password', params: { email, token: otpString } });
+      return;
+    }
     setLoading(true);
     try {
       const response = await apiClient.verifyOTP(email, otpString);
@@ -135,9 +151,11 @@ export default function EnterOtpScreen() {
           ))}
         </View>
         <Text style={styles.countdown}>
-          {resendSec > 0
-            ? `You can resend the code in ${resendSec} seconds`
-            : 'You can resend the code now'}
+          {resendSec > 0 ? (
+            <>You can resend the code in <Text style={styles.countdownNumber}>{resendSec}</Text> seconds</>
+          ) : (
+            'You can resend the code now'
+          )}
         </Text>
         <TouchableOpacity
           onPress={handleResend}
@@ -153,16 +171,16 @@ export default function EnterOtpScreen() {
             Resend code
           </Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          style={[styles.primaryBtn, (otpString.length !== DIGITS || loading) && styles.primaryBtnDisabled]}
-          onPress={handleVerify}
-          disabled={otpString.length !== DIGITS || loading}
-        >
-          <Text style={styles.primaryBtnText}>
-            {loading ? 'Verifying...' : 'Verify'}
-          </Text>
-        </TouchableOpacity>
       </View>
+      <TouchableOpacity
+        style={[styles.primaryBtn, (otpString.length !== DIGITS || loading) && styles.primaryBtnDisabled]}
+        onPress={handleVerify}
+        disabled={otpString.length !== DIGITS || loading}
+      >
+        <Text style={styles.primaryBtnText}>
+          {loading ? 'Verifying...' : 'Verify'}
+        </Text>
+      </TouchableOpacity>
       <View style={styles.keypad}>
         {KEYPAD_ROWS.map((row, rowIdx) => (
           <View key={rowIdx} style={styles.keypadRow}>
@@ -175,8 +193,13 @@ export default function EnterOtpScreen() {
               >
                 {key === 'back' ? (
                   <Ionicons name="backspace-outline" size={24} color={AUTH_COLORS.textPrimary} />
-                ) : (
-                  <Text style={styles.keypadKeyText}>{key}</Text>
+                ) : key === '' ? null : (
+                  <>
+                    <Text style={styles.keypadKeyText}>{key}</Text>
+                    {KEY_LETTERS[key as string] ? (
+                      <Text style={styles.keypadLetters}>{KEY_LETTERS[key as string]}</Text>
+                    ) : null}
+                  </>
                 )}
               </TouchableOpacity>
             ))}
@@ -197,9 +220,9 @@ const styles = StyleSheet.create({
   },
   backBtn: { padding: 4 },
   content: {
-    paddingHorizontal: AUTH_SPACING.contentPaddingH + 8,
+    paddingHorizontal: AUTH_SPACING.contentPaddingH,
     paddingTop: 16,
-    alignItems: 'center',
+    alignItems: 'flex-start',
     maxWidth: 400,
     width: '100%',
     alignSelf: 'center',
@@ -209,12 +232,12 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: AUTH_COLORS.textPrimary,
     marginBottom: 8,
-    textAlign: 'center',
+    textAlign: 'left',
   },
   description: {
     fontSize: AUTH_TYPO.bodySmall,
     color: AUTH_COLORS.textSecondary,
-    textAlign: 'center',
+    textAlign: 'left',
     marginBottom: 28,
     paddingHorizontal: 8,
   },
@@ -222,56 +245,51 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 10,
     marginBottom: 16,
-    flexWrap: 'wrap',
-    justifyContent: 'center',
+    flexWrap: 'nowrap',
+    justifyContent: 'flex-start',
   },
   box: {
-    width: 46,
-    height: 54,
-    borderRadius: 12,
-    borderWidth: 2,
-    borderColor: AUTH_COLORS.inputBorder,
-    backgroundColor: AUTH_COLORS.inputBg,
+    width: 72,
+    height: 52,
+    borderRadius: 56,
+    borderWidth: 1,
+    borderColor: '#E6E6E6',
+    backgroundColor: '#F5F5F5',
     alignItems: 'center',
     justifyContent: 'center',
   },
   boxFocused: { borderColor: AUTH_COLORS.primary },
   boxFilled: { borderColor: AUTH_COLORS.primary },
   boxText: {
+    fontFamily: 'Kanit_500Medium',
     fontSize: 24,
-    fontWeight: '700',
+    fontWeight: '500',
     color: AUTH_COLORS.textPrimary,
   },
   countdown: {
     fontSize: AUTH_TYPO.bodySmall,
     color: AUTH_COLORS.textSecondary,
     marginBottom: 8,
+    alignSelf: 'center',
   },
-  resendWrap: { marginBottom: 24 },
+  countdownNumber: {
+    color: '#72A4BF',
+  },
+  resendWrap: { marginBottom: 24, alignSelf: 'center' },
   resendText: {
-    fontSize: AUTH_TYPO.body,
+    fontFamily: 'Kanit_400Regular',
+    fontSize: 18,
+    fontWeight: '400',
     color: AUTH_COLORS.link,
-    fontWeight: '600',
+    textDecorationLine: 'underline',
+    textAlign: 'center',
   },
   resendDisabled: { color: AUTH_COLORS.inputPlaceholder },
-  primaryBtn: {
-    width: '100%',
-    height: AUTH_SPACING.buttonHeight,
-    borderRadius: AUTH_SPACING.buttonBorderRadius,
-    backgroundColor: AUTH_COLORS.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  primaryBtnDisabled: { opacity: 0.6 },
-  primaryBtnText: {
-    fontSize: AUTH_TYPO.button,
-    fontWeight: '600',
-    color: AUTH_COLORS.white,
-  },
   keypad: {
     marginTop: 'auto',
-    paddingHorizontal: 24,
-    paddingBottom: 32,
+    paddingHorizontal: 12,
+    paddingBottom: 12,
+    backgroundColor: '#939393',
   },
   keypadRow: {
     flexDirection: 'row',
@@ -282,7 +300,7 @@ const styles = StyleSheet.create({
   keypadKey: {
     width: 72,
     height: 52,
-    borderRadius: 12,
+    borderRadius: 8,
     backgroundColor: AUTH_COLORS.inputBg,
     alignItems: 'center',
     justifyContent: 'center',
@@ -292,5 +310,28 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '600',
     color: AUTH_COLORS.textPrimary,
+  },
+  keypadLetters: {
+    fontSize: 12,
+    color: AUTH_COLORS.textSecondary,
+    marginTop: 4,
+  },
+  primaryBtn: {
+    width: '90%',
+    maxWidth: 420,
+    height: 56,
+    borderRadius: 56,
+    backgroundColor: '#1E4154',
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'center',
+    marginBottom: 12,
+  },
+  primaryBtnDisabled: { opacity: 0.6 },
+  primaryBtnText: {
+    fontFamily: 'Kanit_500Medium',
+    fontSize: 18,
+    fontWeight: '500',
+    color: '#FFFFFF',
   },
 });

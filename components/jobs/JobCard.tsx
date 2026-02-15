@@ -1,4 +1,3 @@
-import { APP_COLORS, APP_SPACING } from '@/constants/appTheme';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
@@ -10,6 +9,13 @@ export interface JobCardProps {
   benefits?: string[];
   companyLogoLetter?: string;
   saved?: boolean;
+  showRemoveIcon?: boolean;
+  hideDislike?: boolean;
+  hideBookmark?: boolean;
+  footerButton?: {
+    text: string;
+    onPress: () => void;
+  };
   onPress?: () => void;
   onBookmark?: () => void;
   onDislike?: () => void;
@@ -22,7 +28,11 @@ export function JobCard({
   location,
   benefits = [],
   companyLogoLetter,
-  saved = false,
+  saved,
+  showRemoveIcon,
+  hideDislike,
+  hideBookmark,
+  footerButton,
   onPress,
   onBookmark,
   onDislike,
@@ -36,40 +46,49 @@ export function JobCard({
       onPress={onPress}
       activeOpacity={0.85}
     >
-      <View style={styles.header}>
+      {/* Top Row: Title and Bookmark */}
+      <View style={styles.topRow}>
         <Text style={styles.title} numberOfLines={1}>
           {title}
         </Text>
-        <View style={styles.actions}>
+        {!hideBookmark && (
           <TouchableOpacity
             onPress={(e) => { e?.stopPropagation?.(); onBookmark?.(); }}
-            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            hitSlop={8}
             style={styles.iconBtn}
           >
             <Ionicons
-              name={saved ? 'bookmark' : 'bookmark-outline'}
+              name={showRemoveIcon ? "remove-circle-outline" : (saved ? "bookmark" : "bookmark-outline")}
               size={22}
-              color={saved ? APP_COLORS.primary : APP_COLORS.textMuted}
+              color="#031019"
             />
           </TouchableOpacity>
+        )}
+      </View>
+
+      {/* Middle Row: Logo, Company Info, and Dislike */}
+      <View style={styles.middleRow}>
+        <View style={styles.logoAndInfo}>
+          <View style={styles.logo}>
+            <Text style={styles.logoText}>{letter}</Text>
+          </View>
+          <View style={styles.companyInfo}>
+            <Text style={styles.companyName} numberOfLines={1}>{companyName}</Text>
+            <Text style={styles.location} numberOfLines={1}>{location}</Text>
+          </View>
+        </View>
+        {!hideDislike && (
           <TouchableOpacity
             onPress={(e) => { e?.stopPropagation?.(); onDislike?.(); }}
-            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            hitSlop={8}
             style={styles.iconBtn}
           >
-            <Ionicons name="thumbs-down-outline" size={22} color={APP_COLORS.textMuted} />
+            <Ionicons name="thumbs-down-outline" size={22} color="#031019" />
           </TouchableOpacity>
-        </View>
+        )}
       </View>
-      <View style={styles.companyRow}>
-        <View style={styles.logo}>
-          <Text style={styles.logoText}>{letter}</Text>
-        </View>
-        <View style={styles.companyInfo}>
-          <Text style={styles.companyName} numberOfLines={1}>{companyName}</Text>
-          <Text style={styles.location} numberOfLines={1}>{location}</Text>
-        </View>
-      </View>
+
+      {/* Bottom Row: Tags */}
       {benefits.length > 0 && (
         <View style={styles.tags}>
           {benefits.slice(0, 6).map((b, i) => (
@@ -79,55 +98,65 @@ export function JobCard({
           ))}
         </View>
       )}
+
+      {/* Footer Button (Interview Tab) */}
+      {footerButton && (
+        <TouchableOpacity
+          style={styles.footerButton}
+          onPress={(e) => { e?.stopPropagation?.(); footerButton.onPress(); }}
+          activeOpacity={0.8}
+        >
+          <Text style={styles.footerButtonText}>{footerButton.text}</Text>
+        </TouchableOpacity>
+      )}
     </TouchableOpacity>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    backgroundColor: '#E8EEF2',
-    borderRadius: APP_SPACING.borderRadiusLg,
-    padding: APP_SPACING.itemPadding,
-    marginBottom: 12,
+    backgroundColor: '#F2F7FB',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
   },
-  header: {
+  topRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     marginBottom: 12,
   },
   title: {
-    fontSize: 18,
+    fontFamily: 'Kanit',
+    fontSize: 20,
     fontWeight: '700',
-    color: APP_COLORS.textPrimary,
+    color: '#031019',
     flex: 1,
     marginRight: 8,
   },
-  actions: {
+  middleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  logoAndInfo: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-  },
-  iconBtn: {
-    padding: 4,
-  },
-  companyRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
+    flex: 1,
   },
   logo: {
-    width: 40,
-    height: 40,
-    borderRadius: 8,
-    backgroundColor: APP_COLORS.primary,
+    width: 48,
+    height: 48,
+    borderRadius: 6,
+    backgroundColor: '#031019',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
   },
   logoText: {
-    color: APP_COLORS.white,
-    fontSize: 18,
+    color: '#FFFFFF',
+    fontSize: 20,
     fontWeight: '700',
   },
   companyInfo: {
@@ -135,14 +164,18 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   companyName: {
-    fontSize: 15,
-    color: APP_COLORS.textPrimary,
-    fontWeight: '500',
+    fontFamily: 'Kanit',
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#031019',
   },
   location: {
     fontSize: 13,
-    color: APP_COLORS.textMuted,
+    color: '#6B7280',
     marginTop: 2,
+  },
+  iconBtn: {
+    padding: 2,
   },
   tags: {
     flexDirection: 'row',
@@ -150,15 +183,31 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   tag: {
-    backgroundColor: APP_COLORS.surfaceGray,
-    paddingHorizontal: 10,
+    backgroundColor: '#FFFFFF',
+    paddingHorizontal: 12,
     paddingVertical: 6,
-    borderRadius: 8,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#EFEFEF',
   },
   tagText: {
     fontSize: 12,
-    color: APP_COLORS.textSecondary,
+    color: '#4B5563',
     fontWeight: '500',
-    maxWidth: 120,
+  },
+  footerButton: {
+    backgroundColor: '#1E4154',
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 16,
+    width: '100%',
+  },
+  footerButtonText: {
+    fontFamily: 'Kanit',
+    fontSize: 15,
+    color: '#FFFFFF',
+    fontWeight: '600',
   },
 });

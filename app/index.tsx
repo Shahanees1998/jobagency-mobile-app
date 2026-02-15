@@ -1,15 +1,29 @@
 import { router } from 'expo-router';
 import React, { useEffect, useRef } from 'react';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { Image, StyleSheet, View, Animated, Easing } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const SPLASH_BG = '#E8EEF4';
-const LOGO_SIZE = 80;
+const SPLASH_BG = '#72A4BF';
+const LOGO_SIZE = 150;
 
 export default function SplashScreen() {
   const mounted = useRef(true);
+  const spinValue = useRef(new Animated.Value(0)).current;
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
-    // Always show onboarding when app opens (for now)
+    // Start rotation animation
+    Animated.loop(
+      Animated.timing(spinValue, {
+        toValue: 1,
+        duration: 2000,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      })
+    ).start();
+
+    // Navigate after delay
     const timer = setTimeout(() => {
       if (mounted.current) {
         router.replace('/onboarding');
@@ -19,22 +33,39 @@ export default function SplashScreen() {
       mounted.current = false;
       clearTimeout(timer);
     };
-  }, []);
+  }, [spinValue]);
+
+  const spin = spinValue.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { paddingTop: -insets.top }]}>
       <View style={styles.centered}>
         <Image
           source={require('@/assets/images/logo.png')}
           style={styles.logo}
           resizeMode="contain"
         />
-        <Text style={styles.appName}>NextJob</Text>
+        
       </View>
       <View style={styles.footer}>
-        <View style={styles.loaderDot}>
-          <View style={styles.loaderDotInner} />
-        </View>
+        <LinearGradient
+          colors={['#FFFFFF', '#72A4BF']}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={styles.loaderButton}
+        >
+          <LinearGradient
+            colors={['#1E4154', '#72A4BF']}
+            start={{ x: 1, y: 0 }}
+            end={{ x: 0, y: 0 }}
+            style={styles.loaderButtonInner}
+          >
+            <Animated.View style={[styles.loaderDot, { transform: [{ rotate: spin }] }]} />
+          </LinearGradient>
+        </LinearGradient>
       </View>
     </View>
   );
@@ -68,19 +99,33 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  loaderDot: {
-    width: 36,
-    height: 36,
+  loaderButton: {
+    width: 56,
+    height: 56,
+    borderRadius: 12,
+    padding: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#1E4154',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 1,
+    shadowRadius: 0,
+    elevation: 5,
+  },
+  loaderButtonInner: {
+    width: '100%',
+    height: '100%',
     borderRadius: 10,
-    backgroundColor: '#E5E7EB',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  loaderDotInner: {
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    borderWidth: 1.5,
-    borderColor: '#9CA3AF',
+  loaderDot: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 2.5,
+    borderColor: '#FFFFFF',
+    borderTopColor: '#FFFFFF',
+    borderRightColor: '#FFFFFF',
   },
 });

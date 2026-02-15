@@ -4,7 +4,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import Ionicons from "@expo/vector-icons/Ionicons";
 import { Redirect, Tabs, useRouter } from "expo-router";
 import React from "react";
-import { StyleSheet, TouchableOpacity, View } from "react-native";
+import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 const ACTIVE_ICON_SIZE = 20;
@@ -23,17 +23,25 @@ function TabIconWithPill({
   label: string;
   tintColor?: string;
 }) {
-  const iconColor = focused ? "#FFFFFF" : (tintColor ?? "#374151");
+  const iconColor = focused ? "#FFFFFF" : "#6B7280";
   const iconSize = focused ? ACTIVE_ICON_SIZE : (size ?? INACTIVE_ICON_SIZE);
-  const content = (
-    <View style={focused ? styles.pillInner : undefined} pointerEvents="none">
+
+  if (focused) {
+    return (
+      <View style={styles.pill}>
+        <Ionicons name={name} size={iconSize} color={iconColor} />
+        <Text style={styles.pillText} numberOfLines={1} ellipsizeMode="tail">
+          {label}
+        </Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={styles.iconOnly}>
       <Ionicons name={name} size={iconSize} color={iconColor} />
     </View>
   );
-  if (focused) {
-    return <View style={styles.pill}>{content}</View>;
-  }
-  return <View style={styles.iconOnly}>{content}</View>;
 }
 
 const styles = StyleSheet.create({
@@ -41,34 +49,34 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: APP_COLORS.primary,
-    width: 56,
-    height: 40,
+    minHeight: 48,
+    backgroundColor: "#1e3a5f",
+    paddingHorizontal: 20,
+    paddingVertical: 10,
     borderRadius: 24,
+    gap: 8,
+    minWidth: 100,
   },
-  pillInner: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
+  pillText: {
+    color: "#FFFFFF",
+    fontSize: 14,
+    fontWeight: "700",
+    fontFamily: "Kanit",
   },
   iconOnly: {
     alignItems: "center",
     justifyContent: "center",
-    minWidth: 44,
-    minHeight: 44,
+    width: 44,
+    height: 44,
   },
 });
 
 const TAB_BAR_BASE = {
-  backgroundColor: "#F3F4F6",
+  backgroundColor: "#F9FAFB",
   borderTopWidth: 1,
   borderTopColor: "#E5E7EB",
-  elevation: 8,
-  shadowColor: "#000",
-  shadowOffset: { width: 0, height: -2 },
-  shadowOpacity: 0.08,
-  shadowRadius: 4,
-  paddingTop: 6,
+  elevation: 0,
+  paddingTop: 8,
 };
 
 const employerFabStyle = StyleSheet.create({
@@ -143,11 +151,9 @@ export default function TabLayout() {
           headerShown: false,
           tabBarButton: HapticTab,
           tabBarStyle,
-          tabBarActiveTintColor: APP_COLORS.primary,
-          tabBarInactiveTintColor: "#374151",
-          tabBarShowLabel: true,
-          tabBarLabelStyle: { fontSize: 11, fontWeight: "600" },
-          tabBarLabel: () => null,
+          tabBarActiveTintColor: "#FFFFFF",
+          tabBarInactiveTintColor: "#6B7280",
+          tabBarShowLabel: false,
           tabBarItemStyle: { paddingVertical: 4 },
         }}
       >
@@ -159,7 +165,7 @@ export default function TabLayout() {
               <TabIconWithPill
                 focused={focused}
                 tintColor={color}
-                name="home"
+                name={focused ? "home" : "home-outline"}
                 size={size ?? 24}
                 label="Home"
               />
@@ -167,16 +173,16 @@ export default function TabLayout() {
           }}
         />
         <Tabs.Screen
-          name="applications"
+          name="jobs"
           options={{
-            title: "Saved",
+            title: "Jobs",
             tabBarIcon: ({ focused, color, size }) => (
               <TabIconWithPill
                 focused={focused}
                 tintColor={color}
-                name="bookmark-outline"
+                name={focused ? "bookmark" : "bookmark-outline"}
                 size={size ?? 24}
-                label="Saved"
+                label="Jobs"
               />
             ),
           }}
@@ -184,14 +190,14 @@ export default function TabLayout() {
         <Tabs.Screen
           name="chats"
           options={{
-            title: "Chat",
+            title: "Chats",
             tabBarIcon: ({ focused, color, size }) => (
               <TabIconWithPill
                 focused={focused}
                 tintColor={color}
-                name="chatbubble-ellipses-outline"
+                name={focused ? "chatbubble-ellipses" : "chatbubble-ellipses-outline"}
                 size={size ?? 24}
-                label="Chat"
+                label="Chats"
               />
             ),
           }}
@@ -204,15 +210,17 @@ export default function TabLayout() {
               <TabIconWithPill
                 focused={focused}
                 tintColor={color}
-                name="person-outline"
+                name={focused ? "person" : "person-outline"}
                 size={size ?? 24}
                 label="Profile"
               />
             ),
           }}
         />
-        <Tabs.Screen name="jobs" options={{ href: null }} />
+        <Tabs.Screen name="applications" options={{ href: null }} />
         <Tabs.Screen name="explore" options={{ href: null }} />
+        <Tabs.Screen name="interviews" options={{ href: null }} />
+        <Tabs.Screen name="post" options={{ href: null }} />
       </Tabs>
     );
   }
