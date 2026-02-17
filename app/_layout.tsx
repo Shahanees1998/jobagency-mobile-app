@@ -90,10 +90,7 @@ function RootLayoutNav() {
       <Stack.Screen
         name="edit-profile"
         options={{
-          title: 'Edit Profile',
-          headerShown: true,
-          headerBackTitle: 'Back',
-          headerLeft: () => <EditProfileHeaderBack />,
+          headerShown: false,
         }}
       />
       <Stack.Screen
@@ -175,15 +172,15 @@ function RootLayoutNav() {
       />
       <Stack.Screen
         name="policies-terms"
-        options={{ title: 'Policies & terms', headerShown: true, headerBackTitle: 'Back' }}
+        options={{ title: 'Policies & terms', headerShown: false, headerBackTitle: 'Back' }}
       />
       <Stack.Screen
         name="privacy-policy"
-        options={{ title: 'Privacy policy', headerShown: true, headerBackTitle: 'Back' }}
+        options={{ title: 'Privacy policy', headerShown: false, headerBackTitle: 'Back' }}
       />
       <Stack.Screen
         name="terms-of-services"
-        options={{ title: 'Terms of services', headerShown: true, headerBackTitle: 'Back' }}
+        options={{ title: 'Terms of services', headerShown: false, headerBackTitle: 'Back' }}
       />
       <Stack.Screen
         name="application-submitted"

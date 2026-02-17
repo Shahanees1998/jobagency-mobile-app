@@ -468,15 +468,11 @@ export default function JobDetailsScreen() {
         setDescription={setReviewDescription}
         onSubmit={() => {
           if (!reviewTitle.trim()) return;
-          showDialog({
-            title: 'Success',
-            message: 'Review submitted successfully!',
-            primaryButton: { text: 'OK' },
-          });
           setReviewModalVisible(false);
           setReviewRating(5);
           setReviewTitle('');
           setReviewDescription('');
+          router.push('/review-submitted');
         }}
       />
     </View>
@@ -507,13 +503,12 @@ function WriteReviewModal({
   const insets = useSafeAreaInsets();
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
       <Pressable style={styles.modalOverlay} onPress={onClose}>
         <Pressable
-          style={[styles.modalSheet, { paddingBottom: Math.max(insets.bottom, 24) + 16 }]}
+          style={styles.modalSheet}
           onPress={(e) => e.stopPropagation()}
         >
-          <View style={styles.modalHandle} />
           <Text style={styles.modalTitle}>Rate & review</Text>
 
           <ScrollView
@@ -968,30 +963,25 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 20,
   },
   modalSheet: {
     backgroundColor: '#FFFFFF',
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    maxHeight: '85%',
+    borderRadius: 16,
+    paddingHorizontal: 24,
+    paddingVertical: 24,
+    width: '100%',
+    maxWidth: 500,
+    maxHeight: '80%',
   },
   modalScroll: {
     flexGrow: 0,
   },
   modalScrollContent: {
-    paddingBottom: 16,
-  },
-  modalHandle: {
-    width: 40,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: '#9CA3AF',
-    alignSelf: 'center',
-    marginBottom: 20,
+    paddingBottom: 8,
   },
   modalTitle: {
     fontFamily: 'Kanit',
@@ -999,7 +989,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#1E4154',
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: 16,
   },
   modalLabel: {
     fontFamily: 'Kanit',

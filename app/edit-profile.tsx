@@ -8,14 +8,16 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
-    BackHandler,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
-    StyleSheet,
-    Text,
-    View,
+  BackHandler,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function EditProfileScreen() {
   const { user, refreshUser } = useAuth();
@@ -71,16 +73,7 @@ export default function EditProfileScreen() {
         setPhone(phone.trim());
         setLocation(location.trim());
         await refreshUser();
-        showDialog({
-          title: 'Success',
-          message: 'Profile updated successfully. Your changes have been saved.',
-          primaryButton: {
-            text: 'Ok, Great!',
-            onPress: () => {
-              setTimeout(() => router.navigate('/(tabs)/profile'), 100);
-            },
-          },
-        });
+        router.push('/profile-updated');
       } else {
         showDialog({
           title: 'Error',
@@ -100,67 +93,79 @@ export default function EditProfileScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
-    >
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.content}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={styles.header}>
-        <View style={styles.avatarPlaceholder}>
-          <Ionicons name="person" size={44} color={APP_COLORS.primary} />
+    <View style={styles.container}>
+      <SafeAreaView edges={['top']} style={styles.headerArea}>
+        <View style={styles.headerBar}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.headerBtn} hitSlop={12}>
+            <Ionicons name="arrow-back" size={24} color="#000" />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Edit profile</Text>
+          <View style={styles.headerSpacer} />
         </View>
-        <Text style={styles.name}>{fullName || 'User'}</Text>
-        <Text style={styles.email}>{email}</Text>
-      </View>
-      <View style={styles.form}>
-        <AuthInput
-          icon="person"
-          placeholder="Alexander Fleming"
-          value={fullName}
-          onChangeText={setFullName}
-          containerStyle={styles.input}
-        />
-        <AuthInput
-          icon="email"
-          placeholder="alexanderfleming@gmail.com"
-          value={email}
-          onChangeText={setEmail}
-          keyboardType="email-address"
-          autoCapitalize="none"
-          editable={false}
-          containerStyle={styles.input}
-        />
-        <AuthInput
-          icon="phone"
-          placeholder="+1 234-576-7890"
-          value={phone}
-          onChangeText={setPhone}
-          keyboardType="phone-pad"
-          containerStyle={styles.input}
-        />
-        <AuthInput
-          icon="location"
-          placeholder="New York, USA"
-          value={location}
-          onChangeText={setLocation}
-          containerStyle={styles.input}
-        />
-        <PrimaryButton
-          title="Update Profile"
-          onPress={handleSave}
-          loading={loading}
-          showArrow={false}
-          style={styles.button}
-        />
-      </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+      </SafeAreaView>
+
+      <KeyboardAvoidingView
+        style={styles.keyboardView}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
+      >
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={styles.header}>
+            <View style={styles.avatarPlaceholder}>
+              <Ionicons name="person" size={44} color={APP_COLORS.primary} />
+            </View>
+            <Text style={styles.name}>{fullName || 'User'}</Text>
+            <Text style={styles.emailText}>{email}</Text>
+          </View>
+          <View style={styles.form}>
+            <AuthInput
+              icon="person"
+              placeholder="Alexander Fleming"
+              value={fullName}
+              onChangeText={setFullName}
+              containerStyle={styles.input}
+            />
+            <AuthInput
+              icon="email"
+              placeholder="alexanderfleming@gmail.com"
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              editable={false}
+              containerStyle={styles.input}
+            />
+            <AuthInput
+              icon="phone"
+              placeholder="+1 234-576-7890"
+              value={phone}
+              onChangeText={setPhone}
+              keyboardType="phone-pad"
+              containerStyle={styles.input}
+            />
+            <AuthInput
+              icon="location"
+              placeholder="New York, USA"
+              value={location}
+              onChangeText={setLocation}
+              containerStyle={styles.input}
+            />
+            <PrimaryButton
+              title="Update Profile"
+              onPress={handleSave}
+              loading={loading}
+              showArrow={false}
+              style={styles.button}
+            />
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 
@@ -168,6 +173,34 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: APP_COLORS.background,
+  },
+  headerArea: {
+    backgroundColor: APP_COLORS.background,
+  },
+  headerBar: {
+    height: 56,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+  },
+  headerBtn: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitle: {
+    fontFamily: 'Kanit',
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#000',
+  },
+  headerSpacer: {
+    width: 40,
+  },
+  keyboardView: {
+    flex: 1,
   },
   scroll: { flex: 1 },
   content: {
@@ -193,7 +226,7 @@ const styles = StyleSheet.create({
     color: APP_COLORS.textPrimary,
     marginBottom: 4,
   },
-  email: {
+  emailText: {
     fontSize: 14,
     color: APP_COLORS.textMuted,
     marginBottom: 8,

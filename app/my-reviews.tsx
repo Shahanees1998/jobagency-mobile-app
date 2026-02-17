@@ -1,16 +1,18 @@
+import { PrimaryButton } from '@/components/auth';
 import { APP_COLORS, APP_SPACING } from '@/constants/appTheme';
 import { useDialog } from '@/contexts/DialogContext';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { Stack, router } from 'expo-router';
 import React, { useState } from 'react';
 import {
-    Modal,
-    Pressable,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  Modal,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -44,6 +46,21 @@ const MOCK_REVIEWS: ReviewItem[] = [
   },
 ];
 
+function CustomHeader() {
+  const insets = useSafeAreaInsets();
+  return (
+    <View style={[styles.customHeader, { paddingTop: insets.top }]}>
+      <View style={styles.headerContent}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} hitSlop={10}>
+          <Ionicons name="arrow-back" size={24} color={APP_COLORS.textPrimary} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>My reviews</Text>
+        <View style={styles.backBtn} />
+      </View>
+    </View>
+  );
+}
+
 function DeleteReviewModal({
   visible,
   onClose,
@@ -59,25 +76,25 @@ function DeleteReviewModal({
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
-      <Pressable style={styles.overlay} onPress={onClose}>
+      <Pressable style={styles.bottomOverlay} onPress={onClose}>
         <Pressable
           style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 24) + 16 }]}
           onPress={(e) => e.stopPropagation()}
         >
           <View style={styles.handle} />
           <Text style={styles.sheetTitle}>Delete review</Text>
-          <Text style={styles.sheetMessage}>Are you want to delete your review?</Text>
-          <View style={styles.actions}>
+          <Text style={styles.sheetMessage}>Sure you want to delete your review?</Text>
+          <View style={styles.modalActions}>
             <TouchableOpacity style={styles.cancelButton} onPress={onClose} disabled={loading} activeOpacity={0.85}>
               <Text style={styles.cancelText}>Cancel</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={styles.confirmButton}
+              style={styles.deleteConfirmButton}
               onPress={onConfirm}
               disabled={loading}
               activeOpacity={0.85}
             >
-              <Text style={styles.confirmText}>{loading ? 'Deleting...' : 'Yes, delete'}</Text>
+              <Text style={styles.confirmText}>{loading ? 'Deleting...' : 'Yes, Delete'}</Text>
             </TouchableOpacity>
           </View>
         </Pressable>
@@ -175,18 +192,19 @@ function EditReviewModal({
               numberOfLines={4}
             />
 
-            <TouchableOpacity
-              style={styles.updateButton}
-              onPress={handleSubmit}
-              disabled={loading || !title.trim()}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.updateButtonText}>Update review</Text>
-            </TouchableOpacity>
+            <View style={{ marginTop: 24 }}>
+              <PrimaryButton
+                title="Update review"
+                onPress={handleSubmit}
+                loading={loading}
+                disabled={!title.trim()}
+                showArrow={false}
+              />
+            </View>
           </ScrollView>
         </Pressable>
       </Pressable>
-    </Modal>
+    </Modal >
   );
 }
 
@@ -241,6 +259,8 @@ export default function MyReviewsScreen() {
 
   return (
     <View style={styles.container}>
+      <Stack.Screen options={{ headerShown: false }} />
+      <CustomHeader />
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.scrollContent}
@@ -360,8 +380,10 @@ const styles = StyleSheet.create({
   },
   overlay: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.4)',
-    justifyContent: 'flex-end',
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: APP_SPACING.screenPadding,
   },
   sheet: {
     backgroundColor: APP_COLORS.white,
@@ -370,13 +392,41 @@ const styles = StyleSheet.create({
     paddingHorizontal: APP_SPACING.screenPadding,
     paddingTop: 12,
   },
-  editSheet: {
+  bottomOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  customHeader: {
     backgroundColor: APP_COLORS.white,
-    borderTopLeftRadius: 24,
-    borderTopRightRadius: 24,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  headerContent: {
+    height: 56,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+  },
+  backBtn: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: APP_COLORS.textPrimary,
+  },
+  editSheet: {
+    width: '100%',
+    backgroundColor: APP_COLORS.white,
+    borderRadius: 24,
     paddingHorizontal: APP_SPACING.screenPadding,
     paddingTop: 12,
-    maxHeight: '85%',
+    maxHeight: '80%',
   },
   editSheetScroll: { flexGrow: 0 },
   editSheetScrollContent: { paddingBottom: 16 },
@@ -401,7 +451,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 24,
   },
-  actions: { flexDirection: 'row', gap: 12 },
+  modalActions: { flexDirection: 'row', gap: 12 },
   cancelButton: {
     flex: 1,
     height: 52,
@@ -411,10 +461,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   cancelText: { fontSize: 16, fontWeight: '600', color: APP_COLORS.textPrimary },
-  confirmButton: {
+  deleteConfirmButton: {
     flex: 1,
     height: 52,
-    backgroundColor: APP_COLORS.primary,
+    backgroundColor: APP_COLORS.danger,
     borderRadius: APP_SPACING.borderRadius,
     alignItems: 'center',
     justifyContent: 'center',
@@ -447,13 +497,5 @@ const styles = StyleSheet.create({
     minHeight: 100,
     textAlignVertical: 'top',
   },
-  updateButton: {
-    height: 52,
-    backgroundColor: APP_COLORS.primary,
-    borderRadius: APP_SPACING.borderRadius,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 24,
-  },
-  updateButtonText: { fontSize: 16, fontWeight: '600', color: APP_COLORS.white },
+
 });

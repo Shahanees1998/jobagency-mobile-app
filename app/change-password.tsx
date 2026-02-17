@@ -3,13 +3,31 @@ import { APP_COLORS, APP_SPACING } from '@/constants/appTheme';
 import { AUTH_SPACING } from '@/constants/authTheme';
 import { useDialog } from '@/contexts/DialogContext';
 import { apiClient } from '@/lib/api';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+
+function CustomHeader() {
+  const insets = useSafeAreaInsets();
+
+  return (
+    <View style={[styles.customHeader, { paddingTop: insets.top }]}>
+      <View style={styles.headerContent}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} hitSlop={10}>
+          <Ionicons name="arrow-back" size={24} color={APP_COLORS.textPrimary} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Change password</Text>
+        <View style={styles.backBtn} />
+      </View>
+    </View>
+  );
+}
 
 export default function ChangePasswordScreen() {
   const { showDialog } = useDialog();
+  const insets = useSafeAreaInsets();
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -32,11 +50,8 @@ export default function ChangePasswordScreen() {
     try {
       const response = await apiClient.changePassword(currentPassword, newPassword);
       if (response.success) {
-        showDialog({
-          title: 'Success',
-          message: 'Password updated successfully. For your security, please use this new password for future logins.',
-          primaryButton: { text: 'Ok, Great!', onPress: () => router.back() },
-        });
+        // Navigate to the success screen
+        router.push('/password-changed');
       } else {
         showDialog({
           title: 'Error',
@@ -56,8 +71,9 @@ export default function ChangePasswordScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safe} edges={['bottom']}>
-      <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+    <View style={styles.container}>
+      <CustomHeader />
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.title}>Update password</Text>
         <Text style={styles.subtitle}>Choose Password different from older one.</Text>
         <View style={styles.form}>
@@ -88,32 +104,55 @@ export default function ChangePasswordScreen() {
             isPassword
             containerStyle={styles.input}
           />
-          <PrimaryButton
-            title="Update password"
-            onPress={handleChangePassword}
-            loading={loading}
-            showArrow={false}
-            style={styles.button}
-          />
         </View>
       </ScrollView>
-    </SafeAreaView>
+
+      <View style={[styles.footer, { paddingBottom: insets.bottom + 16 }]}>
+        <PrimaryButton
+          title="Update password"
+          onPress={handleChangePassword}
+          loading={loading}
+          showArrow={false}
+          style={styles.button}
+        />
+      </View>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: APP_COLORS.background },
-  container: { flex: 1 },
+  container: { flex: 1, backgroundColor: APP_COLORS.background },
   content: {
     padding: APP_SPACING.screenPadding,
     paddingTop: 24,
-    paddingBottom: 32,
+    paddingBottom: 100, // Space for the footer
+  },
+  customHeader: {
+
+  },
+  headerContent: {
+    height: 56,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+  },
+  backBtn: {
+    width: 40,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   title: {
     fontSize: 24,
     fontWeight: '700',
     color: APP_COLORS.textPrimary,
     marginBottom: 8,
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: APP_COLORS.textPrimary,
   },
   subtitle: {
     fontSize: 15,
@@ -133,9 +172,18 @@ const styles = StyleSheet.create({
   input: {
     marginBottom: AUTH_SPACING.gapInputs,
   },
+  footer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: APP_COLORS.background,
+    paddingHorizontal: APP_SPACING.screenPadding,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: APP_COLORS.surfaceGray,
+  },
   button: {
-    marginTop: 24,
     width: '100%',
-    alignSelf: 'stretch',
   },
 });

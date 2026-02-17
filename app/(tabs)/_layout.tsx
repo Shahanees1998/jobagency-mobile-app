@@ -49,17 +49,17 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    minHeight: 48,
+    minHeight: 40,
     backgroundColor: "#1e3a5f",
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 24,
-    gap: 8,
-    minWidth: 100,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    gap: 6,
+    minWidth: 80,
   },
   pillText: {
     color: "#FFFFFF",
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "700",
     fontFamily: "Kanit",
   },
@@ -72,11 +72,19 @@ const styles = StyleSheet.create({
 });
 
 const TAB_BAR_BASE = {
-  backgroundColor: "#F9FAFB",
-  borderTopWidth: 1,
+  backgroundColor: "#F5F5F5",
+  borderTopWidth: 0,
   borderTopColor: "#E5E7EB",
-  elevation: 0,
+  elevation: 4,
+  shadowColor: "#000",
+  shadowOffset: { width: 0, height: -2 },
+  shadowOpacity: 0.1,
+  shadowRadius: 4,
   paddingTop: 8,
+  borderRadius: 40,
+  marginHorizontal: 16,
+
+  position: "absolute" as const,
 };
 
 const employerFabStyle = StyleSheet.create({
@@ -108,8 +116,9 @@ export default function TabLayout() {
   const insets = useSafeAreaInsets();
   const tabBarStyle = {
     ...TAB_BAR_BASE,
-    height: 64 + insets.bottom,
-    paddingBottom: Math.max(insets.bottom, 6),
+    height: 64,
+    paddingBottom: 8,
+    bottom: insets.bottom > 0 ? insets.bottom + 4 : 16,
   };
 
   if (!isAuthenticated || !user) {

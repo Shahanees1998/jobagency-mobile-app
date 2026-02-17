@@ -7,13 +7,13 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
-    ActivityIndicator,
-    Image,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -225,10 +225,10 @@ function CandidateProfileScreen() {
     : 'User';
   const resumeUpdated = profile?.resumeUpdated
     ? new Date(profile.resumeUpdated).toLocaleDateString('en-US', {
-        month: 'short',
-        day: '2-digit',
-        year: 'numeric',
-      })
+      month: 'short',
+      day: '2-digit',
+      year: 'numeric',
+    })
     : 'Feb 01, 2026';
 
   return (
@@ -444,7 +444,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: APP_SPACING.screenPadding,
   },
   headerCandidate: {
-    backgroundColor: APP_COLORS.background,
+    backgroundColor: '#F5F5F5',
     alignItems: 'center',
     paddingTop: 26,
     paddingBottom: 18,
@@ -492,7 +492,7 @@ const styles = StyleSheet.create({
   avatarPlaceholder: {
     width: '100%',
     height: '100%',
-    backgroundColor: APP_COLORS.avatarBg,
+    backgroundColor: '#5A8FA3',
     alignItems: 'center',
     justifyContent: 'center',
   },

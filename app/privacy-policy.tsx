@@ -41,12 +41,12 @@ export default function PrivacyPolicyScreen() {
           With your consent, we may send you updates about new jobs, tips, and promotional
           content. You can opt out at any time.
         </Text>
-
-        <Text style={styles.heading}>Data protection</Text>
-        <Text style={styles.paragraph}>
-          We implement a variety of security measures to protect your personal information,
-          including encryption and secure servers. We do not sell your data to third parties.
-        </Text>
+        <>
+          <Text style={styles.heading}>Data protection</Text><Text style={styles.paragraph}>
+            We implement a variety of security measures to protect your personal information,
+            including encryption and secure servers. We do not sell your data to third parties.
+          </Text>
+        </>
       </ScrollView>
     </SafeAreaView>
   );
