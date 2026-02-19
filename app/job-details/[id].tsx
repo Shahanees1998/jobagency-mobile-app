@@ -328,12 +328,20 @@ export default function JobDetailsScreen() {
   const renderCompanyProfileView = () => (
     <>
       <View style={styles.bannerContainer}>
-        <View style={styles.bannerPlaceholder}>
-          <Ionicons name="image-outline" size={40} color="#FFFFFF40" />
-        </View>
+        {companyBanner ? (
+          <Image source={{ uri: companyBanner }} style={styles.bannerImage} resizeMode="cover" />
+        ) : (
+          <View style={styles.bannerPlaceholder}>
+            <Ionicons name="image-outline" size={40} color="#FFFFFF40" />
+          </View>
+        )}
         <View style={styles.logoOverlayComplex}>
           <View style={styles.logoBox}>
-            <Text style={styles.logoLetter}>{letter}</Text>
+            {companyLogo ? (
+              <Image source={{ uri: companyLogo }} style={styles.logoImage} resizeMode="cover" />
+            ) : (
+              <Text style={styles.logoLetter}>{letter}</Text>
+            )}
           </View>
           <View style={styles.companyMetaRow}>
             <View style={styles.companyMeta}>
@@ -343,8 +351,11 @@ export default function JobDetailsScreen() {
                 <Ionicons name="star" size={14} color="#031019" style={{ marginLeft: 4 }} />
               </View>
             </View>
-            <TouchableOpacity style={styles.writeReviewBtnInline} onPress={() => setReviewModalVisible(true)}>
-              <Text style={styles.writeReviewText}>Write a review..</Text>
+            <TouchableOpacity
+              style={styles.writeReviewBtnInline}
+              onPress={() => employerId ? router.push(`/company-reviews/${employerId}`) : setReviewModalVisible(true)}
+            >
+              <Text style={styles.writeReviewText}>Write a review</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -353,7 +364,7 @@ export default function JobDetailsScreen() {
       <View style={styles.sectionCompany}>
         <Text style={styles.sectionTitle}>Company overview</Text>
         <Text style={styles.descriptionText} numberOfLines={descriptionExpanded ? undefined : 3}>
-          {job.companyOverview || 'We are a leading technology company...'}
+          {companyOverview}
         </Text>
         <TouchableOpacity style={styles.showMoreBtnInline} onPress={() => setDescriptionExpanded(!descriptionExpanded)}>
           <Text style={styles.showMoreLink}>{descriptionExpanded ? 'Show less' : 'Show more'} <Ionicons name={descriptionExpanded ? "chevron-up" : "chevron-down"} size={14} color={APP_COLORS.link} /></Text>
@@ -364,34 +375,39 @@ export default function JobDetailsScreen() {
         <View style={styles.gridRow}>
           <View style={styles.gridItem}>
             <Text style={styles.gridLabel}>Founded</Text>
-            <Text style={styles.gridValue}>{job.founded || '2012'}</Text>
+            <Text style={styles.gridValue}>{job.founded || '—'}</Text>
           </View>
           <View style={styles.gridItem}>
             <Text style={styles.gridLabel}>Company size</Text>
-            <Text style={styles.gridValue}>{job.size || '100+ workers'}</Text>
+            <Text style={styles.gridValue}>{companySize}</Text>
           </View>
         </View>
         <View style={styles.gridRow}>
           <View style={styles.gridItem}>
             <Text style={styles.gridLabel}>Revenue</Text>
-            <Text style={styles.gridValue}>{job.revenue || '$10M+'}</Text>
+            <Text style={styles.gridValue}>{job.revenue || '—'}</Text>
           </View>
           <View style={styles.gridItem}>
             <Text style={styles.gridLabel}>Industry</Text>
-            <Text style={styles.gridValue}>{job.industry || 'Tech'}</Text>
+            <Text style={styles.gridValue}>{companyIndustry}</Text>
           </View>
         </View>
         <View style={styles.gridRow}>
           <View style={styles.gridItem}>
             <Text style={styles.gridLabel}>Headquarters</Text>
-            <Text style={styles.gridValue}>{job.headquarters || 'San Francisco, CA'}</Text>
+            <Text style={styles.gridValue}>{headquarters}</Text>
           </View>
           <View style={styles.gridItem}>
             <Text style={styles.gridLabel}>Link</Text>
-            <View style={styles.gridWebRow}>
-              <Text style={styles.gridWebLink}>{job.website || 'Visit website'}</Text>
+            <TouchableOpacity
+              style={styles.gridWebRow}
+              onPress={() => companyWebsite && Linking.openURL(companyWebsite)}
+              disabled={!companyWebsite}
+              activeOpacity={companyWebsite ? 0.8 : 1}
+            >
+              <Text style={styles.gridWebLink}>Visit website</Text>
               <Ionicons name="open-outline" size={14} color={APP_COLORS.link} style={{ marginLeft: 4 }} />
-            </View>
+            </TouchableOpacity>
           </View>
         </View>
       </View>
@@ -642,6 +658,11 @@ const styles = StyleSheet.create({
     height: 140,
     marginBottom: 100,
   },
+  bannerImage: {
+    width: '100%',
+    height: 120,
+    backgroundColor: '#1E4154',
+  },
   bannerPlaceholder: {
     height: 120,
     backgroundColor: '#1E4154',
@@ -692,6 +713,11 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 32,
     fontWeight: '700',
+  },
+  logoImage: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 8,
   },
   companyMeta: {
     paddingBottom: 4,
