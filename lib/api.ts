@@ -575,6 +575,24 @@ class ApiClient {
     return this.request(`/api/candidates/reviews/${reviewId}`, { method: 'DELETE' });
   }
 
+  /** GET /api/candidates/saved-jobs - List saved (liked) jobs */
+  async getSavedJobs(): Promise<ApiResponse<{ jobs: any[]; total: number }>> {
+    return this.request('/api/candidates/saved-jobs');
+  }
+
+  /** POST /api/candidates/saved-jobs - Save (like) a job. Body: { jobId } */
+  async saveJob(jobId: string): Promise<ApiResponse<{ saved: boolean; jobId: string }>> {
+    return this.request('/api/candidates/saved-jobs', {
+      method: 'POST',
+      body: JSON.stringify({ jobId }),
+    });
+  }
+
+  /** DELETE /api/candidates/saved-jobs/[jobId] - Unsave (unlike) a job */
+  async unsaveJob(jobId: string): Promise<ApiResponse<{ saved: boolean; jobId: string }>> {
+    return this.request(`/api/candidates/saved-jobs/${jobId}`, { method: 'DELETE' });
+  }
+
   /** GET /api/employers/[id]/reviews - Public reviews for a company */
   async getEmployerReviews(employerId: string): Promise<ApiResponse<{ companyName: string; reviews: any[] }>> {
     return this.request(`/api/employers/${employerId}/reviews`);

@@ -177,10 +177,13 @@ function CandidateJobsScreen() {
     };
   };
 
+  const isCandidate = user?.role === 'CANDIDATE';
+
+  /** Save (bookmark) – local storage only */
   const toggleSaved = useCallback(async (item: any) => {
     const jobId = item.id;
-    const isSaved = savedJobIds.includes(jobId);
-    if (isSaved) {
+    const currentlySaved = savedJobIds.includes(jobId);
+    if (currentlySaved) {
       await storage.removeSavedJobId(jobId);
       setSavedJobIds((prev) => prev.filter((id) => id !== jobId));
     } else {
@@ -197,6 +200,26 @@ function CandidateJobsScreen() {
     }
   }, [savedJobIds]);
 
+  /** Like – API only (candidate) */
+  const toggleLike = useCallback(async (item: any) => {
+    if (user?.role !== 'CANDIDATE') return;
+    const jobId = item.id;
+    const currentlyLiked = item.saved === true;
+    try {
+      if (currentlyLiked) {
+        const res = await apiClient.unsaveJob(jobId);
+        if (res.success)
+          setJobs((prev) => prev.map((j) => (j.id === jobId ? { ...j, saved: false } : j)));
+      } else {
+        const res = await apiClient.saveJob(jobId);
+        if (res.success)
+          setJobs((prev) => prev.map((j) => (j.id === jobId ? { ...j, saved: true } : j)));
+      }
+    } catch (e) {
+      console.error('Toggle like failed:', e);
+    }
+  }, [user?.role]);
+
   const renderJob = ({ item }: { item: any }) => {
     const card = mapJobToCard(item);
     return (
@@ -207,8 +230,10 @@ function CandidateJobsScreen() {
         benefits={card.benefits}
         companyLogoLetter={card.companyLogoLetter}
         saved={savedJobIds.includes(item.id)}
+        liked={isCandidate ? item.saved === true : false}
         onPress={() => router.push(`/job-details/${item.id}`)}
         onBookmark={() => toggleSaved(item)}
+        onLike={() => toggleLike(item)}
         onDislike={() => { }}
       />
     );

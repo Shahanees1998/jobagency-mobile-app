@@ -1,5 +1,6 @@
 import { JobCard } from '@/components/jobs';
 import { APP_COLORS } from '@/constants/appTheme';
+import { imageUriForDisplay } from '@/lib/imageUri';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDialog } from '@/contexts/DialogContext';
 import { apiClient } from '@/lib/api';
@@ -68,6 +69,7 @@ export default function JobDetailsScreen() {
   const [loading, setLoading] = useState(true);
   const [applying, setApplying] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [liked, setLiked] = useState(false);
   const [alreadyApplied, setAlreadyApplied] = useState(false);
   const [descriptionExpanded, setDescriptionExpanded] = useState(false);
   const [detailsHiddenVisible, setDetailsHiddenVisible] = useState(false);
@@ -106,6 +108,7 @@ export default function JobDetailsScreen() {
           setAlreadyApplied(data.hasApplied);
           if (data.hasApplied) await storage.addAppliedJobId(id);
         }
+        if (typeof data.saved === 'boolean') setLiked(data.saved);
       } else setJob(null);
     } catch (error) {
       console.error('Error loading job:', error);
@@ -120,22 +123,22 @@ export default function JobDetailsScreen() {
   }, [loadJob]);
 
   useEffect(() => {
-    const checkSaved = async () => {
-      if (id) {
-        const savedIds = await storage.getSavedJobIds();
-        setSaved(savedIds.includes(id));
-      }
-    };
     const checkApplied = async () => {
       if (id) {
         const appliedIds = await storage.getAppliedJobIds();
         setAlreadyApplied(appliedIds.includes(id));
       }
     };
-    checkSaved();
+    const checkSavedLocal = async () => {
+      if (!id) return;
+      const savedIds = await storage.getSavedJobIds();
+      setSaved(savedIds.includes(id));
+    };
+    checkSavedLocal();
     checkApplied();
   }, [id]);
 
+  /** Save (bookmark) – local storage only */
   const toggleSaved = async () => {
     if (!job || !id) return;
     try {
@@ -146,15 +149,31 @@ export default function JobDetailsScreen() {
         const summary: SavedJobSummary = {
           id: id,
           title: job.title || '',
-          companyName: job.companyName || '',
+          companyName: job.companyName || job.employer?.companyName || '',
           location: job.location || '',
-          companyLogoLetter: job.companyLogoLetter || '',
+          companyLogoLetter: (job.companyName || job.employer?.companyName || '?').charAt(0).toUpperCase(),
         };
         await storage.addSavedJob(summary);
         setSaved(true);
       }
     } catch (error) {
       console.error('Error toggling saved state:', error);
+    }
+  };
+
+  /** Like – API only (candidate) */
+  const toggleLike = async () => {
+    if (!id || user?.role !== 'CANDIDATE') return;
+    try {
+      if (liked) {
+        const res = await apiClient.unsaveJob(id);
+        if (res.success) setLiked(false);
+      } else {
+        const res = await apiClient.saveJob(id);
+        if (res.success) setLiked(true);
+      }
+    } catch (error) {
+      console.error('Error toggling like:', error);
     }
   };
 
@@ -231,18 +250,26 @@ export default function JobDetailsScreen() {
   const companyIndustry = job.employer?.industry ?? job.industry ?? 'Tech';
   const headquarters = [job.employer?.city, job.employer?.country].filter(Boolean).join(', ') || job.employer?.address || job.headquarters || 'San Francisco, CA';
   const companyWebsite = job.employer?.companyWebsite ?? job.website;
-  const companyBanner = job.employer?.companyBanner;
-  const companyLogo = job.employer?.companyLogo;
+  const companyBannerUri = imageUriForDisplay(job.employer?.companyBanner);
+  const companyLogoUri = imageUriForDisplay(job.employer?.companyLogo);
 
   const renderStandardView = () => (
     <>
       <View style={styles.bannerContainer}>
-        <View style={styles.bannerPlaceholder}>
-          <Ionicons name="image-outline" size={40} color="#FFFFFF40" />
-        </View>
+        {companyBannerUri ? (
+          <Image source={{ uri: companyBannerUri }} style={styles.bannerImage} resizeMode="cover" />
+        ) : (
+          <View style={styles.bannerPlaceholder}>
+            <Ionicons name="image-outline" size={40} color="#FFFFFF40" />
+          </View>
+        )}
         <View style={styles.logoOverlay}>
           <View style={styles.logoBox}>
-            <Text style={styles.logoLetter}>{letter}</Text>
+            {companyLogoUri ? (
+              <Image source={{ uri: companyLogoUri }} style={styles.logoImage} resizeMode="cover" />
+            ) : (
+              <Text style={styles.logoLetter}>{letter}</Text>
+            )}
           </View>
         </View>
       </View>
@@ -328,8 +355,8 @@ export default function JobDetailsScreen() {
   const renderCompanyProfileView = () => (
     <>
       <View style={styles.bannerContainer}>
-        {companyBanner ? (
-          <Image source={{ uri: companyBanner }} style={styles.bannerImage} resizeMode="cover" />
+        {companyBannerUri ? (
+          <Image source={{ uri: companyBannerUri }} style={styles.bannerImage} resizeMode="cover" />
         ) : (
           <View style={styles.bannerPlaceholder}>
             <Ionicons name="image-outline" size={40} color="#FFFFFF40" />
@@ -337,8 +364,8 @@ export default function JobDetailsScreen() {
         )}
         <View style={styles.logoOverlayComplex}>
           <View style={styles.logoBox}>
-            {companyLogo ? (
-              <Image source={{ uri: companyLogo }} style={styles.logoImage} resizeMode="cover" />
+            {companyLogoUri ? (
+              <Image source={{ uri: companyLogoUri }} style={styles.logoImage} resizeMode="cover" />
             ) : (
               <Text style={styles.logoLetter}>{letter}</Text>
             )}
@@ -469,7 +496,16 @@ export default function JobDetailsScreen() {
             <Ionicons name="arrow-back" size={24} color="#000" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>{viewMode === 'company' ? 'Company profiles' : 'Job description'}</Text>
-          <View style={styles.headerSpacer} />
+          <View style={styles.headerRightRow}>
+            {user?.role === 'CANDIDATE' && (
+              <TouchableOpacity onPress={toggleLike} style={styles.headerBtn} hitSlop={12}>
+                <Ionicons name={liked ? 'heart' : 'heart-outline'} size={24} color={liked ? '#DC2626' : '#031019'} />
+              </TouchableOpacity>
+            )}
+            <TouchableOpacity onPress={toggleSaved} style={styles.headerBtn} hitSlop={12}>
+              <Ionicons name={saved ? 'bookmark' : 'bookmark-outline'} size={24} color="#031019" />
+            </TouchableOpacity>
+          </View>
         </View>
       </SafeAreaView>
 
@@ -648,6 +684,11 @@ const styles = StyleSheet.create({
   headerSpacer: {
     width: 40,
   },
+  headerRightRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
   scroll: {
     flex: 1,
   },
@@ -655,16 +696,16 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   bannerContainer: {
-    height: 140,
-    marginBottom: 100,
+    height: 88,
+    marginBottom: 28,
   },
   bannerImage: {
     width: '100%',
-    height: 120,
+    height: 72,
     backgroundColor: '#1E4154',
   },
   bannerPlaceholder: {
-    height: 120,
+    height: 72,
     backgroundColor: '#1E4154',
     justifyContent: 'center',
     alignItems: 'center',
@@ -672,13 +713,13 @@ const styles = StyleSheet.create({
   logoOverlay: {
     position: 'absolute',
     left: 20,
-    bottom: -15,
+    bottom: -12,
   },
   logoOverlayComplex: {
     position: 'absolute',
     left: 20,
     right: 20,
-    bottom: -80,
+    bottom: -48,
     alignItems: 'flex-start',
     gap: 12,
   },

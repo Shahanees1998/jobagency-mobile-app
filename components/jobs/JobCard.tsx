@@ -9,15 +9,18 @@ export interface JobCardProps {
   benefits?: string[];
   companyLogoLetter?: string;
   saved?: boolean;
+  liked?: boolean;
   showRemoveIcon?: boolean;
   hideDislike?: boolean;
   hideBookmark?: boolean;
+  hideLike?: boolean;
   footerButton?: {
     text: string;
     onPress: () => void;
   };
   onPress?: () => void;
   onBookmark?: () => void;
+  onLike?: () => void;
   onDislike?: () => void;
   style?: ViewStyle;
 }
@@ -29,12 +32,15 @@ export function JobCard({
   benefits = [],
   companyLogoLetter,
   saved,
+  liked,
   showRemoveIcon,
   hideDislike,
   hideBookmark,
+  hideLike,
   footerButton,
   onPress,
   onBookmark,
+  onLike,
   onDislike,
   style,
 }: JobCardProps) {
@@ -46,24 +52,39 @@ export function JobCard({
       onPress={onPress}
       activeOpacity={0.85}
     >
-      {/* Top Row: Title and Bookmark */}
+      {/* Top Row: Title, Bookmark (save), Like */}
       <View style={styles.topRow}>
         <Text style={styles.title} numberOfLines={1}>
           {title}
         </Text>
-        {!hideBookmark && (
-          <TouchableOpacity
-            onPress={(e) => { e?.stopPropagation?.(); onBookmark?.(); }}
-            hitSlop={8}
-            style={styles.iconBtn}
-          >
-            <Ionicons
-              name={showRemoveIcon ? "remove-circle-outline" : (saved ? "bookmark" : "bookmark-outline")}
-              size={22}
-              color="#031019"
-            />
-          </TouchableOpacity>
-        )}
+        <View style={styles.topRowIcons}>
+          {!hideLike && onLike != null && (
+            <TouchableOpacity
+              onPress={(e) => { e?.stopPropagation?.(); onLike?.(); }}
+              hitSlop={8}
+              style={styles.iconBtn}
+            >
+              <Ionicons
+                name={liked ? 'heart' : 'heart-outline'}
+                size={22}
+                color={liked ? '#DC2626' : '#031019'}
+              />
+            </TouchableOpacity>
+          )}
+          {!hideBookmark && (
+            <TouchableOpacity
+              onPress={(e) => { e?.stopPropagation?.(); onBookmark?.(); }}
+              hitSlop={8}
+              style={styles.iconBtn}
+            >
+              <Ionicons
+                name={showRemoveIcon ? "remove-circle-outline" : (saved ? "bookmark" : "bookmark-outline")}
+                size={22}
+                color="#031019"
+              />
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
 
       {/* Middle Row: Logo, Company Info, and Dislike */}
@@ -125,6 +146,11 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 12,
+  },
+  topRowIcons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   title: {
     fontFamily: 'Kanit',

@@ -1,6 +1,7 @@
 import { JobCard } from '@/components/jobs';
 import { APP_COLORS, APP_SPACING } from '@/constants/appTheme';
 import { apiClient } from '@/lib/api';
+import { imageUriForDisplay } from '@/lib/imageUri';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useLocalSearchParams, useNavigation } from 'expo-router';
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
@@ -259,6 +260,8 @@ export default function CompanyProfileScreen() {
   const overview = profile.companyDescription || DEFAULT_OVERVIEW;
   const headquarters = [profile.city, profile.country].filter(Boolean).join(', ') || '—';
   const websiteUrl = profile.companyWebsite || undefined;
+  const bannerUri = imageUriForDisplay(profile.companyBanner);
+  const logoUri = imageUriForDisplay(profile.companyLogo);
 
   if (loading && reviews.length === 0) {
     return (
@@ -275,8 +278,8 @@ export default function CompanyProfileScreen() {
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Banner + Logo + Company name + Write a review */}
         <View style={styles.bannerContainer}>
-          {profile.companyBanner ? (
-            <Image source={{ uri: profile.companyBanner }} style={styles.bannerImage} resizeMode="cover" />
+          {bannerUri ? (
+            <Image source={{ uri: bannerUri }} style={styles.bannerImage} resizeMode="cover" />
           ) : (
             <View style={styles.bannerPlaceholder}>
               <Ionicons name="image-outline" size={40} color="#FFFFFF40" />
@@ -284,8 +287,8 @@ export default function CompanyProfileScreen() {
           )}
           <View style={styles.logoOverlay}>
             <View style={styles.logoBox}>
-              {profile.companyLogo ? (
-                <Image source={{ uri: profile.companyLogo }} style={styles.logoImage} resizeMode="cover" />
+              {logoUri ? (
+                <Image source={{ uri: logoUri }} style={styles.logoImage} resizeMode="cover" />
               ) : (
                 <Text style={styles.logoLetter}>{letter}</Text>
               )}
