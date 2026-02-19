@@ -271,7 +271,6 @@ export default function TabLayout() {
           options={{
             title: "Post",
             tabBarLabel: "Post",
-            href: null,
             tabBarIcon: () => (
               <View style={employerFabStyle.fab}>
                 <Ionicons name="add" size={28} color="#fff" />

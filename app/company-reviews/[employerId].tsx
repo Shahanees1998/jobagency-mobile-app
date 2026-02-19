@@ -4,7 +4,7 @@ import { apiClient } from '@/lib/api';
 import { imageUriForDisplay } from '@/lib/imageUri';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useLocalSearchParams, useNavigation } from 'expo-router';
-import React, { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
@@ -152,6 +152,10 @@ export default function CompanyProfileScreen() {
   const [loadingJobs, setLoadingJobs] = useState(false);
   const [writeVisible, setWriteVisible] = useState(false);
   const [overviewExpanded, setOverviewExpanded] = useState(false);
+  const jobsScrollRef = useRef<ScrollView>(null);
+  const reviewsScrollRef = useRef<ScrollView>(null);
+  const CARD_WIDTH = 280;
+  const CARD_GAP = 16;
 
   const loadReviews = useCallback(async () => {
     if (!employerId) return;
@@ -252,7 +256,7 @@ export default function CompanyProfileScreen() {
       if (res.success && res.data) {
         await loadReviews();
       }
-    } catch (_) {}
+    } catch {}
     setWriteVisible(false);
   };
 
@@ -276,8 +280,8 @@ export default function CompanyProfileScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* Banner + Logo + Company name + Write a review */}
-        <View style={styles.bannerContainer}>
+        {/* Banner – full width */}
+        <View style={styles.bannerWrap}>
           {bannerUri ? (
             <Image source={{ uri: bannerUri }} style={styles.bannerImage} resizeMode="cover" />
           ) : (
@@ -285,7 +289,8 @@ export default function CompanyProfileScreen() {
               <Ionicons name="image-outline" size={40} color="#FFFFFF40" />
             </View>
           )}
-          <View style={styles.logoOverlay}>
+          {/* Logo – centered, overlapping bottom of banner */}
+          <View style={styles.logoCenterWrap}>
             <View style={styles.logoBox}>
               {logoUri ? (
                 <Image source={{ uri: logoUri }} style={styles.logoImage} resizeMode="cover" />
@@ -293,30 +298,34 @@ export default function CompanyProfileScreen() {
                 <Text style={styles.logoLetter}>{letter}</Text>
               )}
             </View>
-            <View style={styles.heroMeta}>
-              <Text style={styles.companyNameHero} numberOfLines={1}>{companyName}</Text>
-              <View style={styles.heroLinkRow}>
-                <TouchableOpacity
-                  onPress={() => websiteUrl && Linking.openURL(websiteUrl)}
-                  style={styles.heroLinkWrap}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.heroLink} numberOfLines={1}>{companyName}</Text>
-                  <Ionicons name="open-outline" size={14} color={APP_COLORS.link} style={{ marginLeft: 4 }} />
-                </TouchableOpacity>
-                <Text style={styles.heroDot}>•</Text>
-                <Text style={styles.heroRating}>{average.toFixed(1)}</Text>
-                <Ionicons name="star" size={14} color="#FBBF24" />
-              </View>
-            </View>
+          </View>
+        </View>
+
+        {/* Company name + link row + Write a review – below logo */}
+        <View style={styles.heroSection}>
+          <View style={styles.heroNameRow}>
+            <Text style={styles.companyNameHero} numberOfLines={1}>{companyName}</Text>
             <TouchableOpacity style={styles.writeReviewBtn} onPress={() => setWriteVisible(true)} activeOpacity={0.85}>
               <Text style={styles.writeReviewBtnText}>Write a review</Text>
             </TouchableOpacity>
           </View>
+          <View style={styles.heroLinkRow}>
+            <TouchableOpacity
+              onPress={() => websiteUrl && Linking.openURL(websiteUrl)}
+              style={styles.heroLinkWrap}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.heroLink} numberOfLines={1}>{companyName}</Text>
+              <Ionicons name="open-outline" size={14} color={APP_COLORS.link} style={{ marginLeft: 4 }} />
+            </TouchableOpacity>
+            <Text style={styles.heroDot}>•</Text>
+            <Text style={styles.heroRating}>{average.toFixed(1)}</Text>
+            <Ionicons name="star" size={14} color="#FBBF24" />
+          </View>
         </View>
 
-        {/* Company overview */}
-        <View style={styles.section}>
+        {/* Company overview – light grey card */}
+        <View style={styles.overviewCard}>
           <Text style={styles.sectionTitle}>Company overview</Text>
           <Text style={styles.overviewText} numberOfLines={overviewExpanded ? undefined : 3}>
             {overview}
@@ -329,36 +338,36 @@ export default function CompanyProfileScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* About us */}
-        <View style={styles.section}>
+        {/* About us – light grey card, grid items in white rounded cards */}
+        <View style={styles.aboutCard}>
           <Text style={styles.sectionTitle}>About us</Text>
-          <View style={styles.grid}>
-            <View style={styles.gridRow}>
-              <View style={styles.gridItem}>
+          <View style={styles.aboutGrid}>
+            <View style={styles.aboutGridRow}>
+              <View style={styles.aboutGridItem}>
                 <Text style={styles.gridLabel}>Founded</Text>
                 <Text style={styles.gridValue}>—</Text>
               </View>
-              <View style={styles.gridItem}>
+              <View style={styles.aboutGridItem}>
                 <Text style={styles.gridLabel}>Company size</Text>
                 <Text style={styles.gridValue}>{profile.companySize || '—'}</Text>
               </View>
             </View>
-            <View style={styles.gridRow}>
-              <View style={styles.gridItem}>
+            <View style={styles.aboutGridRow}>
+              <View style={styles.aboutGridItem}>
                 <Text style={styles.gridLabel}>Revenue</Text>
                 <Text style={styles.gridValue}>—</Text>
               </View>
-              <View style={styles.gridItem}>
+              <View style={styles.aboutGridItem}>
                 <Text style={styles.gridLabel}>Industry</Text>
                 <Text style={styles.gridValue}>{profile.industry || '—'}</Text>
               </View>
             </View>
-            <View style={styles.gridRow}>
-              <View style={styles.gridItem}>
+            <View style={styles.aboutGridRow}>
+              <View style={styles.aboutGridItem}>
                 <Text style={styles.gridLabel}>Headquarters</Text>
                 <Text style={styles.gridValue}>{headquarters}</Text>
               </View>
-              <View style={styles.gridItem}>
+              <View style={styles.aboutGridItem}>
                 <Text style={styles.gridLabel}>Link</Text>
                 <TouchableOpacity onPress={() => websiteUrl && Linking.openURL(websiteUrl)} activeOpacity={0.8} style={styles.gridLinkRow}>
                   <Text style={styles.gridLink}>Visit website</Text>
@@ -369,7 +378,7 @@ export default function CompanyProfileScreen() {
           </View>
         </View>
 
-        {/* Job listing */}
+        {/* Job listing – carousel with circular arrow buttons */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Job listing</Text>
           {loadingJobs ? (
@@ -377,44 +386,103 @@ export default function CompanyProfileScreen() {
               <ActivityIndicator size="small" color={APP_COLORS.primary} />
             </View>
           ) : jobs.length > 0 ? (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.jobsScroll}>
-              {jobs.map((job) => (
-                <View key={job.id} style={styles.jobCardWrap}>
-                  <JobCard
-                    title={job.title}
-                    companyName={job.employer?.companyName || companyName}
-                    location={job.location || ''}
-                    benefits={job.benefits || []}
-                    companyLogoLetter={letter}
-                    onPress={() => router.push(`/job-details/${job.id}`)}
-                  />
-                </View>
-              ))}
-            </ScrollView>
+            <View style={styles.carouselWrap}>
+              <TouchableOpacity
+                style={styles.carouselArrowBtn}
+                onPress={() => jobsScrollRef.current?.scrollTo({ x: 0, animated: true })}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="chevron-back" size={12} color="#FFFFFF" />
+              </TouchableOpacity>
+              <View style={styles.carouselScrollArea}>
+              <ScrollView
+                ref={jobsScrollRef}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.jobsScroll}
+                decelerationRate="fast"
+                snapToInterval={CARD_WIDTH + CARD_GAP}
+                snapToAlignment="start"
+              >
+                {jobs.map((job) => (
+                  <View key={job.id} style={[styles.jobCardWrap, { width: CARD_WIDTH, marginRight: CARD_GAP }]}>
+                    <JobCard
+                      title={job.title}
+                      companyName={job.employer?.companyName || companyName}
+                      location={job.location || ''}
+                      benefits={job.benefits || []}
+                      companyLogoLetter={letter}
+                      onPress={() => router.push(`/job-details/${job.id}`)}
+                    />
+                  </View>
+                ))}
+              </ScrollView>
+              </View>
+              <TouchableOpacity
+                style={styles.carouselArrowBtn}
+                onPress={() => jobsScrollRef.current?.scrollTo({ x: (jobs.length - 1) * (CARD_WIDTH + CARD_GAP), animated: true })}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="chevron-forward" size={12} color="#FFFFFF" />
+              </TouchableOpacity>
+            </View>
           ) : (
             <Text style={styles.noJobs}>No open positions</Text>
           )}
         </View>
 
-        {/* Company Reviews */}
+        {/* Company Reviews – carousel with circular arrow buttons */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Company Reviews</Text>
           {reviews.length === 0 ? (
             <Text style={styles.noReviews}>No reviews yet. Be the first to write one.</Text>
           ) : (
-            reviews.map((review) => (
-              <View key={review.id} style={styles.card}>
-                <View style={styles.cardTop}>
-                  <Text style={styles.cardTitle} numberOfLines={1}>{review.title}</Text>
-                  <View style={styles.cardRating}>
-                    <Ionicons name="star" size={14} color="#FBBF24" />
-                    <Text style={styles.cardRatingText}>{review.rating}</Text>
+            <View style={styles.carouselWrap}>
+              <TouchableOpacity
+                style={styles.carouselArrowBtn}
+                onPress={() => reviewsScrollRef.current?.scrollTo({ x: 0, animated: true })}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="chevron-back" size={12} color="#FFFFFF" />
+              </TouchableOpacity>
+              <View style={styles.carouselScrollArea}>
+              <ScrollView
+                ref={reviewsScrollRef}
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                contentContainerStyle={styles.reviewsScroll}
+                decelerationRate="fast"
+                snapToInterval={CARD_WIDTH + CARD_GAP}
+                snapToAlignment="start"
+              >
+                {reviews.map((review) => (
+                  <View key={review.id} style={[styles.reviewCardWrap, { width: CARD_WIDTH, marginRight: CARD_GAP }]}>
+                    <View style={styles.reviewCard}>
+                      <View style={styles.reviewCardHeader}>
+                        <View style={styles.reviewAvatar} />
+                        <View style={styles.reviewMeta}>
+                          <View style={styles.reviewNameRow}>
+                            <Text style={styles.reviewNameText} numberOfLines={1}>Reviewer • {review.rating} </Text>
+                            <Ionicons name="star" size={12} color="#031019" />
+                          </View>
+                          <Text style={styles.reviewDate}>On {review.date}</Text>
+                        </View>
+                      </View>
+                      <Text style={styles.reviewCardTitle} numberOfLines={1}>{review.title}</Text>
+                      <Text style={styles.reviewCardBody} numberOfLines={5}>{review.description}</Text>
+                    </View>
                   </View>
-                </View>
-                <Text style={styles.cardMeta}>On {review.date}</Text>
-                <Text style={styles.cardDesc}>{review.description}</Text>
+                ))}
+              </ScrollView>
               </View>
-            ))
+              <TouchableOpacity
+                style={styles.carouselArrowBtn}
+                onPress={() => reviewsScrollRef.current?.scrollTo({ x: (reviews.length - 1) * (CARD_WIDTH + CARD_GAP), animated: true })}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="chevron-forward" size={12} color="#FFFFFF" />
+              </TouchableOpacity>
+            </View>
           )}
         </View>
       </ScrollView>
@@ -430,84 +498,186 @@ export default function CompanyProfileScreen() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: APP_COLORS.background },
+  safe: { flex: 1, backgroundColor: '#F3F4F6' },
   loadingWrap: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   scroll: { flex: 1 },
   scrollContent: { paddingBottom: 32, paddingHorizontal: 0 },
 
-  bannerContainer: { marginBottom: 0 },
-  bannerImage: { width: '100%', height: 140, backgroundColor: '#1e3a5f' },
+  bannerWrap: { width: '100%', position: 'relative', marginBottom: 52 },
+  bannerImage: { width: '100%', height: 160, backgroundColor: '#1e3a5f' },
   bannerPlaceholder: {
     width: '100%',
-    height: 140,
+    height: 160,
     backgroundColor: '#1e3a5f',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  logoOverlay: {
-    flexDirection: 'row',
+  logoCenterWrap: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: -40,
     alignItems: 'center',
-    paddingHorizontal: APP_SPACING.screenPadding,
-    paddingTop: 12,
-    paddingBottom: 16,
-    marginTop: -36,
   },
   logoBox: {
-    width: 72,
-    height: 72,
+    width: 88,
+    height: 88,
     borderRadius: 12,
-    backgroundColor: '#1F2937',
+    backgroundColor: '#031019',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 14,
+    borderWidth: 3,
+    borderColor: '#FFFFFF',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
   },
-  logoImage: { width: '100%', height: '100%', borderRadius: 12 },
-  logoLetter: { fontSize: 28, fontWeight: '800', color: APP_COLORS.white },
-  heroMeta: { flex: 1, minWidth: 0 },
-  companyNameHero: { fontSize: 18, fontWeight: '800', color: APP_COLORS.textPrimary, marginBottom: 4 },
+  logoImage: { width: '100%', height: '100%', borderRadius: 9 },
+  logoLetter: { fontSize: 32, fontWeight: '800', color: APP_COLORS.white },
+
+  heroSection: { paddingHorizontal: APP_SPACING.screenPadding, paddingTop: 8, paddingBottom: 20 },
+  heroNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 8,
+    gap: 12,
+  },
+  companyNameHero: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: APP_COLORS.textPrimary,
+    flex: 1,
+    minWidth: 0,
+  },
+  writeReviewBtn: {
+    backgroundColor: '#1e3a5f',
+    paddingHorizontal: 18,
+    paddingVertical: 12,
+    borderRadius: 10,
+  },
+  writeReviewBtnText: { fontSize: 14, fontWeight: '700', color: APP_COLORS.white },
   heroLinkRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 },
   heroLinkWrap: { flexDirection: 'row', alignItems: 'center' },
   heroLink: { fontSize: 14, color: APP_COLORS.link, textDecorationLine: 'underline', fontWeight: '600' },
   heroDot: { fontSize: 14, color: APP_COLORS.textMuted },
   heroRating: { fontSize: 14, fontWeight: '700', color: APP_COLORS.textPrimary },
-  writeReviewBtn: {
-    backgroundColor: '#374151',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: APP_SPACING.borderRadius,
-    marginLeft: 8,
-  },
-  writeReviewBtnText: { fontSize: 14, fontWeight: '700', color: APP_COLORS.white },
 
+  overviewCard: {
+    marginHorizontal: APP_SPACING.screenPadding,
+    marginBottom: 16,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 16,
+    padding: APP_SPACING.itemPadding,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
   section: { paddingHorizontal: APP_SPACING.screenPadding, marginBottom: 20 },
-  sectionTitle: { fontSize: 17, fontWeight: '800', color: APP_COLORS.textPrimary, marginBottom: 10 },
+  sectionTitle: { fontSize: 18, fontWeight: '800', color: APP_COLORS.textPrimary, marginBottom: 12 },
   overviewText: { fontSize: 15, color: APP_COLORS.textSecondary, lineHeight: 22, marginBottom: 6 },
   showMoreWrap: { marginTop: 4 },
   showMoreRow: { flexDirection: 'row', alignItems: 'center' },
   showMoreLink: { fontSize: 14, color: APP_COLORS.link, fontWeight: '600' },
 
-  grid: { backgroundColor: APP_COLORS.surfaceGray, borderRadius: APP_SPACING.borderRadiusLg, borderWidth: 1, borderColor: APP_COLORS.border, overflow: 'hidden' },
-  gridRow: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: APP_COLORS.border },
-  gridItem: { flex: 1, padding: APP_SPACING.itemPadding },
-  gridLabel: { fontSize: 12, color: APP_COLORS.textMuted, fontWeight: '600', marginBottom: 4 },
-  gridValue: { fontSize: 14, fontWeight: '700', color: APP_COLORS.textPrimary },
+  aboutCard: {
+    marginHorizontal: APP_SPACING.screenPadding,
+    marginBottom: 20,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 16,
+    padding: APP_SPACING.itemPadding,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  aboutGrid: { gap: 12 },
+  aboutGridRow: { flexDirection: 'row', gap: 12 },
+  aboutGridItem: {
+    flex: 1,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 12,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    minHeight: 72,
+  },
+  gridLabel: { fontSize: 13, color: APP_COLORS.textPrimary, fontWeight: '700', marginBottom: 6 },
+  gridValue: { fontSize: 14, color: APP_COLORS.textPrimary, fontWeight: '500' },
   gridLinkRow: { flexDirection: 'row', alignItems: 'center' },
   gridLink: { fontSize: 14, fontWeight: '600', color: APP_COLORS.link, textDecorationLine: 'underline' },
 
+  carouselWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    width: '100%',
+  },
+  carouselScrollArea: {
+    flex: 1,
+    minWidth: 0,
+    overflow: 'hidden',
+  },
+  carouselArrowBtn: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#374151',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   jobsLoading: { paddingVertical: 24, alignItems: 'center' },
-  jobsScroll: { paddingRight: APP_SPACING.screenPadding, gap: 12 },
-  jobCardWrap: { width: 280, marginRight: 12 },
+  jobsScroll: { paddingHorizontal: 4, paddingRight: APP_SPACING.screenPadding },
+  jobCardWrap: {},
   noJobs: { fontSize: 14, color: APP_COLORS.textMuted, fontStyle: 'italic' },
   noReviews: { fontSize: 14, color: APP_COLORS.textMuted, fontStyle: 'italic' },
+
+  reviewsScroll: { paddingHorizontal: 4, paddingRight: APP_SPACING.screenPadding },
+  reviewCardWrap: {},
+  reviewCard: {
+    backgroundColor: '#F3F4F6',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    minHeight: 180,
+  },
+  reviewCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  reviewAvatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#D1D5DB',
+    marginRight: 12,
+  },
+  reviewMeta: { flex: 1, minWidth: 0 },
+  reviewNameRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 2 },
+  reviewNameText: { fontSize: 14, color: APP_COLORS.textPrimary, fontWeight: '600', marginRight: 2 },
+  reviewDate: { fontSize: 12, color: APP_COLORS.textMuted, fontWeight: '500' },
+  reviewCardTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: APP_COLORS.textPrimary,
+    marginBottom: 8,
+  },
+  reviewCardBody: {
+    fontSize: 14,
+    color: APP_COLORS.textSecondary,
+    lineHeight: 20,
+    fontWeight: '400',
+  },
 
   starsRow: { flexDirection: 'row', gap: 6 },
   starBtn: { padding: 2 },
 
   card: {
-    backgroundColor: APP_COLORS.background,
-    borderRadius: APP_SPACING.borderRadiusLg,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: APP_COLORS.border,
+    borderColor: '#E5E7EB',
     padding: APP_SPACING.itemPadding,
     marginBottom: 12,
   },
