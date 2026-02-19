@@ -1,12 +1,13 @@
 import { EmployerJobCard, JobCard } from '@/components/jobs';
 import { InfoPopup } from '@/components/ui/InfoPopup';
-import { APP_COLORS } from '@/constants/appTheme';
+import { APP_COLORS, TAB_BAR } from '@/constants/appTheme';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDialog } from '@/contexts/DialogContext';
 import { apiClient } from '@/lib/api';
+import { SavedJobSummary, storage } from '@/lib/storage';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { router } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -16,82 +17,93 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
-const DUMMY_SAVED_JOBS = [
-  {
-    id: '1',
-    title: 'Senior Software Engineer',
-    companyName: 'Zoox Pvt. Ltd.',
-    location: 'Sunnyvale, CA 94089',
-    benefits: ['Health Insurance', 'Paid time off', 'RSU', 'Life insurance', 'Disability insurance'],
-    companyLogoLetter: 'Z',
-  },
-  {
-    id: '2',
-    title: 'Junior Software Engineer',
-    companyName: 'BA House Cleaning',
-    location: 'Richmond, TX 27501',
-    benefits: ['Parental leave', 'Paid time off', 'RSU', 'Health insurance', 'Food Provided'],
-    companyLogoLetter: 'B',
-  }
-];
-
-const DUMMY_APPLIED_JOBS = [
-  {
-    id: 'a1',
-    title: 'Mobile App Developer',
-    companyName: 'Tech Innovators',
-    location: 'Austin, TX',
-    benefits: ['Remote', 'Health Care', 'Stock Options'],
-    companyLogoLetter: 'T',
-  },
-  {
-    id: 'a2',
-    title: 'UI/UX Designer',
-    companyName: 'Creative Minds',
-    location: 'Remote',
-    benefits: ['Flexible Hours', 'Learning Stipend'],
-    companyLogoLetter: 'C',
-  }
-];
-
-const DUMMY_INTERVIEW_JOBS = [
-  {
-    id: 'i1',
-    title: 'Full Stack Engineer',
-    companyName: 'Cloud Systems',
-    location: 'San Francisco, CA',
-    benefits: ['Daily Lunch', 'Gym Membership'],
-    companyLogoLetter: 'C',
-  },
-  {
-    id: 'i2',
-    title: 'Product Designer',
-    companyName: 'Creative Studio',
-    location: 'New York, NY',
-    benefits: ['Flexible Hours', 'L&D Budget'],
-    companyLogoLetter: 'C',
-  }
-];
+function applicationToCard(app: any) {
+  const job = app.job || app;
+  const employer = job.employer || {};
+  const companyName = employer.companyName ?? job.companyName ?? 'Company';
+  const location = job.location ?? employer.location ?? 'Location';
+  const benefits = Array.isArray(job.benefits) ? job.benefits : job.perks ? [].concat(job.perks) : [];
+  return {
+    id: job.id || app.id,
+    title: job.title || 'Job',
+    companyName,
+    location,
+    benefits: benefits.length ? benefits : ['Health Insurance', 'Paid time off', 'RSU', 'Life insurance', 'Disability insurance'].slice(0, 5),
+    companyLogoLetter: (companyName || '?').charAt(0).toUpperCase(),
+  };
+}
 
 function CandidateMyJobsScreen() {
+  const insets = useSafeAreaInsets();
+  const listPaddingBottom = TAB_BAR.height + insets.bottom + TAB_BAR.extraBottom;
   const [activeTab, setActiveTab] = useState<'Saved' | 'Applied' | 'Interviews'>('Saved');
   const [withdrawModalVisible, setWithdrawModalVisible] = useState(false);
-  const [selectedJob, setSelectedJob] = useState<any>(null);
+  const [selectedApplication, setSelectedApplication] = useState<any>(null);
   const [interviewModalVisible, setInterviewModalVisible] = useState(false);
   const [selectedInterview, setSelectedInterview] = useState<any>(null);
   const { showDialog } = useDialog();
 
-  // Counts for the badges
+  const [savedJobs, setSavedJobs] = useState<SavedJobSummary[]>([]);
+  const [applications, setApplications] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const interviews = applications.filter((a) => {
+    const s = String(a?.status || '').toUpperCase();
+    return s === 'INTERVIEW_SCHEDULED' || s === 'INTERVIEW_COMPLETED' || a?.interviewScheduled || a?.interviewDate;
+  });
+
   const counts = {
-    Saved: DUMMY_SAVED_JOBS.length,
-    Applied: DUMMY_APPLIED_JOBS.length,
-    Interviews: DUMMY_INTERVIEW_JOBS.length,
+    Saved: savedJobs.length,
+    Applied: applications.length,
+    Interviews: interviews.length,
+  };
+
+  const loadSavedJobs = useCallback(async () => {
+    const jobs = await storage.getSavedJobs();
+    setSavedJobs(jobs);
+  }, []);
+
+  const loadApplications = useCallback(async () => {
+    try {
+      const response = await apiClient.getMyApplications({ page: 1, limit: 50 });
+      if (response.success && response.data) {
+        const raw = response.data as any;
+        const list = Array.isArray(raw) ? raw : (raw?.applications ?? raw?.data?.applications ?? []);
+        setApplications(list);
+      } else {
+        setApplications([]);
+      }
+    } catch {
+      setApplications([]);
+    }
+  }, []);
+
+  const loadAll = useCallback(async () => {
+    setLoading(true);
+    try {
+      await Promise.all([loadSavedJobs(), loadApplications()]);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [loadSavedJobs, loadApplications]);
+
+  useFocusEffect(
+    useCallback(() => {
+      loadAll();
+    }, [loadAll])
+  );
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    loadAll();
   };
 
   const handleRemoveApplied = (item: any) => {
-    setSelectedJob(item);
+    setSelectedApplication(item);
     setWithdrawModalVisible(true);
   };
 
@@ -100,20 +112,33 @@ function CandidateMyJobsScreen() {
     setInterviewModalVisible(true);
   };
 
-  const onWithdraw = () => {
-    console.log('Withdrawn application:', selectedJob?.id);
+  const onWithdraw = async () => {
+    const app = selectedApplication;
     setWithdrawModalVisible(false);
-    setSelectedJob(null);
+    setSelectedApplication(null);
+    if (!app) return;
+    const jobId = app.job?.id || app.id;
+    const applicationId = app.id;
+    try {
+      const response = await apiClient.withdrawApplication(jobId, applicationId);
+      if (response?.success === false) {
+        showDialog({ title: 'Error', message: response?.error || 'Failed to withdraw', primaryButton: { text: 'OK' } });
+        return;
+      }
+      setApplications((prev) => prev.filter((a) => a.id !== applicationId));
+      await storage.removeAppliedJobId(jobId);
+      showDialog({ title: 'Withdrawn', message: 'Your application has been withdrawn.', primaryButton: { text: 'OK' } });
+    } catch (e: any) {
+      showDialog({
+        title: 'Error',
+        message: e?.message || 'Failed to withdraw application. Please try again.',
+        primaryButton: { text: 'OK' },
+      });
+    }
   };
 
   const onInterviewOk = () => {
     setInterviewModalVisible(false);
-    if (selectedInterview) {
-      router.push({
-        pathname: `/job-details/${selectedInterview.id}`,
-        params: { expandDescription: 'true', viewMode: 'company' }
-      } as any);
-    }
     setSelectedInterview(null);
   };
 
@@ -151,7 +176,7 @@ function CandidateMyJobsScreen() {
         ]}
         activeOpacity={0.8}
       >
-        <Text style={[styles.tabText, isActive ? styles.tabTextActive : styles.tabTextInactive]}>
+        <Text style={[styles.tabText, isActive ? styles.tabTextActive : styles.tabTextInactive]} numberOfLines={1}>
           {label}
         </Text>
         <View style={[styles.badge, isActive ? styles.badgeActive : styles.badgeInactive]}>
@@ -195,12 +220,28 @@ function CandidateMyJobsScreen() {
   };
 
   const getActiveData = () => {
-    if (activeTab === 'Saved') return DUMMY_SAVED_JOBS;
-    if (activeTab === 'Applied') return DUMMY_APPLIED_JOBS;
-    return DUMMY_INTERVIEW_JOBS;
+    if (activeTab === 'Saved') return savedJobs;
+    if (activeTab === 'Applied') return applications;
+    return interviews;
   };
 
   const data = getActiveData();
+  const isAppliedOrInterviews = activeTab === 'Applied' || activeTab === 'Interviews';
+
+  if (loading && savedJobs.length === 0 && applications.length === 0) {
+    return (
+      <View style={styles.container}>
+        <SafeAreaView edges={['top']} style={styles.headerArea}>
+          <View style={styles.header}>
+            <Text style={styles.headerTitle}>My Jobs</Text>
+          </View>
+        </SafeAreaView>
+        <View style={styles.centerContainer}>
+          <ActivityIndicator size="large" color={APP_COLORS.primary} />
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -226,36 +267,46 @@ function CandidateMyJobsScreen() {
       {data.length > 0 ? (
         <FlatList
           data={data}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.list}
-          renderItem={({ item }) => (
-            <View style={styles.cardMargin}>
-              <JobCard
-                title={item.title}
-                companyName={item.companyName}
-                location={item.location}
-                benefits={item.benefits}
-                companyLogoLetter={item.companyLogoLetter}
-                saved={activeTab === 'Saved'}
-                showRemoveIcon={activeTab === 'Applied'}
-                hideDislike={activeTab === 'Applied' || activeTab === 'Interviews'}
-                hideBookmark={activeTab === 'Interviews'}
-                footerButton={activeTab === 'Interviews' ? {
-                  text: 'Interview Details',
-                  onPress: () => {
-                    handleShowInterviewDetails(item);
-                  }
-                } : undefined}
-                onPress={() => router.push(`/job-details/${item.id}`)}
-                onBookmark={() => {
-                  if (activeTab === 'Applied') {
-                    handleRemoveApplied(item);
-                  }
-                }}
-                onDislike={() => { }}
-              />
-            </View>
-          )}
+          keyExtractor={(item) => (isAppliedOrInterviews ? (item.job?.id || item.id) : item.id)}
+          contentContainerStyle={[styles.list, { paddingBottom: listPaddingBottom }]}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={APP_COLORS.primary} />
+          }
+          renderItem={({ item }) => {
+            const card = isAppliedOrInterviews ? applicationToCard(item) : item;
+            const jobId = isAppliedOrInterviews ? (item.job?.id || item.id) : item.id;
+            return (
+              <View style={styles.cardMargin}>
+                <JobCard
+                  title={card.title}
+                  companyName={card.companyName}
+                  location={card.location}
+                  benefits={card.benefits}
+                  companyLogoLetter={card.companyLogoLetter}
+                  saved={activeTab === 'Saved'}
+                  showRemoveIcon={activeTab === 'Applied'}
+                  hideDislike={activeTab === 'Applied' || activeTab === 'Interviews'}
+                  hideBookmark={activeTab === 'Interviews'}
+                  footerButton={activeTab === 'Interviews' ? {
+                    text: 'Interview Details',
+                    onPress: () => {
+                      handleShowInterviewDetails(item);
+                    }
+                  } : undefined}
+                  onPress={() => router.push(`/job-details/${jobId}`)}
+                  onBookmark={() => {
+                    if (activeTab === 'Saved') {
+                      storage.removeSavedJobId(jobId).then(() => setSavedJobs((prev) => prev.filter((j) => j.id !== jobId)));
+                    } else if (activeTab === 'Applied') {
+                      handleRemoveApplied(item);
+                    }
+                  }}
+                  onDislike={() => { }}
+                />
+              </View>
+            );
+          }}
         />
       ) : renderEmptyState()}
 
@@ -276,7 +327,7 @@ function CandidateMyJobsScreen() {
 
       <InfoPopup
         visible={interviewModalVisible}
-        onClose={() => setWithdrawModalVisible(false)}
+        onClose={() => { setInterviewModalVisible(false); setSelectedInterview(null); }}
         icon="calendar"
         iconBgColor="#72A4BF"
         title="Interview Details"
@@ -291,6 +342,8 @@ function CandidateMyJobsScreen() {
 }
 
 function EmployerJobsScreen() {
+  const insets = useSafeAreaInsets();
+  const listPaddingBottom = TAB_BAR.height + insets.bottom + TAB_BAR.extraBottom;
   const { user } = useAuth();
   const userData = user as any;
   const [jobs, setJobs] = useState<any[]>([]);
@@ -377,7 +430,8 @@ function EmployerJobsScreen() {
         data={jobs}
         renderItem={renderJobItem}
         keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.list}
+        contentContainerStyle={[styles.list, { paddingBottom: listPaddingBottom }]}
+        showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={APP_COLORS.primary} />
         }
@@ -465,16 +519,21 @@ const styles = StyleSheet.create({
   },
   tabsRow: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 4,
     marginBottom: 16,
+    paddingHorizontal: 2,
   },
   tabPill: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    height: 44,
-    borderRadius: 22,
-    gap: 6,
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+    height: 36,
+    borderRadius: 18,
+    gap: 3,
+    minWidth: 0,
+    maxWidth: '33%',
   },
   tabPillActive: {
     backgroundColor: '#1E4154', // Selected
@@ -484,8 +543,9 @@ const styles = StyleSheet.create({
   },
   tabText: {
     fontFamily: 'Kanit',
-    fontSize: 15,
+    fontSize: 11,
     fontWeight: '500',
+    flexShrink: 1,
   },
   tabTextActive: {
     color: '#FFFFFF',
@@ -494,9 +554,9 @@ const styles = StyleSheet.create({
     color: '#031019',
   },
   badge: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+    width: 16,
+    height: 16,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -507,7 +567,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#1E4154',
   },
   badgeText: {
-    fontSize: 11,
+    fontSize: 9,
     fontWeight: '700',
   },
   badgeTextActive: {

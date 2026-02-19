@@ -1,5 +1,5 @@
 import { JobCard } from '@/components/jobs';
-import { APP_COLORS, APP_SPACING } from '@/constants/appTheme';
+import { APP_COLORS, APP_SPACING, TAB_BAR } from '@/constants/appTheme';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDialog } from '@/contexts/DialogContext';
 import { apiClient } from '@/lib/api';
@@ -19,7 +19,7 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type MyJobsTab = 'saved' | 'applied' | 'interviews';
 
@@ -27,6 +27,8 @@ const EMPTY_ICON_BG = '#E8F4FC';
 
 // Candidate: My Jobs with Saved / Applied / Interviews
 function CandidateMyJobsScreen() {
+  const insets = useSafeAreaInsets();
+  const listPaddingBottom = TAB_BAR.height + insets.bottom + TAB_BAR.extraBottom;
   const { showDialog } = useDialog();
   const [activeTab, setActiveTab] = useState<MyJobsTab>('saved');
   const [savedJobs, setSavedJobs] = useState<SavedJobSummary[]>([]);
@@ -60,19 +62,44 @@ function CandidateMyJobsScreen() {
   const loadApplications = useCallback(async (pageNum = 1) => {
     try {
       if (pageNum > 1) loadingMoreRef.current = true;
-      const response = await apiClient.getMyApplications({ page: pageNum, limit: 20 });
+      const limit = pageNum === 1 ? 50 : 20;
+      const response = await apiClient.getMyApplications({ page: pageNum, limit });
       if (response.success && response.data) {
         const raw = response.data as any;
-        const list = Array.isArray(raw) ? raw : raw?.applications ?? [];
+        const list =
+          Array.isArray(raw)
+            ? raw
+            : (raw?.applications ?? raw?.data?.applications ?? []);
+        const totalFromApi = typeof raw?.total === 'number' ? raw.total : (typeof raw?.data?.total === 'number' ? raw.data.total : null);
+        const totalPagesFromApi = typeof raw?.totalPages === 'number' ? raw.totalPages : (typeof raw?.data?.totalPages === 'number' ? raw.data.totalPages : null);
+        if (__DEV__) {
+          console.log('[Applications] loadApplications', {
+            pageNum,
+            limit,
+            listLength: list.length,
+            total: totalFromApi,
+            totalPages: totalPagesFromApi,
+            hasApplicationsKey: !!raw?.applications,
+            hasDataApplications: !!raw?.data?.applications,
+          });
+        }
         if (pageNum === 1) setApplications(list);
         else setApplications((prev) => [...prev, ...list]);
-        const totalPages = typeof raw?.totalPages === 'number' ? raw.totalPages : null;
-        setHasMore(totalPages ? pageNum < totalPages : list.length >= 20);
+        const totalPages = totalPagesFromApi;
+        const total = totalFromApi;
+        const more =
+          totalPages != null ? pageNum < totalPages
+            : total != null ? (pageNum * limit) < total
+            : list.length >= limit;
+        setHasMore(more);
       } else {
         if (pageNum === 1) setApplications([]);
       }
-    } catch {
+    } catch (e) {
+      if (__DEV__) console.warn('[Applications] loadApplications error', e);
       if (pageNum === 1) setApplications([]);
+    } finally {
+      if (pageNum > 1) loadingMoreRef.current = false;
     }
   }, []);
 
@@ -329,7 +356,7 @@ function CandidateMyJobsScreen() {
               onPress={() => setActiveTab(key)}
               activeOpacity={0.8}
             >
-              <Text style={[styles.pillText, activeTab === key && styles.pillTextActive]}>
+              <Text style={[styles.pillText, activeTab === key && styles.pillTextActive]} numberOfLines={1}>
                 {label} {count}
               </Text>
             </TouchableOpacity>
@@ -340,7 +367,8 @@ function CandidateMyJobsScreen() {
           data={currentList}
           renderItem={renderItem as any}
           keyExtractor={keyExtractor as any}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={[styles.list, { paddingBottom: listPaddingBottom }]}
+          showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={APP_COLORS.primary} />
           }
@@ -418,6 +446,8 @@ function CandidateMyJobsScreen() {
 
 // Employer: Applications Management (unchanged)
 function EmployerApplicationsScreen() {
+  const insets = useSafeAreaInsets();
+  const listPaddingBottom = TAB_BAR.height + insets.bottom + TAB_BAR.extraBottom;
   const { showDialog } = useDialog();
   const [applications, setApplications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -650,6 +680,7 @@ function EmployerApplicationsScreen() {
               horizontal
               data={jobs}
               keyExtractor={(item) => item.id}
+              showsHorizontalScrollIndicator={false}
               renderItem={({ item }) => (
                 <TouchableOpacity
                   style={[styles.jobFilterItem, selectedJob === item.id && styles.jobFilterItemActive]}
@@ -675,7 +706,8 @@ function EmployerApplicationsScreen() {
               data={applications}
               renderItem={renderApplicationItem}
               keyExtractor={(item) => item.id}
-              contentContainerStyle={styles.list}
+              contentContainerStyle={[styles.list, { paddingBottom: listPaddingBottom }]}
+              showsVerticalScrollIndicator={false}
               refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={APP_COLORS.primary} />}
               onEndReached={loadMore}
               onEndReachedThreshold={0.3}
@@ -837,15 +869,20 @@ const styles = StyleSheet.create({
   header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
   pageTitle: { fontSize: 26, fontWeight: '700', color: APP_COLORS.textPrimary },
   bellBtn: { padding: 4 },
-  pillRow: { flexDirection: 'row', gap: 10, marginBottom: 20 },
+  pillRow: { flexDirection: 'row', gap: 4, marginBottom: 20, paddingHorizontal: 2 },
   pill: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 24,
+    flex: 1,
+    paddingHorizontal: 4,
+    paddingVertical: 6,
+    borderRadius: 18,
     backgroundColor: APP_COLORS.surfaceGray,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 0,
+    maxWidth: '33%',
   },
   pillActive: { backgroundColor: APP_COLORS.primary },
-  pillText: { fontSize: 14, fontWeight: '600', color: APP_COLORS.textPrimary },
+  pillText: { fontSize: 11, fontWeight: '600', color: APP_COLORS.textPrimary, flexShrink: 1 },
   pillTextActive: { color: APP_COLORS.white },
   list: { paddingBottom: 24 },
   emptyContainer: { paddingVertical: 48, alignItems: 'center', paddingHorizontal: 24 },

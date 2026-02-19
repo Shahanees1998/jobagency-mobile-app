@@ -45,7 +45,7 @@ export default function SupportScreen() {
   };
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <ThemedView style={styles.content}>
         <ThemedText type="title" style={styles.title}>Contact Support</ThemedText>
         <ThemedText style={styles.subtitle}>

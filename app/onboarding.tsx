@@ -21,6 +21,7 @@ const SLIDE_WIDTH = SCREEN_WIDTH;
 const IMAGE_HORIZONTAL_MARGIN = 32;
 const IMAGE_MAX_WIDTH = SCREEN_WIDTH - IMAGE_HORIZONTAL_MARGIN * 2;
 const HIGHLIGHT_BLUE = '#2563EB';
+const ACCENT_TEAL = '#84afc6'; // "Trusted" and "Opportunities" color
 
 // Color palette
 const COLORS = {
@@ -47,6 +48,8 @@ type SlideItem = {
   key: string;
   title: string;
   boldPart: string;
+  /** Optional: extra parts to highlight with accent color #84afc6 (e.g. "Trusted", "Opportunities") */
+  accentParts?: string[];
   body: string;
   illustration: string;
   bannerImage?: number;
@@ -57,6 +60,7 @@ const SLIDES: SlideItem[] = [
     key: '1',
     title: 'Discover Trusted Job Opportunities Near You',
     boldPart: 'Trusted Job',
+    accentParts: ['Trusted', 'Opportunities'],
     body: 'Explore real job openings from verified employers across Venezuela. Find opportunities that match your skills, location, and experience — all in one secure platform.',
     illustration: 'grid',
     bannerImage: require('@/assets/images/onboarding-1.png'),
@@ -65,6 +69,7 @@ const SLIDES: SlideItem[] = [
     key: '2',
     title: 'Apply to Jobs Faster With Just One Tap',
     boldPart: 'One Tap',
+    accentParts: ['Faster', 'One Tap'],
     body: 'Create your professional profile once and use it to apply for multiple jobs instantly. No repeated forms or CV uploads — everything is saved securely for you.',
     illustration: 'phone',
     bannerImage: require('@/assets/images/onboarding-2.png'),
@@ -73,13 +78,38 @@ const SLIDES: SlideItem[] = [
     key: '3',
     title: 'Secure Chat With Employers After Approval',
     boldPart: 'Employers After Approval',
+    accentParts: ['Employers', 'Approval'],
     body: 'Communicate safely with employers only after your application is approved. All conversations stay inside the app to protect you from scams and misuse.',
     illustration: 'chat',
     bannerImage: require('@/assets/images/onboarding-3.png'),
   },
 ];
 
-function renderTitle(title: string, boldPart: string) {
+function renderTitle(title: string, boldPart: string, accentParts?: string[]) {
+  // If accentParts provided (e.g. "Trusted", "Opportunities"), color those with #84afc6
+  if (accentParts && accentParts.length > 0) {
+    let remaining = title;
+    const segments: React.ReactNode[] = [];
+    accentParts.forEach((accent, i) => {
+      const idx = remaining.indexOf(accent);
+      if (idx > 0) {
+        segments.push(remaining.slice(0, idx));
+        remaining = remaining.slice(idx);
+      }
+      if (remaining.startsWith(accent)) {
+        segments.push(<Text key={`accent-${i}`} style={styles.headingAccent}>{accent}</Text>);
+        remaining = remaining.slice(accent.length);
+      }
+    });
+    if (remaining) {
+      segments.push(remaining);
+    }
+    return (
+      <Text style={styles.heading}>
+        {segments}
+      </Text>
+    );
+  }
   const parts = title.split(boldPart);
   return (
     <Text style={styles.heading}>
@@ -209,7 +239,7 @@ export default function OnboardingScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <SafeAreaView style={styles.safe} edges={['bottom']}>
       <FlatList
         ref={listRef}
         data={SLIDES}
@@ -229,7 +259,7 @@ export default function OnboardingScreen() {
                 contentContainerStyle={styles.bottomContent}
                 showsVerticalScrollIndicator={false}
               >
-                {renderTitle(item.title, item.boldPart)}
+                {renderTitle(item.title, item.boldPart, item.accentParts)}
                 <Text style={styles.body}>{item.body}</Text>
               </ScrollView>
             </View>
@@ -238,7 +268,6 @@ export default function OnboardingScreen() {
         keyExtractor={(item) => item.key}
       />
       <View style={styles.footer}>
-        
         <View style={styles.dots}>
           {SLIDES.map((_, i) => (
             <View
@@ -247,7 +276,9 @@ export default function OnboardingScreen() {
             />
           ))}
         </View>
-        <View style={styles.dividerLine} />
+        <View style={styles.dividerLineWrapper}>
+          <View style={styles.dividerLine} />
+        </View>
         <View style={styles.buttons}>
           {!isLast && (
             <TouchableOpacity style={styles.skipBtn} onPress={handleSkip} activeOpacity={0.8}>
@@ -278,7 +309,7 @@ const styles = StyleSheet.create({
   },
   topSection: {
     height: '50%',
-    backgroundColor: COLORS.white,
+    backgroundColor: ONBOARDING_BG_TOP,
     justifyContent: 'center',
     alignItems: 'center',
     width: '100%',
@@ -287,9 +318,11 @@ const styles = StyleSheet.create({
     width: '100%',
     paddingHorizontal: IMAGE_HORIZONTAL_MARGIN,
     maxWidth: SCREEN_WIDTH,
-    // flex: 1,
     backgroundColor: ONBOARDING_BG_TOP,
-    borderRadius: 16,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
     justifyContent: 'center',
     alignItems: 'center',
     overflow: 'hidden',
@@ -297,7 +330,10 @@ const styles = StyleSheet.create({
   bannerImage: {
     width: '100%',
     height: '100%',
-    borderRadius: 16,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    borderBottomLeftRadius: 0,
+    borderBottomRightRadius: 0,
   },
   bottomSection: {
     flex: 1,
@@ -329,6 +365,11 @@ const styles = StyleSheet.create({
     fontFamily: TYPOGRAPHY.titleFamily,
     color: COLORS.primary,
   },
+  headingAccent: {
+    fontWeight: TYPOGRAPHY.headingWeight,
+    fontFamily: TYPOGRAPHY.titleFamily,
+    color: ACCENT_TEAL,
+  },
   body: {
     fontSize: TYPOGRAPHY.bodySize,
     fontFamily: TYPOGRAPHY.bodyFamily,
@@ -357,18 +398,22 @@ const styles = StyleSheet.create({
     opacity: 1,
   },
   dotActive: {
-    width: 24,
+    width: 40,
     height: 4,
     borderRadius: 16,
     backgroundColor: COLORS.primary,
     opacity: 1,
+  },
+  dividerLineWrapper: {
+    width: SCREEN_WIDTH,
+    marginHorizontal: -24,
+    marginBottom: 12,
   },
   dividerLine: {
     width: '100%',
     height: 1,
     backgroundColor: COLORS.secondary,
     opacity: 0.3,
-    marginBottom: 12,
   },
   buttons: {
     flexDirection: 'row',
@@ -380,7 +425,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 16,
     paddingHorizontal: 16,
-    backgroundColor: '#F5F5F5',
+    backgroundColor: '#E6E6E6',
     borderRadius: 56,
     borderWidth: 1,
     borderColor: COLORS.border,

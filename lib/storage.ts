@@ -19,7 +19,13 @@ const STORAGE_KEYS = {
   ONBOARDING_SEEN: '@jobportal:onboarding_seen',
   JOB_FILTERS: '@jobportal:job_filters',
   APPLIED_JOB_IDS: '@jobportal:applied_job_ids',
+  RECENT_SEARCHES: '@jobportal:recent_searches',
 };
+
+export interface RecentSearch {
+  job: string;
+  location: string;
+}
 
 export interface JobFilters {
   datePosted: 'all' | '24h' | '3d' | '7d';
@@ -79,6 +85,7 @@ export const storage = {
       STORAGE_KEYS.ONBOARDING_SEEN,
       STORAGE_KEYS.JOB_FILTERS,
       STORAGE_KEYS.APPLIED_JOB_IDS,
+      STORAGE_KEYS.RECENT_SEARCHES,
     ]);
   },
 
@@ -161,6 +168,27 @@ export const storage = {
   async removeSavedJobId(jobId: string): Promise<void> {
     const jobs = (await this.getSavedJobs()).filter((j) => j.id !== jobId);
     await AsyncStorage.setItem(STORAGE_KEYS.SAVED_JOBS, JSON.stringify(jobs));
+  },
+
+  /** Recent search queries (job + location) for suggestions when field is empty */
+  async getRecentSearches(): Promise<RecentSearch[]> {
+    const str = await AsyncStorage.getItem(STORAGE_KEYS.RECENT_SEARCHES);
+    if (!str) return [];
+    try {
+      const arr = JSON.parse(str);
+      return Array.isArray(arr) ? arr : [];
+    } catch {
+      return [];
+    }
+  },
+
+  async addRecentSearch(job: string, location: string): Promise<void> {
+    const trimmed = { job: job.trim(), location: location.trim() };
+    if (!trimmed.job && !trimmed.location) return;
+    let list = await this.getRecentSearches();
+    list = [trimmed, ...list.filter((s) => s.job !== trimmed.job || s.location !== trimmed.location)];
+    list = list.slice(0, 10);
+    await AsyncStorage.setItem(STORAGE_KEYS.RECENT_SEARCHES, JSON.stringify(list));
   },
 };
 

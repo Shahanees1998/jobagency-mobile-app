@@ -54,7 +54,6 @@ function RootLayoutNav() {
 
   useEffect(() => {
     if (isLoading) return;
-    // Avoid redirect during initial mount or when segments are empty
     const segmentsArray = segments as string[];
     const first = segmentsArray[0];
     if (segmentsArray.length === 0 || first == null) return;
@@ -62,13 +61,15 @@ function RootLayoutNav() {
     const onSplash = first === 'index' || first === '';
     const onOnboarding = first === 'onboarding';
     const onLogin = first === 'login';
-    if (onSplash || onOnboarding || onLogin) return;
-
     const inAuthGroup = first === '(auth)';
-    if (!isAuthenticated && !inAuthGroup) {
-      router.replace('/(auth)/login');
-    } else if (isAuthenticated && inAuthGroup) {
+    const onStarterOrAuth = onSplash || onOnboarding || onLogin || inAuthGroup;
+
+    if (isAuthenticated && onStarterOrAuth) {
       router.replace('/(tabs)');
+      return;
+    }
+    if (!isAuthenticated && !onSplash && !onOnboarding && !onLogin && !inAuthGroup) {
+      router.replace('/(auth)/login');
     }
   }, [isAuthenticated, isLoading, segments]);
 
@@ -77,12 +78,16 @@ function RootLayoutNav() {
   }
 
   return (
-    <Stack screenOptions={{ headerShown: false }} initialRouteName="index">
+    <Stack
+      screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#fff' } }}
+      initialRouteName="index"
+    >
       <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Screen name="onboarding" options={{ headerShown: false }} />
       <Stack.Screen name="login" options={{ headerShown: false }} />
       <Stack.Screen name="(auth)" options={{ headerShown: false }} />
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen name="search" options={{ headerShown: true }} />
       <Stack.Screen
         name="change-password"
         options={{ title: 'Change password', headerBackTitle: 'Back' }}
@@ -168,7 +173,7 @@ function RootLayoutNav() {
       />
       <Stack.Screen
         name="company-reviews/[employerId]"
-        options={{ title: 'Company reviews', headerShown: true, headerBackTitle: 'Back' }}
+        options={{ title: 'Company profile', headerShown: true, headerBackTitle: 'Back' }}
       />
       <Stack.Screen
         name="policies-terms"

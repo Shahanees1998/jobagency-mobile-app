@@ -17,7 +17,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface WorkExperience {
   id: string;
@@ -69,7 +69,7 @@ function SectionHeader({
       <Text style={styles.sectionTitle}>{title}</Text>
       {showAdd && onAdd ? (
         <TouchableOpacity onPress={onAdd} style={styles.addBtn} hitSlop={12}>
-          <Ionicons name="add" size={24} color={APP_COLORS.primary} />
+          <Ionicons name="add" size={28} color="#111827" />
         </TouchableOpacity>
       ) : null}
     </View>
@@ -347,26 +347,36 @@ export default function MyResumeScreen() {
     );
   }
 
+  const contentBottomPadding = Math.max(insets.bottom, 24) + 24;
+
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['bottom']}>
       <Stack.Screen options={{ headerShown: false }} />
       <CustomHeader />
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={[styles.content, { paddingBottom: contentBottomPadding }]}
+        showsVerticalScrollIndicator={false}
+      >
         {/* Personal details card */}
         <View style={styles.personalCard}>
           <View style={styles.personalMain}>
-            <Text style={styles.personalName}>{displayName}</Text>
-            <TouchableOpacity style={styles.personalEditBtn} hitSlop={12} onPress={() => router.push('/edit-profile')}>
-              <Ionicons name="create-outline" size={22} color={APP_COLORS.primary} />
-            </TouchableOpacity>
+            <View style={styles.personalNameBlock}>
+              <Text style={styles.personalName}>{displayName}</Text>
+              <Text style={styles.personalLine}>{phone || '+1 234-576-7890'}</Text>
+              <Text style={styles.personalLine}>{email}</Text>
+              <Text style={styles.personalLine}>{location}</Text>
+            </View>
+            <View style={styles.personalCardBadge}>
+              <Ionicons name="checkmark" size={22} color="#FFFFFF" />
+            </View>
           </View>
-          <Text style={styles.personalLine}>{phone || '+1 234-576-7890'}</Text>
-          <Text style={styles.personalLine}>{email}</Text>
-          <Text style={styles.personalLine}>{location}</Text>
+          <TouchableOpacity style={styles.personalEditLink} onPress={() => router.push('/edit-profile')}>
+            <Ionicons name="create-outline" size={18} color="#111827" />
+          </TouchableOpacity>
         </View>
 
         {/* Upload resume to prefill */}
-        <TouchableOpacity
+        {/* <TouchableOpacity
           style={styles.uploadPrefillBtn}
           onPress={handleUploadPrefill}
           disabled={uploading}
@@ -380,7 +390,7 @@ export default function MyResumeScreen() {
               <Text style={styles.uploadPrefillText}>Upload resume to prefill data</Text>
             </>
           )}
-        </TouchableOpacity>
+        </TouchableOpacity> */}
 
         {/* Summary */}
         <SectionHeader title="Summary" onAdd={() => { setSummaryDraft(resume.summary); setSummaryModal(true); }} showAdd />
@@ -528,7 +538,7 @@ export default function MyResumeScreen() {
           )
         }
 
-        <View style={{ height: 32 }} />
+        <View style={{ height: 24 }} />
 
         {/* Summary modal */}
         <Modal visible={summaryModal} transparent animationType="slide">
@@ -611,8 +621,8 @@ export default function MyResumeScreen() {
           }}
           insets={insets}
         />
-      </ScrollView >
-    </View >
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
@@ -796,8 +806,19 @@ const styles = StyleSheet.create({
     padding: APP_SPACING.itemPadding,
     marginBottom: 20,
   },
-  personalMain: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
+  personalMain: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  personalNameBlock: { flex: 1 },
   personalName: { fontSize: 20, fontWeight: '700', color: APP_COLORS.textPrimary },
+  personalCardBadge: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: APP_COLORS.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 12,
+  },
+  personalEditLink: { padding: 8, alignSelf: 'flex-start', marginTop: 8 },
   personalEditBtn: { padding: 4 },
   personalLine: { fontSize: 15, color: APP_COLORS.textSecondary, marginBottom: 4 },
   uploadPrefillBtn: {

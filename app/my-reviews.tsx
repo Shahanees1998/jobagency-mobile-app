@@ -1,10 +1,12 @@
 import { PrimaryButton } from '@/components/auth';
 import { APP_COLORS, APP_SPACING } from '@/constants/appTheme';
 import { useDialog } from '@/contexts/DialogContext';
+import { apiClient } from '@/lib/api';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Stack, router } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
+  ActivityIndicator,
   Modal,
   Pressable,
   ScrollView,
@@ -25,26 +27,10 @@ interface ReviewItem {
   description: string;
 }
 
-const MOCK_REVIEWS: ReviewItem[] = [
-  {
-    id: '1',
-    companyName: 'Zoox Pvt. Ltd.',
-    date: 'January 28, 2026',
-    rating: 4,
-    title: 'Good experience & fun environment',
-    description:
-      'This company offers a supportive and growth-oriented work environment with a strong focus on innovation and quality.',
-  },
-  {
-    id: '2',
-    companyName: 'BA House Cleaning',
-    date: 'January 28, 2026',
-    rating: 4,
-    title: 'Good experience & fun environment',
-    description:
-      'This company offers a supportive and growth-oriented work environment with a strong focus on innovation and quality.',
-  },
-];
+function formatReviewDate(isoDate: string): string {
+  const d = new Date(isoDate);
+  return d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+}
 
 function CustomHeader() {
   const insets = useSafeAreaInsets();
@@ -210,12 +196,41 @@ function EditReviewModal({
 
 export default function MyReviewsScreen() {
   const { showDialog } = useDialog();
-  const [reviews, setReviews] = useState<ReviewItem[]>(MOCK_REVIEWS);
+  const [reviews, setReviews] = useState<ReviewItem[]>([]);
+  const [loading, setLoading] = useState(true);
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
   const [selectedReview, setSelectedReview] = useState<ReviewItem | null>(null);
   const [updating, setUpdating] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  const loadReviews = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await apiClient.getMyReviews();
+      if (res.success && res.data?.reviews) {
+        const list = res.data.reviews.map((r: any) => ({
+          id: r.id,
+          companyName: r.companyName || 'Company',
+          date: r.date ? formatReviewDate(r.date) : (r.createdAt ? formatReviewDate(r.createdAt) : ''),
+          rating: r.rating ?? 0,
+          title: r.title ?? '',
+          description: r.description ?? '',
+        }));
+        setReviews(list);
+      } else {
+        setReviews([]);
+      }
+    } catch {
+      setReviews([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadReviews();
+  }, [loadReviews]);
 
   const openEdit = (review: ReviewItem) => {
     setSelectedReview(review);
@@ -231,14 +246,17 @@ export default function MyReviewsScreen() {
     if (!selectedReview) return;
     setUpdating(true);
     try {
-      setReviews((prev) =>
-        prev.map((r) =>
-          r.id === selectedReview.id ? { ...r, rating, title, description } : r
-        )
-      );
-      setEditModalVisible(false);
-      setSelectedReview(null);
-      showDialog({ title: 'Success', message: 'Review updated.', primaryButton: { text: 'OK' } });
+      const res = await apiClient.updateReview(selectedReview.id, { rating, title, description });
+      if (res.success) {
+        await loadReviews();
+        setEditModalVisible(false);
+        setSelectedReview(null);
+        showDialog({ title: 'Success', message: 'Review updated.', primaryButton: { text: 'OK' } });
+      } else {
+        showDialog({ title: 'Error', message: res.error ?? 'Failed to update review', primaryButton: { text: 'OK' } });
+      }
+    } catch {
+      showDialog({ title: 'Error', message: 'Failed to update review', primaryButton: { text: 'OK' } });
     } finally {
       setUpdating(false);
     }
@@ -248,14 +266,33 @@ export default function MyReviewsScreen() {
     if (!selectedReview) return;
     setDeleting(true);
     try {
-      setReviews((prev) => prev.filter((r) => r.id !== selectedReview.id));
-      setDeleteModalVisible(false);
-      setSelectedReview(null);
-      showDialog({ title: 'Success', message: 'Review deleted.', primaryButton: { text: 'OK' } });
+      const res = await apiClient.deleteReview(selectedReview.id);
+      if (res.success) {
+        await loadReviews();
+        setDeleteModalVisible(false);
+        setSelectedReview(null);
+        showDialog({ title: 'Success', message: 'Review deleted.', primaryButton: { text: 'OK' } });
+      } else {
+        showDialog({ title: 'Error', message: res.error ?? 'Failed to delete review', primaryButton: { text: 'OK' } });
+      }
+    } catch {
+      showDialog({ title: 'Error', message: 'Failed to delete review', primaryButton: { text: 'OK' } });
     } finally {
       setDeleting(false);
     }
   };
+
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <Stack.Screen options={{ headerShown: false }} />
+        <CustomHeader />
+        <View style={styles.centerContainer}>
+          <ActivityIndicator size="large" color={APP_COLORS.primary} />
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -266,40 +303,50 @@ export default function MyReviewsScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {reviews.map((review) => (
-          <View key={review.id} style={styles.card}>
-            <View style={styles.cardLeft}>
-              <View style={styles.avatar}>
-                <Text style={styles.avatarLetter}>
-                  {review.companyName.charAt(0).toUpperCase()}
-                </Text>
-              </View>
-              <View style={styles.cardBody}>
-                <Text style={styles.companyName}>{review.companyName}</Text>
-                <Text style={styles.dateRating}>
-                  On {review.date} • {review.rating}{' '}
-                  <Ionicons name="star" size={14} color={APP_COLORS.textPrimary} />
-                </Text>
-              </View>
-            </View>
-            <View style={styles.actions}>
-              <TouchableOpacity
-                style={styles.editBtn}
-                onPress={() => openEdit(review)}
-                activeOpacity={0.8}
-              >
-                <Ionicons name="pencil" size={18} color={APP_COLORS.white} />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={styles.deleteBtn}
-                onPress={() => openDelete(review)}
-                activeOpacity={0.8}
-              >
-                <Ionicons name="trash-outline" size={18} color={APP_COLORS.white} />
-              </TouchableOpacity>
-            </View>
+        {reviews.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Ionicons name="star-outline" size={48} color={APP_COLORS.textMuted} />
+            <Text style={styles.emptyTitle}>No reviews yet</Text>
+            <Text style={styles.emptyText}>Reviews you write for companies will appear here.</Text>
           </View>
-        ))}
+        ) : (
+          <>
+            {reviews.map((review) => (
+              <View key={review.id} style={styles.card}>
+                <View style={styles.cardLeft}>
+                  <View style={styles.avatar}>
+                    <Text style={styles.avatarLetter}>
+                      {review.companyName.charAt(0).toUpperCase()}
+                    </Text>
+                  </View>
+                  <View style={styles.cardBody}>
+                    <Text style={styles.companyName}>{review.companyName}</Text>
+                    <Text style={styles.dateRating}>
+                      On {review.date} • {review.rating}{' '}
+                      <Ionicons name="star" size={14} color={APP_COLORS.textPrimary} />
+                    </Text>
+                  </View>
+                </View>
+                <View style={styles.actions}>
+                  <TouchableOpacity
+                    style={styles.editBtn}
+                    onPress={() => openEdit(review)}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="pencil" size={18} color={APP_COLORS.white} />
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.deleteBtn}
+                    onPress={() => openDelete(review)}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="trash-outline" size={18} color={APP_COLORS.white} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ))}
+          </>
+        )}
       </ScrollView>
 
       <EditReviewModal
@@ -328,8 +375,26 @@ export default function MyReviewsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: APP_COLORS.background },
+  centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   scroll: { flex: 1 },
   scrollContent: { padding: APP_SPACING.screenPadding, paddingBottom: 32 },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 48,
+    paddingHorizontal: 24,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: APP_COLORS.textPrimary,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptyText: {
+    fontSize: 15,
+    color: APP_COLORS.textMuted,
+    textAlign: 'center',
+  },
   card: {
     flexDirection: 'row',
     alignItems: 'center',

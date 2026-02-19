@@ -1,4 +1,4 @@
-import { APP_COLORS, APP_SPACING } from '@/constants/appTheme';
+import { APP_COLORS, APP_SPACING, TAB_BAR } from '@/constants/appTheme';
 import { useDialog } from '@/contexts/DialogContext';
 import { apiClient } from '@/lib/api';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -13,7 +13,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type InterviewItem = {
   applicationId: string;
@@ -27,6 +27,8 @@ type InterviewItem = {
 };
 
 export default function EmployerInterviewsScreen() {
+  const insets = useSafeAreaInsets();
+  const listPaddingBottom = TAB_BAR.height + insets.bottom + TAB_BAR.extraBottom;
   const { showDialog } = useDialog();
   const [items, setItems] = useState<InterviewItem[]>([]);
   const [loading, setLoading] = useState(true);
@@ -155,7 +157,8 @@ export default function EmployerInterviewsScreen() {
           data={items}
           renderItem={renderItem}
           keyExtractor={(item) => item.applicationId}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={[styles.list, { paddingBottom: listPaddingBottom }]}
+          showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={APP_COLORS.primary} />
           }

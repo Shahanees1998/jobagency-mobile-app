@@ -1,11 +1,20 @@
 import { APP_COLORS, APP_SPACING } from '@/constants/appTheme';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import { router } from 'expo-router';
 import React from 'react';
-import { ScrollView, StyleSheet, Text } from 'react-native';
+import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function PrivacyPolicyScreen() {
   return (
-    <SafeAreaView style={styles.safe} edges={['bottom']}>
+    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} hitSlop={12}>
+          <Ionicons name="arrow-back" size={24} color={APP_COLORS.textPrimary} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Privacy policy</Text>
+        <View style={styles.backBtn} />
+      </View>
       <ScrollView
         style={styles.container}
         contentContainerStyle={styles.content}
@@ -54,6 +63,18 @@ export default function PrivacyPolicyScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: APP_COLORS.background },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+    backgroundColor: APP_COLORS.background,
+  },
+  backBtn: { padding: 8, minWidth: 40, minHeight: 40, justifyContent: 'center' },
+  headerTitle: { fontSize: 18, fontWeight: '700', color: APP_COLORS.textPrimary, fontFamily: 'Kanit' },
   container: { flex: 1 },
   content: { padding: APP_SPACING.screenPadding, paddingBottom: 32 },
   updated: {

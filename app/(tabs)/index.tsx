@@ -1,5 +1,5 @@
 import { EmployerJobCard, JobCard, SearchBar } from '@/components/jobs';
-import { APP_COLORS, APP_SPACING } from '@/constants/appTheme';
+import { APP_COLORS, APP_SPACING, TAB_BAR } from '@/constants/appTheme';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDialog } from '@/contexts/DialogContext';
 import { apiClient } from '@/lib/api';
@@ -16,9 +16,11 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 function CandidateJobsScreen() {
+  const insets = useSafeAreaInsets();
+  const listPaddingBottom = TAB_BAR.height + insets.bottom + TAB_BAR.extraBottom;
   const { user } = useAuth();
   const [jobs, setJobs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -60,6 +62,9 @@ function CandidateJobsScreen() {
         datePosted: (f?.datePosted ?? 'all') as any,
         sortBy: (f?.sortBy ?? 'relevance') as any,
         remote: Array.isArray(f?.remote) ? f!.remote : undefined,
+        experienceLevel: f?.experienceLevel && f.experienceLevel !== 'all' ? f.experienceLevel : undefined,
+        salary: f?.salary && f.salary !== 'all' ? f.salary : undefined,
+        education: f?.education && f.education !== 'all' ? f.education : undefined,
       });
       console.log('[Home] getJobs response:', response.success, 'data keys:', response.data ? Object.keys(response.data as object) : null);
 
@@ -242,18 +247,24 @@ function CandidateJobsScreen() {
           </View>
         </View>
         <View style={styles.searchWrap}>
-          <SearchBar
-            value={searchQuery}
-            onChangeText={handleSearch}
-            returnKeyType="search"
-          />
+          <TouchableOpacity
+            style={styles.searchBarTouchable}
+            onPress={() => router.push('/search')}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="search-outline" size={22} color="#6B7280" style={styles.searchBarIcon} />
+            <Text style={styles.searchBarPlaceholder} numberOfLines={1}>
+              {searchQuery || 'Job title, keywords, or company...'}
+            </Text>
+          </TouchableOpacity>
         </View>
         <Text style={styles.sectionTitle}>Popular Jobs</Text>
         <FlatList
           data={jobs}
           renderItem={renderJob}
           keyExtractor={(item, index) => item?.id ?? `job-${index}`}
-          contentContainerStyle={styles.list}
+          contentContainerStyle={[styles.list, { paddingBottom: listPaddingBottom }]}
+          showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
               refreshing={refreshing}
@@ -287,6 +298,8 @@ function CandidateJobsScreen() {
 }
 
 function EmployerDashboardScreen() {
+  const insets = useSafeAreaInsets();
+  const listPaddingBottom = TAB_BAR.height + insets.bottom + TAB_BAR.extraBottom;
   const { user } = useAuth();
   const { showDialog } = useDialog();
   const [jobs, setJobs] = useState<any[]>([]);
@@ -410,7 +423,8 @@ function EmployerDashboardScreen() {
             <FlatList
               data={jobs}
               keyExtractor={(item) => item.id}
-              contentContainerStyle={styles.list}
+              contentContainerStyle={[styles.list, { paddingBottom: listPaddingBottom }]}
+              showsVerticalScrollIndicator={false}
               refreshControl={
                 <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={APP_COLORS.primary} />
               }
@@ -496,6 +510,23 @@ const styles = StyleSheet.create({
   },
   searchWrap: {
     marginBottom: 28,
+  },
+  searchBarTouchable: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+    borderRadius: 56,
+    paddingHorizontal: 20,
+    height: 52,
+  },
+  searchBarIcon: {
+    marginRight: 10,
+  },
+  searchBarPlaceholder: {
+    flex: 1,
+    fontSize: 16,
+    fontFamily: 'Kanit',
+    color: '#9CA3AF',
   },
   sectionTitle: {
     fontFamily: 'Kanit',

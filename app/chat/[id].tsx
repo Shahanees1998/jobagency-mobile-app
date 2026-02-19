@@ -10,7 +10,11 @@ import {
   ActivityIndicator,
   Image,
   Text,
+  Alert,
+  Linking,
 } from 'react-native';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as DocumentPicker from 'expo-document-picker';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDialog } from '@/contexts/DialogContext';
@@ -143,7 +147,7 @@ export default function ChatDetailScreen() {
     }
   };
 
-  const handleAttachment = async () => {
+  const handleAttachmentImage = async () => {
     try {
       let ImagePicker: typeof import('expo-image-picker');
       try {
@@ -165,7 +169,7 @@ export default function ChatDetailScreen() {
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'],
         allowsEditing: true,
         aspect: [4, 3],
         quality: 0.8,
@@ -179,6 +183,60 @@ export default function ChatDetailScreen() {
       console.error('[Chat] handleAttachment error:', error);
       showDialog({ title: 'Error', message: 'Could not open attachments. Please try again.', primaryButton: { text: 'OK' } });
     }
+  };
+
+  const handleDocumentAttachment = async () => {
+    if (!id || sending) return;
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: [
+          'application/pdf',
+          'application/msword',
+          'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          'application/vnd.ms-excel',
+          'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          'text/plain',
+        ],
+        copyToCacheDirectory: true,
+      });
+      if (result.canceled || !result.assets?.[0]) return;
+      const asset = result.assets[0];
+      setSending(true);
+      const uploadRes = await apiClient.uploadChatDocument(
+        asset.uri,
+        asset.mimeType ?? 'application/octet-stream',
+        asset.name ?? 'document'
+      );
+      if (!uploadRes.success || !uploadRes.data?.url) {
+        showDialog({ title: 'Error', message: uploadRes.error || 'Failed to upload document', primaryButton: { text: 'OK' } });
+        setSending(false);
+        return;
+      }
+      const response = await apiClient.sendMessage(id, uploadRes.data.url, 'FILE');
+      if (response.success && response.data) {
+        setMessages((prev) => [...prev, response.data]);
+        setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
+      } else {
+        showDialog({ title: 'Error', message: response.error || 'Failed to send document', primaryButton: { text: 'OK' } });
+      }
+    } catch (error: any) {
+      showDialog({ title: 'Error', message: error?.message || 'Could not pick or send document.', primaryButton: { text: 'OK' } });
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleAttachment = () => {
+    Alert.alert(
+      'Attach',
+      'Choose attachment type',
+      [
+        { text: 'Image', onPress: handleAttachmentImage },
+        { text: 'Document (PDF, Word, etc.)', onPress: handleDocumentAttachment },
+        { text: 'Cancel', style: 'cancel' },
+      ],
+      { cancelable: true }
+    );
   };
 
   const handleCamera = async () => {
@@ -203,7 +261,7 @@ export default function ChatDetailScreen() {
       }
 
       const result = await ImagePicker.launchCameraAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'],
         allowsEditing: true,
         aspect: [4, 3],
         quality: 0.8,
@@ -266,7 +324,52 @@ export default function ChatDetailScreen() {
     const isImage =
       msg?.messageType === 'IMAGE' &&
       typeof contentStr === 'string' &&
-      (contentStr.startsWith('http://') || contentStr.startsWith('https://'));
+      (contentStr.startsWith('http://') ||
+        contentStr.startsWith('https://') ||
+        contentStr.startsWith('data:image') ||
+        (contentStr.length > 100 && !/\s/.test(contentStr)));
+    const imageUri =
+      isImage && contentStr.startsWith('data:')
+        ? contentStr
+        : isImage && contentStr.length > 100 && !contentStr.startsWith('http')
+          ? `data:image/jpeg;base64,${contentStr}`
+          : contentStr;
+
+    const isFile =
+      msg?.messageType === 'FILE' &&
+      typeof contentStr === 'string' &&
+      (contentStr.startsWith('http://') || contentStr.startsWith('https://') || contentStr.startsWith('data:'));
+
+    const openDocument = async () => {
+      if (contentStr.startsWith('http')) {
+        await Linking.openURL(contentStr);
+        return;
+      }
+      if (contentStr.startsWith('data:')) {
+        try {
+          const match = contentStr.match(/^data:([^;]+);base64,(.+)$/);
+          if (!match) return;
+          const mime = match[1];
+          const base64 = match[2];
+          const ext = mime.includes('pdf') ? 'pdf' : mime.includes('word') || mime.includes('msword') ? 'doc' : mime.includes('sheet') ? 'xls' : 'bin';
+          const path = `${FileSystem.cacheDirectory}chat-doc-${Date.now()}.${ext}`;
+          await FileSystem.writeAsStringAsync(path, base64, { encoding: FileSystem.EncodingType.Base64 });
+          const uri = path.startsWith('file://') ? path : `file://${path}`;
+          await Linking.openURL(uri);
+        } catch (e) {
+          console.warn('[Chat] openDocument error', e);
+          showDialog({ title: 'Error', message: 'Could not open document.', primaryButton: { text: 'OK' } });
+        }
+      }
+    };
+
+    const renderFileBubble = () => (
+      <TouchableOpacity onPress={openDocument} style={styles.fileBubble} activeOpacity={0.8}>
+        <Ionicons name="document-attach-outline" size={24} color={isMyMessage ? APP_COLORS.white : APP_COLORS.primary} />
+        <Text style={[styles.fileBubbleText, isMyMessage && styles.fileBubbleTextMy]} numberOfLines={1}>Document</Text>
+        <Text style={[styles.myBubbleTime, !isMyMessage && styles.otherBubbleTime]}>{timeStr}</Text>
+      </TouchableOpacity>
+    );
 
     if (isMyMessage) {
       return (
@@ -274,9 +377,11 @@ export default function ChatDetailScreen() {
           <View style={styles.myBubble}>
             {isImage ? (
               <>
-                <Image source={{ uri: msg.content }} style={styles.chatImage} resizeMode="cover" />
+                <Image source={{ uri: imageUri }} style={styles.chatImage} resizeMode="cover" />
                 <Text style={styles.myBubbleTime}>{timeStr}</Text>
               </>
+            ) : isFile ? (
+              renderFileBubble()
             ) : (
               <>
                 <Text style={styles.myBubbleText}>{contentStr}</Text>
@@ -300,9 +405,11 @@ export default function ChatDetailScreen() {
         <View style={styles.otherBubble}>
           {isImage ? (
             <>
-              <Image source={{ uri: msg.content }} style={styles.chatImage} resizeMode="cover" />
+              <Image source={{ uri: imageUri }} style={styles.chatImage} resizeMode="cover" />
               <Text style={styles.otherBubbleTime}>{timeStr}</Text>
             </>
+          ) : isFile ? (
+            renderFileBubble()
           ) : (
             <>
               <Text style={styles.otherBubbleText}>{contentStr}</Text>
@@ -358,6 +465,7 @@ export default function ChatDetailScreen() {
             renderItem={renderItem}
             keyExtractor={(item) => item.key}
             contentContainerStyle={styles.messagesList}
+            showsVerticalScrollIndicator={false}
             onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
             ListEmptyComponent={
               <View style={styles.emptyMessages}>
@@ -471,6 +579,9 @@ const styles = StyleSheet.create({
   otherBubbleText: { fontSize: 16, color: APP_COLORS.textPrimary, marginBottom: 4 },
   otherBubbleTime: { fontSize: 11, color: APP_COLORS.textMuted },
   chatImage: { width: 200, height: 200, borderRadius: 12, marginBottom: 4 },
+  fileBubble: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 4 },
+  fileBubbleText: { fontSize: 15, fontWeight: '600', color: APP_COLORS.primary, flex: 1 },
+  fileBubbleTextMy: { color: APP_COLORS.white },
   emptyMessages: { paddingVertical: 32, alignItems: 'center' },
   emptyMessagesText: { fontSize: 15, color: APP_COLORS.textMuted },
   inputRow: {

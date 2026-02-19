@@ -58,15 +58,17 @@ export default function LoginScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <KeyboardAvoidingView
         style={styles.keyboard}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
         <ScrollView
           contentContainerStyle={[styles.scroll, isNarrow && styles.scrollNarrow]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
+          keyboardDismissMode="on-drag"
         >
           <AuthBanner
             title="Sign in to your account"
@@ -148,7 +150,7 @@ const styles = StyleSheet.create({
   },
   scroll: {
     flexGrow: 1,
-    paddingBottom: AUTH_SPACING.contentPaddingV * 2,
+    paddingBottom: AUTH_SPACING.contentPaddingV * 4 + 40,
   },
   scrollNarrow: {
     paddingHorizontal: 0,

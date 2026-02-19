@@ -9,6 +9,8 @@ import { router, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
+  Image,
+  Linking,
   Modal,
   Pressable,
   ScrollView,
@@ -23,12 +25,13 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 const DESC_TRUNCATE_LINES = 4;
 
 const DUMMY_JOBS_DATA: Record<string, any> = {
-  '1': { id: '1', title: 'Senior Software Engineer', companyName: 'Zoox Pvt. Ltd.', location: 'Sunnyvale, CA 94089', description: 'Detailed description for Zoox...' },
-  '2': { id: '2', title: 'Junior Software Engineer', companyName: 'BA House Cleaning', location: 'Richmond, TX 27501', description: 'Detailed description for BA House Cleaning...' },
-  'a1': { id: 'a1', title: 'Mobile App Developer', companyName: 'Tech Innovators', location: 'Austin, TX', description: 'Tech Innovators is looking for a mobile dev...' },
-  'a2': { id: 'a2', title: 'UI/UX Designer', companyName: 'Creative Minds', location: 'Remote', description: 'Creative Minds needs a designer...' },
+  '1': { id: '1', employerId: '1', title: 'Senior Software Engineer', companyName: 'Zoox Pvt. Ltd.', location: 'Sunnyvale, CA 94089', description: 'Detailed description for Zoox...' },
+  '2': { id: '2', employerId: '2', title: 'Junior Software Engineer', companyName: 'BA House Cleaning', location: 'Richmond, TX 27501', description: 'Detailed description for BA House Cleaning...' },
+  'a1': { id: 'a1', employerId: 'a1', title: 'Mobile App Developer', companyName: 'Tech Innovators', location: 'Austin, TX', description: 'Tech Innovators is looking for a mobile dev...' },
+  'a2': { id: 'a2', employerId: 'a2', title: 'UI/UX Designer', companyName: 'Creative Minds', location: 'Remote', description: 'Creative Minds needs a designer...' },
   'i1': {
     id: 'i1',
+    employerId: 'i1',
     title: 'Full Stack Engineer',
     companyName: 'Cloud Systems',
     location: 'San Francisco, CA',
@@ -43,6 +46,7 @@ const DUMMY_JOBS_DATA: Record<string, any> = {
   },
   'i2': {
     id: 'i2',
+    employerId: 'i2',
     title: 'Product Designer',
     companyName: 'Creative Studio',
     location: 'New York, NY',
@@ -72,6 +76,7 @@ export default function JobDetailsScreen() {
   const [reviewTitle, setReviewTitle] = useState('');
   const [reviewDescription, setReviewDescription] = useState('');
   const { showDialog } = useDialog();
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     if (expandDescription === 'true' || viewMode === 'company') {
@@ -94,8 +99,14 @@ export default function JobDetailsScreen() {
       const response = isEmployer
         ? await apiClient.getEmployerJobById(id)
         : await apiClient.getJobById(id);
-      if (response.success && response.data) setJob(response.data);
-      else setJob(null);
+      if (response.success && response.data) {
+        const data = response.data as any;
+        setJob(data);
+        if (typeof data.hasApplied === 'boolean') {
+          setAlreadyApplied(data.hasApplied);
+          if (data.hasApplied) await storage.addAppliedJobId(id);
+        }
+      } else setJob(null);
     } catch (error) {
       console.error('Error loading job:', error);
       setJob(null);
@@ -160,10 +171,14 @@ export default function JobDetailsScreen() {
         return;
       }
       const errMsg = (response.error || '').toLowerCase();
-      if (errMsg.includes('candidate profile') && errMsg.includes('not found')) {
+      if (errMsg.includes('already applied')) {
         await storage.addAppliedJobId(id);
-        const email = user?.email ?? '';
-        router.replace({ pathname: '/application-submitted', params: { email } });
+        setAlreadyApplied(true);
+        showDialog({
+          title: 'Already applied',
+          message: 'You have already applied to this job.',
+          primaryButton: { text: 'OK' },
+        });
         return;
       }
       showDialog({
@@ -203,11 +218,21 @@ export default function JobDetailsScreen() {
   }
 
   const companyName = job.employer?.companyName || job.companyName || 'Company';
-  const location = job.location || job.employer?.location || 'Location';
+  const employerId = job.employer?.id ?? job.employerId ?? '';
+  const location = job.location || job.employer?.city || job.employer?.address || 'Location';
   const benefits = Array.isArray(job.benefits) ? job.benefits : job.perks ? [].concat(job.perks) : [];
   const fallbackBenefits = ['Health Insurance', 'Paid time off', 'RSU', 'Life insurance', 'Disability insurance'];
   const displayBenefits = benefits.length ? benefits : fallbackBenefits;
   const letter = (companyName || '?').charAt(0).toUpperCase();
+
+  // Company profile view: prefer employer fields from API, fallback to job (dummy) fields
+  const companyOverview = job.employer?.companyDescription ?? job.companyOverview ?? 'We are a leading technology company...';
+  const companySize = job.employer?.companySize ?? job.size ?? '100+ workers';
+  const companyIndustry = job.employer?.industry ?? job.industry ?? 'Tech';
+  const headquarters = [job.employer?.city, job.employer?.country].filter(Boolean).join(', ') || job.employer?.address || job.headquarters || 'San Francisco, CA';
+  const companyWebsite = job.employer?.companyWebsite ?? job.website;
+  const companyBanner = job.employer?.companyBanner;
+  const companyLogo = job.employer?.companyLogo;
 
   const renderStandardView = () => (
     <>
@@ -224,13 +249,18 @@ export default function JobDetailsScreen() {
 
       <View style={styles.titleSection}>
         <Text style={styles.jobTitle}>{job.title || 'Job Title'}</Text>
-        <View style={styles.companyRow}>
+        <TouchableOpacity
+          style={styles.companyRow}
+          onPress={() => employerId && router.push(`/company-reviews/${employerId}`)}
+          activeOpacity={employerId ? 0.7 : 1}
+          disabled={!employerId}
+        >
           <Text style={styles.companyName}>{companyName}</Text>
           <Ionicons name="open-outline" size={16} color={APP_COLORS.link} style={styles.linkIcon} />
           <Text style={styles.dot}>•</Text>
           <Text style={styles.ratingText}>4.6</Text>
           <Ionicons name="star" size={16} color="#031019" />
-        </View>
+        </TouchableOpacity>
       </View>
 
       <View style={styles.section}>
@@ -314,7 +344,7 @@ export default function JobDetailsScreen() {
               </View>
             </View>
             <TouchableOpacity style={styles.writeReviewBtnInline} onPress={() => setReviewModalVisible(true)}>
-              <Text style={styles.writeReviewText}>Write a review</Text>
+              <Text style={styles.writeReviewText}>Write a review..</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -437,7 +467,7 @@ export default function JobDetailsScreen() {
       </ScrollView>
 
       {!alreadyApplied && !loading && job && viewMode !== 'company' && (
-        <View style={styles.footer}>
+        <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) + 16 }]}>
           <TouchableOpacity
             style={styles.applyButton}
             onPress={handleApply}

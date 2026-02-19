@@ -1,8 +1,13 @@
+import { JobCard } from '@/components/jobs';
 import { APP_COLORS, APP_SPACING } from '@/constants/appTheme';
+import { apiClient } from '@/lib/api';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useLocalSearchParams } from 'expo-router';
-import React, { useMemo, useState } from 'react';
+import { router, useLocalSearchParams, useNavigation } from 'expo-router';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import {
+  ActivityIndicator,
+  Image,
+  Linking,
   Modal,
   Pressable,
   ScrollView,
@@ -120,90 +125,295 @@ function WriteReviewModal({
   );
 }
 
-export default function CompanyReviewsScreen() {
+function formatReviewDate(isoDate: string): string {
+  return new Date(isoDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+}
+
+const DEFAULT_OVERVIEW = 'We are a technology-driven company delivering innovative solutions. Our expertise spans software development, web and mobile applications, and design.';
+
+export default function CompanyProfileScreen() {
   const { employerId = '' } = useLocalSearchParams<{ employerId?: string }>();
 
-  // Backend reviews are not implemented yet; show a clean UI with mock data for now.
-  const companyName = useMemo(() => 'Company', [employerId]);
-
-  const [reviews, setReviews] = useState<ReviewItem[]>([
-    {
-      id: '1',
-      companyName: 'Company',
-      date: 'January 28, 2026',
-      rating: 4,
-      title: 'Good experience & fun environment',
-      description:
-        'Supportive and growth-oriented environment with a strong focus on quality and innovation.',
-    },
-    {
-      id: '2',
-      companyName: 'Company',
-      date: 'January 12, 2026',
-      rating: 5,
-      title: 'Great team and leadership',
-      description:
-        'Friendly culture, fast learning, and good mentorship. Work-life balance could be improved slightly.',
-    },
-  ]);
-
+  const [companyName, setCompanyName] = useState('Company');
+  const [profile, setProfile] = useState<{
+    companyDescription?: string;
+    companyWebsite?: string;
+    industry?: string;
+    companySize?: string;
+    city?: string;
+    country?: string;
+    companyBanner?: string;
+    companyLogo?: string;
+  }>({});
+  const [reviews, setReviews] = useState<ReviewItem[]>([]);
+  const [jobs, setJobs] = useState<any[]>([]);
+  const [loading, setLoading] = useState(!!employerId);
+  const [loadingJobs, setLoadingJobs] = useState(false);
   const [writeVisible, setWriteVisible] = useState(false);
+  const [overviewExpanded, setOverviewExpanded] = useState(false);
+
+  const loadReviews = useCallback(async () => {
+    if (!employerId) return;
+    setLoading(true);
+    try {
+      const res = await apiClient.getEmployerReviews(employerId);
+      if (res.success && res.data) {
+        const d = res.data as any;
+        setCompanyName(d.companyName || 'Company');
+        setProfile({
+          companyDescription: d.companyDescription,
+          companyWebsite: d.companyWebsite,
+          industry: d.industry,
+          companySize: d.companySize,
+          city: d.city,
+          country: d.country,
+          companyBanner: d.companyBanner,
+          companyLogo: d.companyLogo,
+        });
+        const list = (d.reviews || []).map((r: any) => ({
+          id: r.id,
+          companyName: d.companyName || 'Company',
+          date: r.date ? formatReviewDate(r.date) : (r.createdAt ? formatReviewDate(r.createdAt) : ''),
+          rating: r.rating ?? 0,
+          title: r.title ?? '',
+          description: r.description ?? '',
+        }));
+        setReviews(list);
+      } else {
+        setReviews([]);
+      }
+    } catch {
+      setReviews([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [employerId]);
+
+  const loadJobs = useCallback(async () => {
+    if (!employerId) return;
+    setLoadingJobs(true);
+    try {
+      const res = await apiClient.getJobs({ employerId, limit: 10 });
+      if (res.success && res.data?.jobs) setJobs(res.data.jobs);
+      else setJobs([]);
+    } catch {
+      setJobs([]);
+    } finally {
+      setLoadingJobs(false);
+    }
+  }, [employerId]);
+
+  useEffect(() => {
+    loadReviews();
+  }, [loadReviews]);
+
+  useEffect(() => {
+    loadJobs();
+  }, [loadJobs]);
+
+  const refresh = useCallback(() => {
+    loadReviews();
+    loadJobs();
+  }, [loadReviews, loadJobs]);
+
+  const navigation = useNavigation();
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <TouchableOpacity onPress={refresh} style={{ padding: 8 }} hitSlop={16}>
+          <Ionicons name="refresh" size={22} color={APP_COLORS.textPrimary} />
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation, refresh]);
 
   const average = useMemo(() => {
     if (!reviews.length) return 0;
     return Math.round((reviews.reduce((s, r) => s + r.rating, 0) / reviews.length) * 10) / 10;
   }, [reviews]);
 
-  const submitReview = (rating: number, title: string, description: string) => {
-    const next: ReviewItem = {
-      id: String(Date.now()),
-      companyName,
-      date: new Date().toLocaleDateString([], { month: 'long', day: 'numeric', year: 'numeric' }),
-      rating,
-      title,
-      description,
-    };
-    setReviews((prev) => [next, ...prev]);
+  const submitReview = async (rating: number, title: string, description: string) => {
+    if (!employerId) {
+      const next: ReviewItem = {
+        id: String(Date.now()),
+        companyName,
+        date: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+        rating,
+        title,
+        description,
+      };
+      setReviews((prev) => [next, ...prev]);
+      setWriteVisible(false);
+      return;
+    }
+    try {
+      const res = await apiClient.createReview({ employerId, rating, title, description });
+      if (res.success && res.data) {
+        await loadReviews();
+      }
+    } catch (_) {}
     setWriteVisible(false);
   };
+
+  const letter = (companyName || '?').charAt(0).toUpperCase();
+  const overview = profile.companyDescription || DEFAULT_OVERVIEW;
+  const headquarters = [profile.city, profile.country].filter(Boolean).join(', ') || '—';
+  const websiteUrl = profile.companyWebsite || undefined;
+
+  if (loading && reviews.length === 0) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['top']}>
+        <View style={styles.loadingWrap}>
+          <ActivityIndicator size="large" color={APP_COLORS.primary} />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
       <ScrollView style={styles.scroll} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        <View style={styles.summaryCard}>
-          <View style={styles.summaryLeft}>
-            <View style={styles.avatar}>
-              <Text style={styles.avatarLetter}>{(companyName || '?').charAt(0).toUpperCase()}</Text>
+        {/* Banner + Logo + Company name + Write a review */}
+        <View style={styles.bannerContainer}>
+          {profile.companyBanner ? (
+            <Image source={{ uri: profile.companyBanner }} style={styles.bannerImage} resizeMode="cover" />
+          ) : (
+            <View style={styles.bannerPlaceholder}>
+              <Ionicons name="image-outline" size={40} color="#FFFFFF40" />
             </View>
-            <View style={{ flex: 1, minWidth: 0 }}>
-              <Text style={styles.companyName} numberOfLines={1}>{companyName}</Text>
-              <Text style={styles.summarySub}>{reviews.length} reviews</Text>
+          )}
+          <View style={styles.logoOverlay}>
+            <View style={styles.logoBox}>
+              {profile.companyLogo ? (
+                <Image source={{ uri: profile.companyLogo }} style={styles.logoImage} resizeMode="cover" />
+              ) : (
+                <Text style={styles.logoLetter}>{letter}</Text>
+              )}
             </View>
-          </View>
-          <View style={styles.summaryRight}>
-            <Text style={styles.avgText}>{average.toFixed(1)}</Text>
-            <Stars value={Math.round(average)} />
+            <View style={styles.heroMeta}>
+              <Text style={styles.companyNameHero} numberOfLines={1}>{companyName}</Text>
+              <View style={styles.heroLinkRow}>
+                <TouchableOpacity
+                  onPress={() => websiteUrl && Linking.openURL(websiteUrl)}
+                  style={styles.heroLinkWrap}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.heroLink} numberOfLines={1}>{companyName}</Text>
+                  <Ionicons name="open-outline" size={14} color={APP_COLORS.link} style={{ marginLeft: 4 }} />
+                </TouchableOpacity>
+                <Text style={styles.heroDot}>•</Text>
+                <Text style={styles.heroRating}>{average.toFixed(1)}</Text>
+                <Ionicons name="star" size={14} color="#FBBF24" />
+              </View>
+            </View>
+            <TouchableOpacity style={styles.writeReviewBtn} onPress={() => setWriteVisible(true)} activeOpacity={0.85}>
+              <Text style={styles.writeReviewBtnText}>Write a review</Text>
+            </TouchableOpacity>
           </View>
         </View>
 
-        <TouchableOpacity style={styles.writeBtn} onPress={() => setWriteVisible(true)} activeOpacity={0.85}>
-          <Ionicons name="create-outline" size={18} color={APP_COLORS.white} style={{ marginRight: 8 }} />
-          <Text style={styles.writeBtnText}>Write a review</Text>
-        </TouchableOpacity>
+        {/* Company overview */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Company overview</Text>
+          <Text style={styles.overviewText} numberOfLines={overviewExpanded ? undefined : 3}>
+            {overview}
+          </Text>
+          <TouchableOpacity onPress={() => setOverviewExpanded(!overviewExpanded)} style={styles.showMoreWrap}>
+            <View style={styles.showMoreRow}>
+              <Text style={styles.showMoreLink}>{overviewExpanded ? 'Show less' : 'Show more'}</Text>
+              <Ionicons name={overviewExpanded ? 'chevron-up' : 'chevron-down'} size={14} color={APP_COLORS.link} style={{ marginLeft: 4 }} />
+            </View>
+          </TouchableOpacity>
+        </View>
 
-        {reviews.map((review) => (
-          <View key={review.id} style={styles.card}>
-            <View style={styles.cardTop}>
-              <Text style={styles.cardTitle} numberOfLines={1}>{review.title}</Text>
-              <View style={styles.cardRating}>
-                <Ionicons name="star" size={14} color="#FBBF24" />
-                <Text style={styles.cardRatingText}>{review.rating}</Text>
+        {/* About us */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>About us</Text>
+          <View style={styles.grid}>
+            <View style={styles.gridRow}>
+              <View style={styles.gridItem}>
+                <Text style={styles.gridLabel}>Founded</Text>
+                <Text style={styles.gridValue}>—</Text>
+              </View>
+              <View style={styles.gridItem}>
+                <Text style={styles.gridLabel}>Company size</Text>
+                <Text style={styles.gridValue}>{profile.companySize || '—'}</Text>
               </View>
             </View>
-            <Text style={styles.cardMeta}>On {review.date}</Text>
-            <Text style={styles.cardDesc}>{review.description}</Text>
+            <View style={styles.gridRow}>
+              <View style={styles.gridItem}>
+                <Text style={styles.gridLabel}>Revenue</Text>
+                <Text style={styles.gridValue}>—</Text>
+              </View>
+              <View style={styles.gridItem}>
+                <Text style={styles.gridLabel}>Industry</Text>
+                <Text style={styles.gridValue}>{profile.industry || '—'}</Text>
+              </View>
+            </View>
+            <View style={styles.gridRow}>
+              <View style={styles.gridItem}>
+                <Text style={styles.gridLabel}>Headquarters</Text>
+                <Text style={styles.gridValue}>{headquarters}</Text>
+              </View>
+              <View style={styles.gridItem}>
+                <Text style={styles.gridLabel}>Link</Text>
+                <TouchableOpacity onPress={() => websiteUrl && Linking.openURL(websiteUrl)} activeOpacity={0.8} style={styles.gridLinkRow}>
+                  <Text style={styles.gridLink}>Visit website</Text>
+                  <Ionicons name="open-outline" size={14} color={APP_COLORS.link} style={{ marginLeft: 4 }} />
+                </TouchableOpacity>
+              </View>
+            </View>
           </View>
-        ))}
+        </View>
+
+        {/* Job listing */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Job listing</Text>
+          {loadingJobs ? (
+            <View style={styles.jobsLoading}>
+              <ActivityIndicator size="small" color={APP_COLORS.primary} />
+            </View>
+          ) : jobs.length > 0 ? (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.jobsScroll}>
+              {jobs.map((job) => (
+                <View key={job.id} style={styles.jobCardWrap}>
+                  <JobCard
+                    title={job.title}
+                    companyName={job.employer?.companyName || companyName}
+                    location={job.location || ''}
+                    benefits={job.benefits || []}
+                    companyLogoLetter={letter}
+                    onPress={() => router.push(`/job-details/${job.id}`)}
+                  />
+                </View>
+              ))}
+            </ScrollView>
+          ) : (
+            <Text style={styles.noJobs}>No open positions</Text>
+          )}
+        </View>
+
+        {/* Company Reviews */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Company Reviews</Text>
+          {reviews.length === 0 ? (
+            <Text style={styles.noReviews}>No reviews yet. Be the first to write one.</Text>
+          ) : (
+            reviews.map((review) => (
+              <View key={review.id} style={styles.card}>
+                <View style={styles.cardTop}>
+                  <Text style={styles.cardTitle} numberOfLines={1}>{review.title}</Text>
+                  <View style={styles.cardRating}>
+                    <Ionicons name="star" size={14} color="#FBBF24" />
+                    <Text style={styles.cardRatingText}>{review.rating}</Text>
+                  </View>
+                </View>
+                <Text style={styles.cardMeta}>On {review.date}</Text>
+                <Text style={styles.cardDesc}>{review.description}</Text>
+              </View>
+            ))
+          )}
+        </View>
       </ScrollView>
 
       <WriteReviewModal
@@ -218,49 +428,77 @@ export default function CompanyReviewsScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: APP_COLORS.background },
+  loadingWrap: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   scroll: { flex: 1 },
-  scrollContent: { padding: APP_SPACING.screenPadding, paddingBottom: 32 },
+  scrollContent: { paddingBottom: 32, paddingHorizontal: 0 },
 
-  summaryCard: {
-    backgroundColor: APP_COLORS.surfaceGray,
-    borderRadius: APP_SPACING.borderRadiusLg,
-    borderWidth: 1,
-    borderColor: APP_COLORS.border,
-    padding: APP_SPACING.itemPadding,
+  bannerContainer: { marginBottom: 0 },
+  bannerImage: { width: '100%', height: 140, backgroundColor: '#1e3a5f' },
+  bannerPlaceholder: {
+    width: '100%',
+    height: 140,
+    backgroundColor: '#1e3a5f',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoOverlay: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
+    paddingHorizontal: APP_SPACING.screenPadding,
+    paddingTop: 12,
+    paddingBottom: 16,
+    marginTop: -36,
   },
-  summaryLeft: { flexDirection: 'row', alignItems: 'center', flex: 1, minWidth: 0 },
-  avatar: {
-    width: 48,
-    height: 48,
+  logoBox: {
+    width: 72,
+    height: 72,
     borderRadius: 12,
     backgroundColor: '#1F2937',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    marginRight: 14,
   },
-  avatarLetter: { fontSize: 20, fontWeight: '800', color: APP_COLORS.white },
-  companyName: { fontSize: 16, fontWeight: '800', color: APP_COLORS.textPrimary, marginBottom: 4 },
-  summarySub: { fontSize: 13, color: APP_COLORS.textMuted, fontWeight: '600' },
-  summaryRight: { alignItems: 'flex-end', marginLeft: 10 },
-  avgText: { fontSize: 22, fontWeight: '900', color: APP_COLORS.textPrimary, marginBottom: 2 },
+  logoImage: { width: '100%', height: '100%', borderRadius: 12 },
+  logoLetter: { fontSize: 28, fontWeight: '800', color: APP_COLORS.white },
+  heroMeta: { flex: 1, minWidth: 0 },
+  companyNameHero: { fontSize: 18, fontWeight: '800', color: APP_COLORS.textPrimary, marginBottom: 4 },
+  heroLinkRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 },
+  heroLinkWrap: { flexDirection: 'row', alignItems: 'center' },
+  heroLink: { fontSize: 14, color: APP_COLORS.link, textDecorationLine: 'underline', fontWeight: '600' },
+  heroDot: { fontSize: 14, color: APP_COLORS.textMuted },
+  heroRating: { fontSize: 14, fontWeight: '700', color: APP_COLORS.textPrimary },
+  writeReviewBtn: {
+    backgroundColor: '#374151',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: APP_SPACING.borderRadius,
+    marginLeft: 8,
+  },
+  writeReviewBtnText: { fontSize: 14, fontWeight: '700', color: APP_COLORS.white },
+
+  section: { paddingHorizontal: APP_SPACING.screenPadding, marginBottom: 20 },
+  sectionTitle: { fontSize: 17, fontWeight: '800', color: APP_COLORS.textPrimary, marginBottom: 10 },
+  overviewText: { fontSize: 15, color: APP_COLORS.textSecondary, lineHeight: 22, marginBottom: 6 },
+  showMoreWrap: { marginTop: 4 },
+  showMoreRow: { flexDirection: 'row', alignItems: 'center' },
+  showMoreLink: { fontSize: 14, color: APP_COLORS.link, fontWeight: '600' },
+
+  grid: { backgroundColor: APP_COLORS.surfaceGray, borderRadius: APP_SPACING.borderRadiusLg, borderWidth: 1, borderColor: APP_COLORS.border, overflow: 'hidden' },
+  gridRow: { flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: APP_COLORS.border },
+  gridItem: { flex: 1, padding: APP_SPACING.itemPadding },
+  gridLabel: { fontSize: 12, color: APP_COLORS.textMuted, fontWeight: '600', marginBottom: 4 },
+  gridValue: { fontSize: 14, fontWeight: '700', color: APP_COLORS.textPrimary },
+  gridLinkRow: { flexDirection: 'row', alignItems: 'center' },
+  gridLink: { fontSize: 14, fontWeight: '600', color: APP_COLORS.link, textDecorationLine: 'underline' },
+
+  jobsLoading: { paddingVertical: 24, alignItems: 'center' },
+  jobsScroll: { paddingRight: APP_SPACING.screenPadding, gap: 12 },
+  jobCardWrap: { width: 280, marginRight: 12 },
+  noJobs: { fontSize: 14, color: APP_COLORS.textMuted, fontStyle: 'italic' },
+  noReviews: { fontSize: 14, color: APP_COLORS.textMuted, fontStyle: 'italic' },
 
   starsRow: { flexDirection: 'row', gap: 6 },
   starBtn: { padding: 2 },
-
-  writeBtn: {
-    height: 52,
-    borderRadius: APP_SPACING.borderRadius,
-    backgroundColor: APP_COLORS.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexDirection: 'row',
-    marginBottom: 14,
-  },
-  writeBtnText: { fontSize: 16, fontWeight: '700', color: APP_COLORS.white },
 
   card: {
     backgroundColor: APP_COLORS.background,

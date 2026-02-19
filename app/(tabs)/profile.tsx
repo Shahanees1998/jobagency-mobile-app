@@ -1,5 +1,5 @@
 import { LogoutModal } from '@/components/ui/LogoutModal';
-import { APP_COLORS, APP_SPACING } from '@/constants/appTheme';
+import { APP_COLORS, APP_SPACING, TAB_BAR } from '@/constants/appTheme';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDialog } from '@/contexts/DialogContext';
 import { apiClient } from '@/lib/api';
@@ -15,7 +15,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const MENU_ICON_COLOR = '#374151';
 
@@ -101,6 +101,7 @@ function MenuRow({
 }
 
 function CandidateProfileScreen() {
+  const insets = useSafeAreaInsets();
   const { user, refreshUser, logout } = useAuth();
   const { showDialog } = useDialog();
   const [profile, setProfile] = useState<any>(null);
@@ -108,6 +109,7 @@ function CandidateProfileScreen() {
   const [uploading, setUploading] = useState(false);
   const [logoutModalVisible, setLogoutModalVisible] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const scrollPaddingBottom = TAB_BAR.height + insets.bottom + TAB_BAR.extraBottom;
 
   useEffect(() => {
     loadProfile();
@@ -152,7 +154,7 @@ function CandidateProfileScreen() {
       }
 
       const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        mediaTypes: ['images'],
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.8,
@@ -234,7 +236,11 @@ function CandidateProfileScreen() {
   return (
     <>
       <SafeAreaView style={styles.safe} edges={['top']}>
-        <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          style={styles.container}
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: scrollPaddingBottom }]}
+          showsVerticalScrollIndicator={false}
+        >
           <View style={styles.headerCandidate}>
             <TouchableOpacity onPress={handleImagePick} disabled={uploading}>
               <View style={styles.avatarWrap}>
@@ -293,12 +299,14 @@ function CandidateProfileScreen() {
 }
 
 function EmployerProfileScreen() {
+  const insets = useSafeAreaInsets();
   const { user, logout } = useAuth();
   const { showDialog } = useDialog();
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [logoutModalVisible, setLogoutModalVisible] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const scrollPaddingBottom = TAB_BAR.height + insets.bottom + TAB_BAR.extraBottom;
 
   useEffect(() => {
     (async () => {
@@ -342,7 +350,11 @@ function EmployerProfileScreen() {
   return (
     <>
       <SafeAreaView style={styles.safe} edges={['top']}>
-        <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+        <ScrollView
+          style={styles.container}
+          contentContainerStyle={[styles.scrollContent, { paddingBottom: scrollPaddingBottom }]}
+          showsVerticalScrollIndicator={false}
+        >
           <View style={styles.header}>
             <View style={styles.employerAvatarWrap}>
               {user?.profileImage ? (

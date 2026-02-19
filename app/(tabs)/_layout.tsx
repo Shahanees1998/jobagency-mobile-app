@@ -77,14 +77,12 @@ const TAB_BAR_BASE = {
   borderTopColor: "#E5E7EB",
   elevation: 4,
   shadowColor: "#000",
-  shadowOffset: { width: 0, height: -2 },
   shadowOpacity: 0.1,
   shadowRadius: 4,
   paddingTop: 8,
   borderRadius: 40,
-  marginHorizontal: 16,
-
-  position: "absolute" as const,
+  marginHorizontal: 10,
+  paddingHorizontal: 13,
 };
 
 const employerFabStyle = StyleSheet.create({
@@ -114,11 +112,13 @@ export default function TabLayout() {
   const { user, isAuthenticated } = useAuth();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  // Keep tab bar above device nav buttons: use safe area + gap, or minimum 48px when inset is 0 (e.g. some Android)
+  const tabBarBottom = Math.max(insets.bottom + 16, 48);
   const tabBarStyle = {
     ...TAB_BAR_BASE,
     height: 64,
     paddingBottom: 8,
-    bottom: insets.bottom > 0 ? insets.bottom + 4 : 16,
+    bottom: tabBarBottom,
   };
 
   if (!isAuthenticated || !user) {
@@ -129,6 +129,7 @@ export default function TabLayout() {
   if (role === "ADMIN") {
     return (
       <Tabs
+        sceneContainerStyle={{ backgroundColor: '#fff' }}
         screenOptions={{
           headerShown: false,
           tabBarButton: HapticTab,
@@ -156,6 +157,7 @@ export default function TabLayout() {
   if (role === "CANDIDATE") {
     return (
       <Tabs
+        sceneContainerStyle={{ backgroundColor: '#fff' }}
         screenOptions={{
           headerShown: false,
           tabBarButton: HapticTab,
@@ -237,6 +239,7 @@ export default function TabLayout() {
   if (role === "EMPLOYER") {
     return (
       <Tabs
+        sceneContainerStyle={{ backgroundColor: '#fff' }}
         screenOptions={{
           headerShown: false,
           tabBarStyle,

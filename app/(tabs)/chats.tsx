@@ -13,14 +13,16 @@ import {
 import { router } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { apiClient } from '@/lib/api';
-import { APP_COLORS, APP_SPACING } from '@/constants/appTheme';
+import { APP_COLORS, APP_SPACING, TAB_BAR } from '@/constants/appTheme';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const AVATAR_SIZE = 48;
 const EMPTY_ICON_BG = '#E8F4FC';
 
 export default function ChatsScreen() {
+  const insets = useSafeAreaInsets();
+  const listPaddingBottom = TAB_BAR.height + insets.bottom + TAB_BAR.extraBottom;
   const { user } = useAuth();
   const [chats, setChats] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -227,7 +229,8 @@ export default function ChatsScreen() {
               data={filteredChats}
               renderItem={renderChatItem}
               keyExtractor={(item) => String(item.id)}
-              contentContainerStyle={styles.list}
+              contentContainerStyle={[styles.list, { paddingBottom: listPaddingBottom }]}
+              showsVerticalScrollIndicator={false}
               refreshControl={
                 <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={APP_COLORS.primary} />
               }

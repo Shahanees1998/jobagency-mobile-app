@@ -4,11 +4,15 @@ import { AUTH_SPACING } from '@/constants/authTheme';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDialog } from '@/contexts/DialogContext';
 import { apiClient } from '@/lib/api';
+import * as ImagePicker from 'expo-image-picker';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import React, { useEffect, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
+  Alert,
   BackHandler,
+  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -27,6 +31,7 @@ export default function EditProfileScreen() {
   const [phone, setPhone] = useState('');
   const [location, setLocation] = useState('');
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const justSavedRef = useRef(false);
 
   useEffect(() => {
@@ -50,6 +55,108 @@ export default function EditProfileScreen() {
     const sub = BackHandler.addEventListener('hardwareBackPress', onBack);
     return () => sub.remove();
   }, []);
+
+  const uploadProfileImage = async (uri: string, mimeType: string = 'image/jpeg') => {
+    setUploading(true);
+    try {
+      const response = await apiClient.uploadProfileImage(uri, mimeType);
+      if (response.success) {
+        await refreshUser();
+        showDialog({
+          title: 'Success',
+          message: 'Profile image updated',
+          primaryButton: { text: 'OK' },
+        });
+      } else {
+        showDialog({
+          title: 'Error',
+          message: response.error || 'Failed to upload image',
+          primaryButton: { text: 'OK' },
+        });
+      }
+    } catch (error: any) {
+      showDialog({
+        title: 'Error',
+        message: error?.message || 'Failed to upload image',
+        primaryButton: { text: 'OK' },
+      });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleChooseFromLibrary = async () => {
+    try {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        showDialog({
+          title: 'Permission required',
+          message: 'Please grant permission to access your photos.',
+          primaryButton: { text: 'OK' },
+        });
+        return;
+      }
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+      if (!result.canceled && result.assets?.[0]) {
+        const asset = result.assets[0];
+        await uploadProfileImage(asset.uri, asset.mimeType ?? 'image/jpeg');
+      }
+    } catch (error: any) {
+      showDialog({
+        title: 'Error',
+        message: error?.message || 'Could not open photo library.',
+        primaryButton: { text: 'OK' },
+      });
+    }
+  };
+
+  const handleTakePhoto = async () => {
+    try {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        showDialog({
+          title: 'Permission required',
+          message: 'Please grant permission to use the camera.',
+          primaryButton: { text: 'OK' },
+        });
+        return;
+      }
+      const result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+      });
+      if (!result.canceled && result.assets?.[0]) {
+        const asset = result.assets[0];
+        await uploadProfileImage(asset.uri, asset.mimeType ?? 'image/jpeg');
+      }
+    } catch (error: any) {
+      showDialog({
+        title: 'Error',
+        message: error?.message || 'Could not open camera.',
+        primaryButton: { text: 'OK' },
+      });
+    }
+  };
+
+  const handleChangePhoto = () => {
+    Alert.alert(
+      'Profile photo',
+      'Choose an option',
+      [
+        { text: 'Choose from library', onPress: handleChooseFromLibrary },
+        { text: 'Take photo', onPress: handleTakePhoto },
+        { text: 'Cancel', style: 'cancel' },
+      ],
+      { cancelable: true }
+    );
+  };
 
   const handleSave = async () => {
     const trimmed = fullName.trim();
@@ -116,9 +223,23 @@ export default function EditProfileScreen() {
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.header}>
-            <View style={styles.avatarPlaceholder}>
-              <Ionicons name="person" size={44} color={APP_COLORS.primary} />
-            </View>
+            <TouchableOpacity onPress={handleChangePhoto} disabled={uploading} activeOpacity={0.85}>
+              <View style={styles.avatarWrap}>
+                {user?.profileImage ? (
+                  <Image source={{ uri: user.profileImage }} style={styles.avatar} />
+                ) : (
+                  <View style={styles.avatarPlaceholder}>
+                    <Ionicons name="person" size={44} color={APP_COLORS.primary} />
+                  </View>
+                )}
+                {uploading && (
+                  <View style={styles.avatarOverlay}>
+                    <ActivityIndicator color="#fff" size="small" />
+                  </View>
+                )}
+              </View>
+            </TouchableOpacity>
+            <Text style={styles.avatarHint}>Tap to change photo</Text>
             <Text style={styles.name}>{fullName || 'User'}</Text>
             <Text style={styles.emailText}>{email}</Text>
           </View>
@@ -211,6 +332,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 24,
   },
+  avatarWrap: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    overflow: 'hidden',
+    marginBottom: 4,
+  },
+  avatar: {
+    width: '100%',
+    height: '100%',
+  },
   avatarPlaceholder: {
     width: 88,
     height: 88,
@@ -218,7 +350,21 @@ const styles = StyleSheet.create({
     backgroundColor: APP_COLORS.avatarBg,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 12,
+  },
+  avatarOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarHint: {
+    fontSize: 12,
+    color: APP_COLORS.textMuted,
+    marginBottom: 8,
   },
   name: {
     fontSize: 22,

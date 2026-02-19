@@ -53,36 +53,7 @@ export default function NotificationsScreen() {
       const res = await apiClient.getNotifications({ page: 1, limit: 50 });
       const raw = res.success && res.data ? res.data : {};
       const list = Array.isArray(raw.notifications) ? raw.notifications : Array.isArray(raw) ? raw : [];
-
-      // Added static notifications for testing purposes
-      const staticData = [
-        {
-          id: 'static-1',
-          title: 'Zoox Pvt. Ltd. viewed your profile',
-          message: 'Zoox Pvt. Ltd. viewed your profile',
-          createdAt: new Date().toISOString(),
-          isRead: false,
-          company: 'Zoox Pvt. Ltd.'
-        },
-        {
-          id: 'static-2',
-          title: 'BA House Cleaning give approval to chat with you.',
-          message: 'BA House Cleaning give approval to chat with you.',
-          createdAt: new Date(Date.now() - 3600000).toISOString(),
-          isRead: false,
-          company: 'BA House Cleaning'
-        },
-        {
-          id: 'static-3',
-          title: 'Zoox Pvt. Ltd. scheduled interview with you on 5 Feb 2026.',
-          message: 'Zoox Pvt. Ltd. scheduled interview with you on 5 Feb 2026.',
-          createdAt: new Date(Date.now() - 86400000).toISOString(),
-          isRead: true,
-          company: 'Zoox Pvt. Ltd.'
-        }
-      ];
-
-      setNotifications([...staticData, ...list]);
+      setNotifications(list);
     } catch (e) {
       setNotifications([]);
     } finally {
@@ -158,6 +129,7 @@ export default function NotificationsScreen() {
           data={groups.flatMap((g) => [{ isSection: true, key: g.key }, ...g.items.map((i) => ({ ...i, isSection: false }))])}
           keyExtractor={(item: any) => (item.isSection ? `section-${item.key}` : item.id || `n-${Math.random()}`)}
           contentContainerStyle={styles.list}
+          showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={APP_COLORS.primary} />
           }
@@ -176,7 +148,7 @@ export default function NotificationsScreen() {
             return (
               <TouchableOpacity
                 style={[styles.card, !item.isRead ? styles.cardUnread : styles.cardRead]}
-                onPress={() => { if (item.id && !item.id.startsWith('static-')) apiClient.markNotificationAsRead(item.id); loadNotifications(); }}
+                onPress={() => { if (item.id) apiClient.markNotificationAsRead(item.id).then(() => loadNotifications()); }}
                 activeOpacity={0.85}
               >
                 <View style={styles.logoBox}>

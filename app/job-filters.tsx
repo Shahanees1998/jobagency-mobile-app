@@ -10,7 +10,7 @@ import {
     TouchableOpacity,
     View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const DEFAULT_FILTERS: JobFilters = {
   datePosted: 'all',
@@ -111,7 +111,9 @@ function CheckRow({
 }
 
 export default function JobFiltersScreen() {
+  const insets = useSafeAreaInsets();
   const [filters, setFilters] = useState<JobFilters>(DEFAULT_FILTERS);
+  const contentBottomPadding = Math.max(insets.bottom, 24) + 24;
 
   useEffect(() => {
     (async () => {
@@ -150,13 +152,13 @@ export default function JobFiltersScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <ScrollView
         style={styles.container}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { paddingBottom: contentBottomPadding }]}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.sectionTitle}>Date posted</Text>
+        <Text style={[styles.sectionTitle, styles.firstSectionTitle]}>Date posted</Text>
         {DATE_OPTIONS.map((opt) => (
           <RadioRow
             key={opt.value}
@@ -165,6 +167,7 @@ export default function JobFiltersScreen() {
             onSelect={() => setFilters((f) => ({ ...f, datePosted: opt.value }))}
           />
         ))}
+        <View style={styles.divider} />
 
         <Text style={styles.sectionTitle}>Remote</Text>
         {REMOTE_OPTIONS.map((opt) => (
@@ -175,6 +178,7 @@ export default function JobFiltersScreen() {
             onToggle={() => toggleRemote(opt.value)}
           />
         ))}
+        <View style={styles.divider} />
 
         <Text style={styles.sectionTitle}>Job type</Text>
         {JOB_TYPE_OPTIONS.map((opt) => (
@@ -185,6 +189,7 @@ export default function JobFiltersScreen() {
             onToggle={() => toggleJobType(opt.value)}
           />
         ))}
+        <View style={styles.divider} />
 
         <Text style={styles.sectionTitle}>Experience level</Text>
         {EXPERIENCE_OPTIONS.map((opt) => (
@@ -195,6 +200,7 @@ export default function JobFiltersScreen() {
             onSelect={() => setFilters((f) => ({ ...f, experienceLevel: opt.value }))}
           />
         ))}
+        <View style={styles.divider} />
 
         <Text style={styles.sectionTitle}>Salary</Text>
         {SALARY_OPTIONS.map((opt) => (
@@ -205,6 +211,7 @@ export default function JobFiltersScreen() {
             onSelect={() => setFilters((f) => ({ ...f, salary: opt.value }))}
           />
         ))}
+        <View style={styles.divider} />
 
         <Text style={styles.sectionTitle}>Education</Text>
         {EDUCATION_OPTIONS.map((opt) => (
@@ -215,6 +222,7 @@ export default function JobFiltersScreen() {
             onSelect={() => setFilters((f) => ({ ...f, education: opt.value }))}
           />
         ))}
+        <View style={styles.divider} />
 
         <Text style={styles.sectionTitle}>Sort by</Text>
         {SORT_OPTIONS.map((opt) => (
@@ -225,6 +233,7 @@ export default function JobFiltersScreen() {
             onSelect={() => setFilters((f) => ({ ...f, sortBy: opt.value }))}
           />
         ))}
+        <View style={styles.divider} />
 
         <View style={styles.actions}>
           <TouchableOpacity style={styles.resetButton} onPress={handleReset} activeOpacity={0.85}>
@@ -250,6 +259,7 @@ const styles = StyleSheet.create({
     marginTop: 24,
     marginBottom: 12,
   },
+  firstSectionTitle: { marginTop: 0 },
   radioRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -292,28 +302,32 @@ const styles = StyleSheet.create({
     borderColor: APP_COLORS.primary,
   },
   optionLabel: { fontSize: 16, color: APP_COLORS.textPrimary },
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: '#E5E7EB',
+    marginVertical: 16,
+    marginHorizontal: 0,
+  },
   actions: {
     flexDirection: 'row',
     gap: 12,
-    marginTop: 32,
+    marginTop: 24,
     marginBottom: 16,
   },
   resetButton: {
     flex: 1,
     height: 52,
-    backgroundColor: APP_COLORS.surfaceGray,
-    borderRadius: APP_SPACING.borderRadius,
+    backgroundColor: '#E5E7EB',
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: APP_COLORS.border,
   },
-  resetText: { fontSize: 16, fontWeight: '600', color: APP_COLORS.textPrimary },
+  resetText: { fontSize: 16, fontWeight: '600', color: APP_COLORS.primary },
   updateButton: {
     flex: 1,
     height: 52,
     backgroundColor: APP_COLORS.primary,
-    borderRadius: APP_SPACING.borderRadius,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },

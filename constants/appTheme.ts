@@ -7,7 +7,7 @@ export const APP_COLORS = {
   white: '#FFFFFF',
   background: '#FFFFFF',
   surface: '#F9FAFB',
-  surfaceGray: '#F3F4F6',
+  surfaceGray: '#E6E6E6',
   border: '#D1D5DB',
   textPrimary: '#111827',
   textSecondary: '#374151',
@@ -24,4 +24,10 @@ export const APP_SPACING = {
   inputHeight: 52,
   borderRadius: 12,
   borderRadiusLg: 16,
+} as const;
+
+/** Use with useSafeAreaInsets().bottom for tab screen scroll/list paddingBottom */
+export const TAB_BAR = {
+  height: 64,
+  extraBottom: 32,
 } as const;

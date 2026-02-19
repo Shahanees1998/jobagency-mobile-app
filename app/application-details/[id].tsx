@@ -72,7 +72,7 @@ export default function ApplicationDetailsScreen() {
   }
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <ThemedView style={styles.content}>
         <View style={styles.header}>
           <ThemedText type="title" style={styles.title}>

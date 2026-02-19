@@ -188,10 +188,8 @@ class ApiClient {
 
   async uploadProfileImage(imageUri: string, mimeType: string = 'image/jpeg'): Promise<ApiResponse<{ profileImage: string }>> {
     try {
-      // Import FileSystem
-      const FileSystem = require('expo-file-system');
-      
-      // Get file info
+      // Use legacy FileSystem API (getInfoAsync is in legacy in Expo SDK 54+)
+      const FileSystem = require('expo-file-system/legacy');
       const fileInfo = await FileSystem.getInfoAsync(imageUri);
       if (!fileInfo.exists) {
         return {
@@ -266,6 +264,10 @@ class ApiClient {
     datePosted?: 'all' | '24h' | '3d' | '7d';
     sortBy?: 'relevance' | 'date';
     remote?: string[]; // on-site, remote, hybrid
+    experienceLevel?: string; // all | senior | mid | entry | none
+    salary?: string; // all | 70 | 90 | 110 | 120 | 140
+    education?: string; // all | high_school | bachelor | master | doctoral
+    employerId?: string; // filter by employer (company profile)
   }): Promise<ApiResponse<{ jobs: any[]; total: number; page: number; limit: number }>> {
     const queryParams = new URLSearchParams();
     if (params?.page) queryParams.append('page', params.page.toString());
@@ -279,6 +281,11 @@ class ApiClient {
     if (params?.datePosted) queryParams.append('datePosted', params.datePosted);
     if (params?.sortBy) queryParams.append('sortBy', params.sortBy);
     if (params?.remote?.length) queryParams.append('remote', params.remote.join(','));
+    if (params?.experienceLevel && params.experienceLevel !== 'all')
+      queryParams.append('experienceLevel', params.experienceLevel);
+    if (params?.salary && params.salary !== 'all') queryParams.append('salary', params.salary);
+    if (params?.education && params.education !== 'all') queryParams.append('education', params.education);
+    if (params?.employerId) queryParams.append('employerId', params.employerId);
 
     const query = queryParams.toString();
     return this.request(`/api/jobs${query ? `?${query}` : ''}`);
@@ -534,16 +541,56 @@ class ApiClient {
     status?: string;
   }): Promise<ApiResponse<any>> {
     const queryParams = new URLSearchParams();
-    if (params?.page) queryParams.append('page', params.page.toString());
-    if (params?.limit) queryParams.append('limit', params.limit.toString());
+    const page = params?.page ?? 1;
+    const limit = params?.limit ?? 50;
+    queryParams.append('page', page.toString());
+    queryParams.append('limit', limit.toString());
     if (params?.status) queryParams.append('status', params.status);
 
     const query = queryParams.toString();
-    return this.request(`/api/candidates/applications${query ? `?${query}` : ''}`);
+    const url = `/api/candidates/applications?${query}`;
+    if (__DEV__) console.log('[API] getMyApplications', url);
+    return this.request(url);
   }
 
   async getApplicationById(applicationId: string): Promise<ApiResponse<any>> {
     return this.request(`/api/applications/${applicationId}`);
+  }
+
+  /** GET /api/candidates/reviews - My reviews */
+  async getMyReviews(): Promise<ApiResponse<{ reviews: any[] }>> {
+    return this.request('/api/candidates/reviews');
+  }
+
+  /** PUT /api/candidates/reviews/[id] */
+  async updateReview(reviewId: string, data: { rating: number; title: string; description: string }): Promise<ApiResponse<any>> {
+    return this.request(`/api/candidates/reviews/${reviewId}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  }
+
+  /** DELETE /api/candidates/reviews/[id] */
+  async deleteReview(reviewId: string): Promise<ApiResponse> {
+    return this.request(`/api/candidates/reviews/${reviewId}`, { method: 'DELETE' });
+  }
+
+  /** GET /api/employers/[id]/reviews - Public reviews for a company */
+  async getEmployerReviews(employerId: string): Promise<ApiResponse<{ companyName: string; reviews: any[] }>> {
+    return this.request(`/api/employers/${employerId}/reviews`);
+  }
+
+  /** POST /api/candidates/reviews - Create (e.g. from company page) */
+  async createReview(data: {
+    employerId: string;
+    rating: number;
+    title?: string;
+    description?: string;
+  }): Promise<ApiResponse<any>> {
+    return this.request('/api/candidates/reviews', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
   }
 
   // Chat APIs
@@ -571,7 +618,7 @@ class ApiClient {
     return this.request(`/api/chats/${chatId}/messages${query ? `?${query}` : ''}`);
   }
 
-  async sendMessage(chatId: string, content: string, messageType: 'TEXT' | 'IMAGE' = 'TEXT'): Promise<ApiResponse<any>> {
+  async sendMessage(chatId: string, content: string, messageType: 'TEXT' | 'IMAGE' | 'FILE' = 'TEXT'): Promise<ApiResponse<any>> {
     return this.request(`/api/chats/${chatId}/messages`, {
       method: 'POST',
       body: JSON.stringify({ content, messageType }),
@@ -615,6 +662,59 @@ class ApiClient {
       return {
         success: false,
         error: error.message || 'Upload failed',
+      };
+    }
+  }
+
+  async uploadChatDocument(fileUri: string, mimeType: string, name: string): Promise<ApiResponse<{ url: string; name?: string }>> {
+    const formData = new FormData();
+    formData.append('file', {
+      uri: fileUri,
+      type: mimeType,
+      name: name || 'document',
+    } as any);
+
+    const url = `${this.baseURL}/api/chats/upload-document`;
+    const headers: HeadersInit = {};
+    if (this.accessToken) {
+      headers['Authorization'] = `Bearer ${this.accessToken}`;
+    }
+
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers,
+        body: formData,
+      });
+      const text = await response.text();
+      let data: any = {};
+      if (text && text.trim()) {
+        try {
+          data = JSON.parse(text);
+        } catch {
+          return {
+            success: false,
+            error: response.ok
+              ? 'Invalid response from server. Try a smaller file (e.g. under 5MB).'
+              : `Upload failed (${response.status}). Try a smaller file.`,
+          };
+        }
+      }
+      if (!response.ok) {
+        return {
+          success: false,
+          error: data.error || data.message || `Upload failed (${response.status})`,
+        };
+      }
+      const urlResult = data.data?.url ?? data.url;
+      return {
+        success: true,
+        data: { url: urlResult, name: data.data?.name },
+      };
+    } catch (error: any) {
+      return {
+        success: false,
+        error: error.message || 'Upload failed. Try a smaller file or check your connection.',
       };
     }
   }

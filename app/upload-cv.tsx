@@ -52,7 +52,7 @@ export default function UploadCVScreen() {
   };
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <ThemedView style={styles.content}>
         <ThemedText type="title" style={styles.title}>Upload CV</ThemedText>
         <ThemedText style={styles.subtitle}>
