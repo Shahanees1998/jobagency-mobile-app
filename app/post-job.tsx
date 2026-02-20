@@ -47,7 +47,10 @@ export default function PostJobScreen() {
   });
   const [loading, setLoading] = useState(false);
   const [addPerkModalVisible, setAddPerkModalVisible] = useState(false);
+  const [editPerkModalVisible, setEditPerkModalVisible] = useState(false);
   const [newPerkName, setNewPerkName] = useState('');
+  const [editingPerkIndex, setEditingPerkIndex] = useState<number | null>(null);
+  const [editPerkName, setEditPerkName] = useState('');
 
   const setField = <K extends keyof typeof formData>(key: K, value: (typeof formData)[K]) => {
     setFormData((prev) => ({ ...prev, [key]: value }));
@@ -62,6 +65,27 @@ export default function PostJobScreen() {
     }
   };
 
+  const openEditPerk = (index: number) => {
+    setEditingPerkIndex(index);
+    setEditPerkName(formData.benefits[index] ?? '');
+    setEditPerkModalVisible(true);
+  };
+
+  const saveEditPerk = () => {
+    const name = editPerkName.trim();
+    if (editingPerkIndex !== null) {
+      if (name) {
+        setFormData((prev) => ({
+          ...prev,
+          benefits: prev.benefits.map((b, i) => (i === editingPerkIndex ? name : b)),
+        }));
+      }
+      setEditingPerkIndex(null);
+      setEditPerkName('');
+      setEditPerkModalVisible(false);
+    }
+  };
+
   const removePerk = (index: number) => {
     showDialog({
       title: 'Delete Perk & benefit',
@@ -69,6 +93,26 @@ export default function PostJobScreen() {
       primaryButton: { text: 'Yes, Delete', onPress: () => setFormData((prev) => ({ ...prev, benefits: prev.benefits.filter((_, i) => i !== index) })) },
       secondaryButton: { text: 'Cancel' },
     });
+  };
+
+  const hasUnsavedContent = () =>
+    formData.title.trim() !== '' ||
+    formData.description.trim() !== '' ||
+    formData.location.trim() !== '' ||
+    formData.salaryRange.trim() !== '' ||
+    formData.benefits.length > 0;
+
+  const handleBack = () => {
+    if (hasUnsavedContent()) {
+      showDialog({
+        title: 'Delete job',
+        message: 'Sure you want to delete this job posting?',
+        primaryButton: { text: 'Yes, Delete', onPress: () => router.back() },
+        secondaryButton: { text: 'Cancel' },
+      });
+    } else {
+      router.back();
+    }
   };
 
   const handleNext = () => {
@@ -113,7 +157,7 @@ export default function PostJobScreen() {
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.headerBtn} hitSlop={12}>
+        <TouchableOpacity onPress={handleBack} style={styles.headerBtn} hitSlop={12}>
           <Ionicons name="arrow-back" size={24} color={APP_COLORS.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Create new job</Text>
@@ -141,10 +185,12 @@ export default function PostJobScreen() {
           {step === 0 && (
             <>
               <Text style={styles.sectionTitle}>Basic Job Information</Text>
-              <Text style={styles.sectionSubtext}>Enter the core details candidates will see first.</Text>
+              <Text style={styles.sectionSubtext}>
+                Add the most important job details so candidates can quickly understand the role and requirements.
+              </Text>
               <View style={styles.field}>
                 <View style={styles.inputWrap}>
-                  <Text style={styles.inputIcon}>H</Text>
+                  <Ionicons name="briefcase-outline" size={20} color={APP_COLORS.textMuted} style={styles.inputIconSvg} />
                   <TextInput
                     style={styles.input}
                     placeholder="Job title"
@@ -157,7 +203,7 @@ export default function PostJobScreen() {
               </View>
               <View style={styles.field}>
                 <View style={styles.inputWrap}>
-                  <Text style={styles.inputIcon}>€</Text>
+                  <Ionicons name="cash-outline" size={20} color={APP_COLORS.textMuted} style={styles.inputIconSvg} />
                   <TextInput
                     style={styles.input}
                     placeholder="Salary range"
@@ -187,7 +233,7 @@ export default function PostJobScreen() {
               </View>
               <View style={styles.field}>
                 <View style={styles.inputWrap}>
-                  <Ionicons name="location-outline" size={18} color={APP_COLORS.textMuted} style={styles.inputIconSvg} />
+                  <Ionicons name="location-outline" size={20} color={APP_COLORS.textMuted} style={styles.inputIconSvg} />
                   <TextInput
                     style={styles.input}
                     placeholder="Job address"
@@ -203,42 +249,55 @@ export default function PostJobScreen() {
 
           {step === 1 && (
             <>
-              <Text style={styles.sectionTitle}>Perks and benefits</Text>
-              <Text style={styles.sectionSubtext}>Add perks that make your role stand out.</Text>
+              <View style={styles.benefitsHeader}>
+                <View>
+                  <Text style={styles.sectionTitle}>Perks and benefits</Text>
+                  <Text style={styles.sectionSubtext}>
+                    Highlight the benefits and perks offered with this role to attract the right candidates for this job.
+                  </Text>
+                </View>
+                <TouchableOpacity style={styles.addPerkButton} onPress={() => setAddPerkModalVisible(true)} hitSlop={12}>
+                  <Ionicons name="add" size={26} color={APP_COLORS.primary} />
+                </TouchableOpacity>
+              </View>
+              {formData.benefits.map((name, i) => (
+                <View key={i} style={styles.perkPill}>
+                  <Text style={styles.perkName} numberOfLines={1}>{name}</Text>
+                  <TouchableOpacity onPress={() => openEditPerk(i)} hitSlop={12} style={styles.perkIconBtn}>
+                    <Ionicons name="checkmark-circle" size={22} color={APP_COLORS.success} />
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => removePerk(i)} hitSlop={12} style={styles.perkIconBtn}>
+                    <Ionicons name="trash-outline" size={22} color={APP_COLORS.danger} />
+                  </TouchableOpacity>
+                </View>
+              ))}
               <TouchableOpacity style={styles.addPerkRow} onPress={() => setAddPerkModalVisible(true)}>
                 <Ionicons name="add-circle-outline" size={22} color={APP_COLORS.primary} />
                 <Text style={styles.addPerkText}>Add perk & benefit</Text>
               </TouchableOpacity>
-              {formData.benefits.map((name, i) => (
-                <View key={i} style={styles.perkRow}>
-                  <View style={styles.perkCheck} />
-                  <Text style={styles.perkName}>{name}</Text>
-                  <TouchableOpacity onPress={() => removePerk(i)} hitSlop={12}>
-                    <Ionicons name="close-circle" size={24} color={APP_COLORS.danger} />
-                  </TouchableOpacity>
-                </View>
-              ))}
             </>
           )}
 
           {step === 2 && (
             <>
               <Text style={styles.sectionTitle}>Job Description</Text>
-              <Text style={styles.sectionSubtext}>Describe the role, team, and what success looks like.</Text>
+              <Text style={styles.sectionSubtext}>
+                Describe the role, responsibilities, and expectations to help candidates understand the job clearly.
+              </Text>
               <View style={styles.field}>
+                <View style={styles.textAreaIcons}>
+                  <TouchableOpacity><Ionicons name="list-outline" size={20} color={APP_COLORS.textMuted} /></TouchableOpacity>
+                  <TouchableOpacity><Ionicons name="document-text-outline" size={20} color={APP_COLORS.textMuted} /></TouchableOpacity>
+                </View>
                 <TextInput
                   style={styles.textArea}
-                  placeholder="Enter job description."
+                  placeholder="Enter job description..."
                   placeholderTextColor={APP_COLORS.textMuted}
                   value={formData.description}
                   onChangeText={(t) => setField('description', t)}
                   multiline
                   textAlignVertical="top"
                 />
-                <View style={styles.textAreaIcons}>
-                  <TouchableOpacity><Ionicons name="list-outline" size={20} color={APP_COLORS.textMuted} /></TouchableOpacity>
-                  <TouchableOpacity><Ionicons name="document-text-outline" size={20} color={APP_COLORS.textMuted} /></TouchableOpacity>
-                </View>
               </View>
             </>
           )}
@@ -266,9 +325,10 @@ export default function PostJobScreen() {
         <Pressable style={styles.modalOverlay} onPress={() => setAddPerkModalVisible(false)}>
           <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
             <Text style={styles.modalTitle}>Add perk & benefit</Text>
+            <Text style={styles.modalLabel}>Perk & benefit name</Text>
             <TextInput
               style={styles.modalInput}
-              placeholder="Perk & benefit name"
+              placeholder="Enter perk & benefit name"
               placeholderTextColor={APP_COLORS.textMuted}
               value={newPerkName}
               onChangeText={setNewPerkName}
@@ -279,6 +339,31 @@ export default function PostJobScreen() {
                 <Text style={styles.modalCancelText}>Cancel</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.modalSave} onPress={addPerk}>
+                <Text style={styles.modalSaveText}>Save</Text>
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <Modal visible={editPerkModalVisible} transparent animationType="fade">
+        <Pressable style={styles.modalOverlay} onPress={() => setEditPerkModalVisible(false)}>
+          <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
+            <Text style={styles.modalTitle}>Edit perk & benefit</Text>
+            <Text style={styles.modalLabel}>Perk & benefit name</Text>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Enter perk & benefit name"
+              placeholderTextColor={APP_COLORS.textMuted}
+              value={editPerkName}
+              onChangeText={setEditPerkName}
+              autoFocus
+            />
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={styles.modalCancel} onPress={() => setEditPerkModalVisible(false)}>
+                <Text style={styles.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalSave} onPress={saveEditPerk}>
                 <Text style={styles.modalSaveText}>Save</Text>
               </TouchableOpacity>
             </View>
@@ -315,6 +400,8 @@ const styles = StyleSheet.create({
   scrollContent: { paddingHorizontal: APP_SPACING.screenPadding, paddingTop: 16 },
   sectionTitle: { fontSize: 16, fontWeight: '700', color: APP_COLORS.textPrimary, marginBottom: 6 },
   sectionSubtext: { fontSize: 13, color: APP_COLORS.textSecondary, marginBottom: 16 },
+  benefitsHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 16 },
+  addPerkButton: { padding: 4 },
   field: { marginBottom: 16 },
   label: { fontSize: 13, fontWeight: '600', color: APP_COLORS.textSecondary, marginBottom: 8 },
   inputWrap: {
@@ -344,9 +431,20 @@ const styles = StyleSheet.create({
   chipTextActive: { color: APP_COLORS.white },
   addPerkRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12, gap: 8 },
   addPerkText: { fontSize: 15, fontWeight: '600', color: APP_COLORS.primary },
-  perkRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 10, gap: 10 },
-  perkCheck: { width: 20, height: 20, borderRadius: 10, borderWidth: 2, borderColor: APP_COLORS.primary },
+  perkPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    backgroundColor: APP_COLORS.surfaceGray,
+    borderRadius: APP_SPACING.borderRadius,
+    borderWidth: 1,
+    borderColor: APP_COLORS.border,
+    gap: 10,
+  },
   perkName: { flex: 1, fontSize: 15, color: APP_COLORS.textPrimary },
+  perkIconBtn: { padding: 2 },
   textArea: {
     backgroundColor: APP_COLORS.surfaceGray,
     borderRadius: APP_SPACING.borderRadius,
@@ -358,7 +456,7 @@ const styles = StyleSheet.create({
     color: APP_COLORS.textPrimary,
     minHeight: 140,
   },
-  textAreaIcons: { flexDirection: 'row', gap: 12, marginTop: 8 },
+  textAreaIcons: { flexDirection: 'row', gap: 12, marginBottom: 8 },
   footer: { marginTop: 24 },
   primaryBtn: {
     height: 54,
@@ -375,7 +473,8 @@ const styles = StyleSheet.create({
     borderRadius: APP_SPACING.borderRadiusLg,
     padding: 24,
   },
-  modalTitle: { fontSize: 18, fontWeight: '700', color: APP_COLORS.textPrimary, marginBottom: 16 },
+  modalTitle: { fontSize: 18, fontWeight: '700', color: APP_COLORS.textPrimary, marginBottom: 12 },
+  modalLabel: { fontSize: 14, fontWeight: '600', color: APP_COLORS.textSecondary, marginBottom: 8 },
   modalInput: {
     height: 48,
     borderWidth: 1,

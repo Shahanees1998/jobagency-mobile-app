@@ -1,5 +1,6 @@
 import { JobCard } from '@/components/jobs';
 import { APP_COLORS, APP_SPACING, TAB_BAR } from '@/constants/appTheme';
+import { useAuth } from '@/contexts/AuthContext';
 import { apiClient } from '@/lib/api';
 import { storage, type JobFilters, type RecentSearch } from '@/lib/storage';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -25,6 +26,7 @@ const SUGGEST_RESULTS_LIMIT = 15;
 export default function SearchScreen() {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
+  const { user } = useAuth();
   const [jobQuery, setJobQuery] = useState('');
   const [locationQuery, setLocationQuery] = useState('');
   const [showResults, setShowResults] = useState(false);
@@ -37,7 +39,19 @@ export default function SearchScreen() {
   const [recentSearches, setRecentSearches] = useState<RecentSearch[]>([]);
   const [suggestionSource, setSuggestionSource] = useState<'job' | 'location' | 'recent'>('recent');
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
+  const [employerId, setEmployerId] = useState<string>('');
   const suggestDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const isEmployer = user?.role === 'EMPLOYER';
+  useEffect(() => {
+    if (!isEmployer) return;
+    apiClient.getEmployerProfile().then((res) => {
+      if (res.success && res.data) {
+        const d = res.data as any;
+        setEmployerId(d.id ?? d.employerId ?? '');
+      }
+    });
+  }, [isEmployer]);
 
   useLayoutEffect(() => {
     navigation.setOptions({
@@ -103,6 +117,7 @@ export default function SearchScreen() {
           const res = await apiClient.getJobs({
             search: job,
             limit: SUGGEST_RESULTS_LIMIT,
+            ...(employerId ? { employerId } : {}),
           });
           const raw = res.success && res.data ? (res.data as any) : null;
           const jobs = Array.isArray(raw?.jobs) ? raw.jobs : Array.isArray(raw) ? raw : [];
@@ -128,6 +143,7 @@ export default function SearchScreen() {
           const res = await apiClient.getJobs({
             search: loc,
             limit: SUGGEST_RESULTS_LIMIT,
+            ...(employerId ? { employerId } : {}),
           });
           const raw = res.success && res.data ? (res.data as any) : null;
           const jobs = Array.isArray(raw?.jobs) ? raw.jobs : Array.isArray(raw) ? raw : [];
@@ -158,7 +174,7 @@ export default function SearchScreen() {
         suggestDebounceRef.current = null;
       }
     };
-  }, [jobQuery, locationQuery, loadRecentSearches]);
+  }, [jobQuery, locationQuery, loadRecentSearches, employerId]);
 
   useFocusEffect(
     useCallback(() => {
@@ -188,6 +204,7 @@ export default function SearchScreen() {
         page: 1,
         limit: 20,
         search: search || undefined,
+        ...(employerId ? { employerId } : {}),
         employmentType,
         datePosted: (f?.datePosted ?? 'all') as any,
         sortBy: (f?.sortBy ?? 'relevance') as any,
@@ -213,7 +230,7 @@ export default function SearchScreen() {
     } finally {
       setLoading(false);
     }
-  }, [jobQuery, locationQuery, filters, loadFilters, loadRecentSearches]);
+  }, [jobQuery, locationQuery, filters, loadFilters, loadRecentSearches, employerId]);
 
   const onSuggestionPress = useCallback((text: string, source: 'job' | 'location') => {
     if (source === 'job') setJobQuery(text);

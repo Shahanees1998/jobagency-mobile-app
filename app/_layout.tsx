@@ -1,4 +1,5 @@
 import { Kanit_400Regular, Kanit_500Medium, Kanit_600SemiBold, Kanit_700Bold } from '@expo-google-fonts/kanit';
+import * as Notifications from 'expo-notifications';
 import { DarkTheme, DefaultTheme, ThemeProvider } from '@react-navigation/native';
 import { useFonts } from 'expo-font';
 import { Stack, useRouter, useSegments } from 'expo-router';
@@ -72,6 +73,18 @@ function RootLayoutNav() {
       router.replace('/(auth)/login');
     }
   }, [isAuthenticated, isLoading, segments]);
+
+  // FCM: when user taps a push (e.g. new chat message), open that chat
+  useEffect(() => {
+    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
+      const data = response.notification.request.content.data as Record<string, string> | undefined;
+      const chatId = data?.chatId ?? data?.relatedId;
+      if (chatId && isAuthenticated) {
+        router.push(`/chat/${chatId}`);
+      }
+    });
+    return () => sub.remove();
+  }, [isAuthenticated]);
 
   if (!fontsLoaded) {
     return null;

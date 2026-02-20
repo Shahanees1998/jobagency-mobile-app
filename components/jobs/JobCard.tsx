@@ -14,6 +14,8 @@ export interface JobCardProps {
   hideDislike?: boolean;
   hideBookmark?: boolean;
   hideLike?: boolean;
+  /** Smaller font, padding, and icons (e.g. company profile carousel) */
+  compact?: boolean;
   footerButton?: {
     text: string;
     onPress: () => void;
@@ -24,6 +26,9 @@ export interface JobCardProps {
   onDislike?: () => void;
   style?: ViewStyle;
 }
+
+const iconSize = { default: 22, compact: 16 };
+const iconSizeNum = (c: boolean) => (c ? iconSize.compact : iconSize.default);
 
 export function JobCard({
   title,
@@ -37,6 +42,7 @@ export function JobCard({
   hideDislike,
   hideBookmark,
   hideLike,
+  compact = false,
   footerButton,
   onPress,
   onBookmark,
@@ -45,16 +51,17 @@ export function JobCard({
   style,
 }: JobCardProps) {
   const letter = (companyLogoLetter || companyName?.charAt(0) || '?').toUpperCase();
+  const iconSz = iconSizeNum(compact);
 
   return (
     <TouchableOpacity
-      style={[styles.card, style]}
+      style={[styles.card, compact && styles.cardCompact, style]}
       onPress={onPress}
       activeOpacity={0.85}
     >
       {/* Top Row: Title, Bookmark (save), Like */}
-      <View style={styles.topRow}>
-        <Text style={styles.title} numberOfLines={1}>
+      <View style={[styles.topRow, compact && styles.topRowCompact]}>
+        <Text style={[styles.title, compact && styles.titleCompact]} numberOfLines={1}>
           {title}
         </Text>
         <View style={styles.topRowIcons}>
@@ -66,7 +73,7 @@ export function JobCard({
             >
               <Ionicons
                 name={liked ? 'heart' : 'heart-outline'}
-                size={22}
+                size={iconSz}
                 color={liked ? '#DC2626' : '#031019'}
               />
             </TouchableOpacity>
@@ -79,7 +86,7 @@ export function JobCard({
             >
               <Ionicons
                 name={showRemoveIcon ? "remove-circle-outline" : (saved ? "bookmark" : "bookmark-outline")}
-                size={22}
+                size={iconSz}
                 color="#031019"
               />
             </TouchableOpacity>
@@ -88,14 +95,14 @@ export function JobCard({
       </View>
 
       {/* Middle Row: Logo, Company Info, and Dislike */}
-      <View style={styles.middleRow}>
+      <View style={[styles.middleRow, compact && styles.middleRowCompact]}>
         <View style={styles.logoAndInfo}>
-          <View style={styles.logo}>
-            <Text style={styles.logoText}>{letter}</Text>
+          <View style={[styles.logo, compact && styles.logoCompact]}>
+            <Text style={[styles.logoText, compact && styles.logoTextCompact]}>{letter}</Text>
           </View>
           <View style={styles.companyInfo}>
-            <Text style={styles.companyName} numberOfLines={1}>{companyName}</Text>
-            <Text style={styles.location} numberOfLines={1}>{location}</Text>
+            <Text style={[styles.companyName, compact && styles.companyNameCompact]} numberOfLines={1}>{companyName}</Text>
+            <Text style={[styles.location, compact && styles.locationCompact]} numberOfLines={1}>{location}</Text>
           </View>
         </View>
         {!hideDislike && (
@@ -104,17 +111,17 @@ export function JobCard({
             hitSlop={8}
             style={styles.iconBtn}
           >
-            <Ionicons name="thumbs-down-outline" size={22} color="#031019" />
+            <Ionicons name="thumbs-down-outline" size={iconSz} color="#031019" />
           </TouchableOpacity>
         )}
       </View>
 
       {/* Bottom Row: Tags */}
       {benefits.length > 0 && (
-        <View style={styles.tags}>
+        <View style={[styles.tags, compact && styles.tagsCompact]}>
           {benefits.slice(0, 6).map((b, i) => (
-            <View key={i} style={styles.tag}>
-              <Text style={styles.tagText} numberOfLines={1}>{b}</Text>
+            <View key={i} style={[styles.tag, compact && styles.tagCompact]}>
+              <Text style={[styles.tagText, compact && styles.tagTextCompact]} numberOfLines={1}>{b}</Text>
             </View>
           ))}
         </View>
@@ -123,11 +130,11 @@ export function JobCard({
       {/* Footer Button (Interview Tab) */}
       {footerButton && (
         <TouchableOpacity
-          style={styles.footerButton}
+          style={[styles.footerButton, compact && styles.footerButtonCompact]}
           onPress={(e) => { e?.stopPropagation?.(); footerButton.onPress(); }}
           activeOpacity={0.8}
         >
-          <Text style={styles.footerButtonText}>{footerButton.text}</Text>
+          <Text style={[styles.footerButtonText, compact && styles.footerButtonTextCompact]}>{footerButton.text}</Text>
         </TouchableOpacity>
       )}
     </TouchableOpacity>
@@ -141,12 +148,18 @@ const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 16,
   },
+  cardCompact: {
+    borderRadius: 12,
+    padding: 10,
+    marginBottom: 0,
+  },
   topRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 12,
   },
+  topRowCompact: { marginBottom: 8 },
   topRowIcons: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -160,12 +173,14 @@ const styles = StyleSheet.create({
     flex: 1,
     marginRight: 8,
   },
+  titleCompact: { fontSize: 14, marginRight: 4 },
   middleRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 16,
   },
+  middleRowCompact: { marginBottom: 8 },
   logoAndInfo: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -180,34 +195,39 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: 12,
   },
+  logoCompact: {
+    width: 36,
+    height: 36,
+    borderRadius: 5,
+    marginRight: 8,
+  },
   logoText: {
     color: '#FFFFFF',
     fontSize: 20,
     fontWeight: '700',
   },
-  companyInfo: {
-    flex: 1,
-    minWidth: 0,
-  },
+  logoTextCompact: { fontSize: 14 },
+  companyInfo: { flex: 1, minWidth: 0 },
   companyName: {
     fontFamily: 'Kanit',
     fontSize: 16,
     fontWeight: '700',
     color: '#031019',
   },
+  companyNameCompact: { fontSize: 12 },
   location: {
     fontSize: 13,
     color: '#6B7280',
     marginTop: 2,
   },
-  iconBtn: {
-    padding: 2,
-  },
+  locationCompact: { fontSize: 11, marginTop: 1 },
+  iconBtn: { padding: 2 },
   tags: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: 8,
   },
+  tagsCompact: { gap: 4 },
   tag: {
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 12,
@@ -216,11 +236,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#EFEFEF',
   },
+  tagCompact: {
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
   tagText: {
     fontSize: 12,
     color: '#4B5563',
     fontWeight: '500',
   },
+  tagTextCompact: { fontSize: 10 },
   footerButton: {
     backgroundColor: '#1E4154',
     height: 48,
@@ -230,10 +256,12 @@ const styles = StyleSheet.create({
     marginTop: 16,
     width: '100%',
   },
+  footerButtonCompact: { height: 40, marginTop: 10, borderRadius: 20 },
   footerButtonText: {
     fontFamily: 'Kanit',
     fontSize: 15,
     color: '#FFFFFF',
     fontWeight: '600',
   },
+  footerButtonTextCompact: { fontSize: 13 },
 });

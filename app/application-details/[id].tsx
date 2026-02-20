@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useDialog } from '@/contexts/DialogContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { apiClient } from '@/lib/api';
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Linking, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
 
@@ -222,6 +222,30 @@ export default function ApplicationDetailsScreen() {
               }}
             >
               <ThemedText style={styles.actionButtonText}>Reject</ThemedText>
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {user?.role === 'EMPLOYER' && application.status === 'APPROVED' && (
+          <View style={[styles.actionButtons, { marginTop: 12 }]}>
+            <TouchableOpacity
+              style={[styles.actionButton, { backgroundColor: colors.tint }]}
+              onPress={() => {
+                const jobId = application.jobId || application.job?.id;
+                if (jobId) router.push(`/schedule-interview?jobId=${jobId}&applicationId=${application.id}`);
+              }}
+            >
+              <ThemedText style={styles.actionButtonText}>Schedule interview</ThemedText>
+            </TouchableOpacity>
+          </View>
+        )}
+        {user?.role === 'EMPLOYER' && application.status === 'INTERVIEW_SCHEDULED' && (
+          <View style={[styles.actionButtons, { marginTop: 12 }]}>
+            <TouchableOpacity
+              style={[styles.actionButton, { backgroundColor: colors.tint }]}
+              onPress={() => router.push(`/edit-interview/${application.id}?jobId=${application.jobId || application.job?.id}`)}
+            >
+              <ThemedText style={styles.actionButtonText}>Update interview</ThemedText>
             </TouchableOpacity>
           </View>
         )}

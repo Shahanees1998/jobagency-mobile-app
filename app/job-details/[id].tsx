@@ -498,13 +498,15 @@ export default function JobDetailsScreen() {
           <Text style={styles.headerTitle}>{viewMode === 'company' ? 'Company profiles' : 'Job description'}</Text>
           <View style={styles.headerRightRow}>
             {user?.role === 'CANDIDATE' && (
-              <TouchableOpacity onPress={toggleLike} style={styles.headerBtn} hitSlop={12}>
-                <Ionicons name={liked ? 'heart' : 'heart-outline'} size={24} color={liked ? '#DC2626' : '#031019'} />
-              </TouchableOpacity>
+              <>
+                <TouchableOpacity onPress={toggleLike} style={styles.headerBtn} hitSlop={12}>
+                  <Ionicons name={liked ? 'heart' : 'heart-outline'} size={24} color={liked ? '#DC2626' : '#031019'} />
+                </TouchableOpacity>
+                <TouchableOpacity onPress={toggleSaved} style={styles.headerBtn} hitSlop={12}>
+                  <Ionicons name={saved ? 'bookmark' : 'bookmark-outline'} size={24} color="#031019" />
+                </TouchableOpacity>
+              </>
             )}
-            <TouchableOpacity onPress={toggleSaved} style={styles.headerBtn} hitSlop={12}>
-              <Ionicons name={saved ? 'bookmark' : 'bookmark-outline'} size={24} color="#031019" />
-            </TouchableOpacity>
           </View>
         </View>
       </SafeAreaView>
@@ -518,7 +520,25 @@ export default function JobDetailsScreen() {
         <View style={styles.bottomSpacer} />
       </ScrollView>
 
-      {!alreadyApplied && !loading && job && viewMode !== 'company' && (
+      {user?.role === 'EMPLOYER' && job && !loading && viewMode !== 'company' && (
+        <View style={[styles.footer, styles.footerRow, { paddingBottom: Math.max(insets.bottom, 16) + 16 }]}>
+          <TouchableOpacity
+            style={[styles.applyButton, styles.footerBtnHalf]}
+            onPress={() => router.push(`/view-candidates/${job.id}`)}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.applyButtonText}>View candidates</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={[styles.editJobButton, styles.footerBtnHalf]}
+            onPress={() => router.push(`/edit-job/${job.id}`)}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.applyButtonText}>Edit job</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+      {user?.role === 'CANDIDATE' && !alreadyApplied && !loading && job && viewMode !== 'company' && (
         <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 16) + 16 }]}>
           <TouchableOpacity
             style={styles.applyButton}
@@ -1035,7 +1055,16 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: '#F3F4F6',
   },
+  footerRow: { flexDirection: 'row', gap: 12 },
+  footerBtnHalf: { flex: 1 },
   applyButton: {
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#1E4154',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  editJobButton: {
     height: 56,
     borderRadius: 28,
     backgroundColor: '#1E4154',

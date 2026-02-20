@@ -133,8 +133,11 @@ function formatReviewDate(isoDate: string): string {
 const DEFAULT_OVERVIEW = 'We are a technology-driven company delivering innovative solutions. Our expertise spans software development, web and mobile applications, and design.';
 
 export default function CompanyProfileScreen() {
-  const { employerId = '' } = useLocalSearchParams<{ employerId?: string }>();
+  const params = useLocalSearchParams<{ employerId?: string; own?: string }>();
+  const employerIdParam = params.employerId ?? '';
+  const isOwnProfile = params.own === '1';
 
+  const [resolvedEmployerId, setResolvedEmployerId] = useState<string>('');
   const [companyName, setCompanyName] = useState('Company');
   const [profile, setProfile] = useState<{
     companyDescription?: string;
@@ -148,20 +151,56 @@ export default function CompanyProfileScreen() {
   }>({});
   const [reviews, setReviews] = useState<ReviewItem[]>([]);
   const [jobs, setJobs] = useState<any[]>([]);
-  const [loading, setLoading] = useState(!!employerId);
+  const [loading, setLoading] = useState(!!employerIdParam);
   const [loadingJobs, setLoadingJobs] = useState(false);
   const [writeVisible, setWriteVisible] = useState(false);
   const [overviewExpanded, setOverviewExpanded] = useState(false);
   const jobsScrollRef = useRef<ScrollView>(null);
   const reviewsScrollRef = useRef<ScrollView>(null);
-  const CARD_WIDTH = 280;
-  const CARD_GAP = 16;
+  const CARD_WIDTH = 240;
+  const CARD_GAP = 10;
+  const CAROUSEL_PAD = 10;
+
+  useEffect(() => {
+    if (employerIdParam !== 'my') {
+      setResolvedEmployerId(employerIdParam);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await apiClient.getEmployerProfile();
+        if (cancelled || !res.success || !res.data) return;
+        const d = res.data as any;
+        const id = d.id ?? d.employerId ?? '';
+        if (id) setResolvedEmployerId(id);
+        else if (!cancelled) setLoading(false);
+        setCompanyName(d.companyName || 'Company');
+        setProfile({
+          companyDescription: d.companyDescription,
+          companyWebsite: d.companyWebsite,
+          industry: d.industry,
+          companySize: d.companySize,
+          city: d.city,
+          country: d.country,
+          companyBanner: d.companyBanner,
+          companyLogo: d.companyLogo,
+        });
+      } catch {
+        if (!cancelled) setLoading(false);
+      } finally {
+        if (!cancelled && employerIdParam !== 'my') setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [employerIdParam]);
 
   const loadReviews = useCallback(async () => {
-    if (!employerId) return;
+    if (!resolvedEmployerId) return;
+    if (employerIdParam === 'my' && !resolvedEmployerId) return;
     setLoading(true);
     try {
-      const res = await apiClient.getEmployerReviews(employerId);
+      const res = await apiClient.getEmployerReviews(resolvedEmployerId);
       if (res.success && res.data) {
         const d = res.data as any;
         setCompanyName(d.companyName || 'Company');
@@ -192,13 +231,13 @@ export default function CompanyProfileScreen() {
     } finally {
       setLoading(false);
     }
-  }, [employerId]);
+  }, [resolvedEmployerId, employerIdParam]);
 
   const loadJobs = useCallback(async () => {
-    if (!employerId) return;
+    if (!resolvedEmployerId) return;
     setLoadingJobs(true);
     try {
-      const res = await apiClient.getJobs({ employerId, limit: 10 });
+      const res = await apiClient.getJobs({ employerId: resolvedEmployerId, limit: 10 });
       if (res.success && res.data?.jobs) setJobs(res.data.jobs);
       else setJobs([]);
     } catch {
@@ -206,15 +245,15 @@ export default function CompanyProfileScreen() {
     } finally {
       setLoadingJobs(false);
     }
-  }, [employerId]);
+  }, [resolvedEmployerId]);
 
   useEffect(() => {
-    loadReviews();
-  }, [loadReviews]);
+    if (resolvedEmployerId) loadReviews();
+  }, [resolvedEmployerId, loadReviews]);
 
   useEffect(() => {
-    loadJobs();
-  }, [loadJobs]);
+    if (resolvedEmployerId) loadJobs();
+  }, [resolvedEmployerId, loadJobs]);
 
   const refresh = useCallback(() => {
     loadReviews();
@@ -225,12 +264,23 @@ export default function CompanyProfileScreen() {
   useLayoutEffect(() => {
     navigation.setOptions({
       headerRight: () => (
-        <TouchableOpacity onPress={refresh} style={{ padding: 8 }} hitSlop={16}>
-          <Ionicons name="refresh" size={22} color={APP_COLORS.textPrimary} />
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          {isOwnProfile && (
+            <TouchableOpacity
+              onPress={() => router.push('/edit-employer-profile')}
+              style={{ paddingVertical: 6, paddingHorizontal: 12, backgroundColor: APP_COLORS.primary, borderRadius: 8 }}
+              activeOpacity={0.85}
+            >
+              <Text style={{ fontSize: 14, fontWeight: '700', color: '#fff' }}>Edit</Text>
+            </TouchableOpacity>
+          )}
+          <TouchableOpacity onPress={refresh} style={{ padding: 8 }} hitSlop={16}>
+            <Ionicons name="refresh" size={22} color={APP_COLORS.textPrimary} />
+          </TouchableOpacity>
+        </View>
       ),
     });
-  }, [navigation, refresh]);
+  }, [navigation, refresh, isOwnProfile]);
 
   const average = useMemo(() => {
     if (!reviews.length) return 0;
@@ -238,7 +288,7 @@ export default function CompanyProfileScreen() {
   }, [reviews]);
 
   const submitReview = async (rating: number, title: string, description: string) => {
-    if (!employerId) {
+    if (!resolvedEmployerId) {
       const next: ReviewItem = {
         id: String(Date.now()),
         companyName,
@@ -252,7 +302,7 @@ export default function CompanyProfileScreen() {
       return;
     }
     try {
-      const res = await apiClient.createReview({ employerId, rating, title, description });
+      const res = await apiClient.createReview({ employerId: resolvedEmployerId, rating, title, description });
       if (res.success && res.data) {
         await loadReviews();
       }
@@ -305,9 +355,11 @@ export default function CompanyProfileScreen() {
         <View style={styles.heroSection}>
           <View style={styles.heroNameRow}>
             <Text style={styles.companyNameHero} numberOfLines={1}>{companyName}</Text>
-            <TouchableOpacity style={styles.writeReviewBtn} onPress={() => setWriteVisible(true)} activeOpacity={0.85}>
-              <Text style={styles.writeReviewBtnText}>Write a review</Text>
-            </TouchableOpacity>
+            {!isOwnProfile && (
+              <TouchableOpacity style={styles.writeReviewBtn} onPress={() => setWriteVisible(true)} activeOpacity={0.85}>
+                <Text style={styles.writeReviewBtnText}>Write a review</Text>
+              </TouchableOpacity>
+            )}
           </View>
           <View style={styles.heroLinkRow}>
             <TouchableOpacity
@@ -392,14 +444,14 @@ export default function CompanyProfileScreen() {
                 onPress={() => jobsScrollRef.current?.scrollTo({ x: 0, animated: true })}
                 activeOpacity={0.8}
               >
-                <Ionicons name="chevron-back" size={12} color="#FFFFFF" />
+                <Ionicons name="chevron-back" size={10} color="#FFFFFF" />
               </TouchableOpacity>
               <View style={styles.carouselScrollArea}>
               <ScrollView
                 ref={jobsScrollRef}
                 horizontal
                 showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.jobsScroll}
+                contentContainerStyle={[styles.jobsScroll, { paddingHorizontal: CAROUSEL_PAD, paddingRight: (APP_SPACING.screenPadding || 24) + CAROUSEL_PAD }]}
                 decelerationRate="fast"
                 snapToInterval={CARD_WIDTH + CARD_GAP}
                 snapToAlignment="start"
@@ -407,6 +459,7 @@ export default function CompanyProfileScreen() {
                 {jobs.map((job) => (
                   <View key={job.id} style={[styles.jobCardWrap, { width: CARD_WIDTH, marginRight: CARD_GAP }]}>
                     <JobCard
+                      compact
                       title={job.title}
                       companyName={job.employer?.companyName || companyName}
                       location={job.location || ''}
@@ -423,7 +476,7 @@ export default function CompanyProfileScreen() {
                 onPress={() => jobsScrollRef.current?.scrollTo({ x: (jobs.length - 1) * (CARD_WIDTH + CARD_GAP), animated: true })}
                 activeOpacity={0.8}
               >
-                <Ionicons name="chevron-forward" size={12} color="#FFFFFF" />
+                <Ionicons name="chevron-forward" size={10} color="#FFFFFF" />
               </TouchableOpacity>
             </View>
           ) : (
@@ -443,14 +496,14 @@ export default function CompanyProfileScreen() {
                 onPress={() => reviewsScrollRef.current?.scrollTo({ x: 0, animated: true })}
                 activeOpacity={0.8}
               >
-                <Ionicons name="chevron-back" size={12} color="#FFFFFF" />
+                <Ionicons name="chevron-back" size={10} color="#FFFFFF" />
               </TouchableOpacity>
               <View style={styles.carouselScrollArea}>
               <ScrollView
                 ref={reviewsScrollRef}
                 horizontal
                 showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.reviewsScroll}
+                contentContainerStyle={[styles.reviewsScroll, { paddingHorizontal: CAROUSEL_PAD, paddingRight: (APP_SPACING.screenPadding || 24) + CAROUSEL_PAD }]}
                 decelerationRate="fast"
                 snapToInterval={CARD_WIDTH + CARD_GAP}
                 snapToAlignment="start"
@@ -463,7 +516,7 @@ export default function CompanyProfileScreen() {
                         <View style={styles.reviewMeta}>
                           <View style={styles.reviewNameRow}>
                             <Text style={styles.reviewNameText} numberOfLines={1}>Reviewer • {review.rating} </Text>
-                            <Ionicons name="star" size={12} color="#031019" />
+                            <Ionicons name="star" size={10} color="#031019" />
                           </View>
                           <Text style={styles.reviewDate}>On {review.date}</Text>
                         </View>
@@ -480,7 +533,7 @@ export default function CompanyProfileScreen() {
                 onPress={() => reviewsScrollRef.current?.scrollTo({ x: (reviews.length - 1) * (CARD_WIDTH + CARD_GAP), animated: true })}
                 activeOpacity={0.8}
               >
-                <Ionicons name="chevron-forward" size={12} color="#FFFFFF" />
+                <Ionicons name="chevron-forward" size={10} color="#FFFFFF" />
               </TouchableOpacity>
             </View>
           )}
@@ -609,7 +662,7 @@ const styles = StyleSheet.create({
   carouselWrap: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
     width: '100%',
   },
   carouselScrollArea: {
@@ -618,55 +671,55 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   carouselArrowBtn: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
     backgroundColor: '#374151',
     alignItems: 'center',
     justifyContent: 'center',
   },
   jobsLoading: { paddingVertical: 24, alignItems: 'center' },
-  jobsScroll: { paddingHorizontal: 4, paddingRight: APP_SPACING.screenPadding },
+  jobsScroll: {},
   jobCardWrap: {},
   noJobs: { fontSize: 14, color: APP_COLORS.textMuted, fontStyle: 'italic' },
   noReviews: { fontSize: 14, color: APP_COLORS.textMuted, fontStyle: 'italic' },
 
-  reviewsScroll: { paddingHorizontal: 4, paddingRight: APP_SPACING.screenPadding },
+  reviewsScroll: {},
   reviewCardWrap: {},
   reviewCard: {
     backgroundColor: '#F3F4F6',
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: 12,
+    padding: 10,
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    minHeight: 180,
+    minHeight: 140,
   },
   reviewCardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   reviewAvatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: '#D1D5DB',
-    marginRight: 12,
+    marginRight: 8,
   },
   reviewMeta: { flex: 1, minWidth: 0 },
   reviewNameRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 2 },
-  reviewNameText: { fontSize: 14, color: APP_COLORS.textPrimary, fontWeight: '600', marginRight: 2 },
-  reviewDate: { fontSize: 12, color: APP_COLORS.textMuted, fontWeight: '500' },
+  reviewNameText: { fontSize: 12, color: APP_COLORS.textPrimary, fontWeight: '600', marginRight: 2 },
+  reviewDate: { fontSize: 11, color: APP_COLORS.textMuted, fontWeight: '500' },
   reviewCardTitle: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '800',
     color: APP_COLORS.textPrimary,
-    marginBottom: 8,
+    marginBottom: 6,
   },
   reviewCardBody: {
-    fontSize: 14,
+    fontSize: 12,
     color: APP_COLORS.textSecondary,
-    lineHeight: 20,
+    lineHeight: 18,
     fontWeight: '400',
   },
 

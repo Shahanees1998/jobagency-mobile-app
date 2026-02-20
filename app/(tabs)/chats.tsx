@@ -169,22 +169,25 @@ export default function ChatsScreen() {
     );
   };
 
+  const isEmployer = user?.role === 'EMPLOYER';
   const emptyState = (
     <View style={styles.emptyContainer}>
       <View style={styles.emptyIconWrap}>
         <Ionicons name="chatbubble-ellipses-outline" size={64} color={APP_COLORS.textPrimary} />
       </View>
-      <Text style={styles.emptyTitleLine1}>No updates yet.</Text>
-      <Text style={styles.emptyTitleLine2}>Apply to chat !!</Text>
+      <Text style={styles.emptyTitleLine1}>{isEmployer ? 'No chats yet.' : 'No updates yet.'}</Text>
+      <Text style={styles.emptyTitleLine2}>{isEmployer ? 'Candidates will appear here' : 'Apply to chat !!'}</Text>
       <Text style={styles.emptySubtext}>
-        Discover opportunities, apply to jobs, and connect with employers while staying informed about your applications.
+        {isEmployer
+          ? 'When candidates apply to your jobs, you can message them here. Post jobs to start receiving applications.'
+          : 'Discover opportunities, apply to jobs, and connect with employers while staying informed about your applications.'}
       </Text>
       <TouchableOpacity
         style={styles.findJobsBtn}
-        onPress={() => router.push('/(tabs)')}
+        onPress={() => (isEmployer ? router.push('/post-job') : router.push('/(tabs)'))}
         activeOpacity={0.85}
       >
-        <Text style={styles.findJobsBtnText}>Find Jobs</Text>
+        <Text style={styles.findJobsBtnText}>{isEmployer ? 'Post a job' : 'Find Jobs'}</Text>
       </TouchableOpacity>
     </View>
   );

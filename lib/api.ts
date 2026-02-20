@@ -162,6 +162,22 @@ class ApiClient {
     });
   }
 
+  /** Register FCM device token for push notifications (same as admin panel). */
+  async registerFcmToken(data: { token: string; platform?: 'ios' | 'android' }): Promise<ApiResponse<{ success: boolean }>> {
+    return this.request('/api/users/fcm-token', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  }
+
+  /** Unregister FCM token (e.g. on logout). */
+  async unregisterFcmToken(token: string): Promise<ApiResponse<{ success: boolean }>> {
+    return this.request('/api/users/fcm-token', {
+      method: 'DELETE',
+      body: JSON.stringify({ token }),
+    });
+  }
+
   // User APIs
   async getUserProfile(): Promise<ApiResponse<any>> {
     return this.request('/api/auth/me');

@@ -20,6 +20,7 @@ const STORAGE_KEYS = {
   JOB_FILTERS: '@jobportal:job_filters',
   APPLIED_JOB_IDS: '@jobportal:applied_job_ids',
   RECENT_SEARCHES: '@jobportal:recent_searches',
+  FCM_TOKEN: '@jobportal:fcm_token',
 };
 
 export interface RecentSearch {
@@ -86,7 +87,17 @@ export const storage = {
       STORAGE_KEYS.JOB_FILTERS,
       STORAGE_KEYS.APPLIED_JOB_IDS,
       STORAGE_KEYS.RECENT_SEARCHES,
+      STORAGE_KEYS.FCM_TOKEN,
     ]);
+  },
+
+  async getFcmToken(): Promise<string | null> {
+    return AsyncStorage.getItem(STORAGE_KEYS.FCM_TOKEN);
+  },
+
+  async setFcmToken(token: string | null): Promise<void> {
+    if (token) await AsyncStorage.setItem(STORAGE_KEYS.FCM_TOKEN, token);
+    else await AsyncStorage.removeItem(STORAGE_KEYS.FCM_TOKEN);
   },
 
   async getJobFilters(): Promise<JobFilters | null> {

@@ -1,4 +1,5 @@
 import { apiClient } from '@/lib/api';
+import { registerFcmTokenWithBackend, unregisterFcmTokenFromBackend } from '@/lib/pushNotifications';
 import { storage } from '@/lib/storage';
 import { router } from 'expo-router';
 import React, { createContext, ReactNode, useContext, useEffect, useRef, useState } from 'react';
@@ -59,6 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (response.success && response.data) {
           setUser(response.data);
           await storage.setUser(response.data);
+          registerFcmTokenWithBackend().catch(() => {});
         } else {
           // Token invalid, try refresh
           await tryRefreshToken();
@@ -114,7 +116,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         
         apiClient.setAccessToken(accessToken);
         setUser(userData);
-        
+        registerFcmTokenWithBackend().catch(() => {});
         return { success: true };
       } else {
         return { success: false, error: response.error || 'Login failed' };
@@ -144,7 +146,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         
         apiClient.setAccessToken(accessToken);
         setUser(userData);
-        
+        registerFcmTokenWithBackend().catch(() => {});
         return { success: true };
       } else {
         return { success: false, error: response.error || 'Registration failed' };
@@ -156,6 +158,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     try {
+      await unregisterFcmTokenFromBackend();
       await apiClient.logout();
     } catch (error) {
       console.error('Logout error:', error);

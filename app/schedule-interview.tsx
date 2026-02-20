@@ -2,7 +2,7 @@ import { APP_COLORS, APP_SPACING } from '@/constants/appTheme';
 import { useDialog } from '@/contexts/DialogContext';
 import { apiClient } from '@/lib/api';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -19,13 +19,14 @@ import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context'
 
 export default function ScheduleInterviewScreen() {
   const insets = useSafeAreaInsets();
+  const params = useLocalSearchParams<{ jobId?: string; applicationId?: string }>();
   const { showDialog } = useDialog();
   const [jobs, setJobs] = useState<any[]>([]);
   const [applications, setApplications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [jobId, setJobId] = useState('');
-  const [applicationId, setApplicationId] = useState('');
+  const [jobId, setJobId] = useState(params.jobId ?? '');
+  const [applicationId, setApplicationId] = useState(params.applicationId ?? '');
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
   const [location, setLocation] = useState('');
@@ -36,7 +37,9 @@ export default function ScheduleInterviewScreen() {
         const res = await apiClient.getEmployerJobs({ page: 1, limit: 50 });
         const list = res.success && res.data ? (res.data as any).jobs || [] : [];
         setJobs(list);
-        if (list.length) setJobId(list[0].id);
+        const fromParams = params.jobId ?? '';
+        if (fromParams && list.some((j: any) => j.id === fromParams)) setJobId(fromParams);
+        else if (list.length) setJobId((prev) => (prev && list.some((j: any) => j.id === prev) ? prev : list[0].id));
       } catch (e) {
         setJobs([]);
       } finally {
@@ -48,7 +51,7 @@ export default function ScheduleInterviewScreen() {
   useEffect(() => {
     if (!jobId) {
       setApplications([]);
-      setApplicationId('');
+      if (!params.applicationId) setApplicationId('');
       return;
     }
     (async () => {
@@ -56,8 +59,11 @@ export default function ScheduleInterviewScreen() {
         const res = await apiClient.getJobApplications(jobId, { page: 1, limit: 100 });
         const raw = res.success && res.data ? res.data as any : {};
         const list = Array.isArray(raw.applications) ? raw.applications : Array.isArray(raw) ? raw : [];
-        setApplications(list.filter((a: any) => String(a.status).toUpperCase() !== 'REJECTED'));
-        setApplicationId('');
+        const filtered = list.filter((a: any) => String(a.status).toUpperCase() !== 'REJECTED');
+        setApplications(filtered);
+        const fromParams = params.applicationId ?? '';
+        if (fromParams && filtered.some((a: any) => a.id === fromParams)) setApplicationId(fromParams);
+        else setApplicationId('');
       } catch (e) {
         setApplications([]);
       }

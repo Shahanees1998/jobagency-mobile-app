@@ -16,6 +16,7 @@ import {
 import * as FileSystem from 'expo-file-system/legacy';
 import * as DocumentPicker from 'expo-document-picker';
 import { useLocalSearchParams, router } from 'expo-router';
+import { usePusherChat } from '@/hooks/usePusherChat';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDialog } from '@/contexts/DialogContext';
 import { apiClient } from '@/lib/api';
@@ -64,6 +65,14 @@ export default function ChatDetailScreen() {
   const flatListRef = useRef<FlatList>(null);
   const insets = useSafeAreaInsets();
 
+  usePusherChat(id, (payload) => {
+    setMessages((prev) => {
+      if (prev.some((m) => m.id === payload.id)) return prev;
+      return [...prev, payload];
+    });
+    setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
+  });
+
   useEffect(() => {
     loadChatAndMessages();
   }, [id]);
@@ -79,7 +88,10 @@ export default function ChatDetailScreen() {
 
       if (chatRes.success && chatRes.data) {
         const chat = chatRes.data as any;
-        const other = chat.application?.job?.employer ?? chat.otherParticipant ?? chat.application?.candidate;
+        const isEmployer = user?.role === 'EMPLOYER';
+        const other = isEmployer
+          ? (chat.application?.candidate ?? chat.otherParticipant)
+          : (chat.application?.job?.employer ?? chat.otherParticipant);
         const displayName = other?.companyName ?? [other?.user?.firstName, other?.user?.lastName].filter(Boolean).join(' ') ?? 'Chat';
         const letter = (displayName || '?').charAt(0).toUpperCase();
         const avatarImage = other?.user?.profileImage ?? other?.profileImage;

@@ -1,4 +1,4 @@
-import { EmployerJobCard, JobCard, SearchBar } from '@/components/jobs';
+import { EmployerJobCard, JobCard } from '@/components/jobs';
 import { APP_COLORS, APP_SPACING, TAB_BAR } from '@/constants/appTheme';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDialog } from '@/contexts/DialogContext';
@@ -332,22 +332,18 @@ function EmployerDashboardScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [companyName, setCompanyName] = useState('');
+  const [employerId, setEmployerId] = useState<string>('');
+  const [filters, setFilters] = useState<JobFilters | null>(null);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const loadingMoreRef = useRef(false);
 
   const firstName = user?.firstName || 'there';
 
-  const loadJobs = useCallback(async (search = '') => {
-    try {
-      const response = await apiClient.getEmployerJobs({ page: 1, limit: 50, search: search || undefined });
-      if (response.success && response.data) {
-        const raw = response.data as any;
-        setJobs(Array.isArray(raw?.jobs) ? raw.jobs : []);
-      }
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
+  const loadFilters = useCallback(async () => {
+    const f = await storage.getJobFilters();
+    setFilters(f ?? null);
+    return f;
   }, []);
 
   const loadEmployerProfile = useCallback(async () => {
@@ -356,28 +352,84 @@ function EmployerDashboardScreen() {
       if (res.success && res.data) {
         const d = res.data as any;
         setCompanyName(d.companyName || '');
+        setEmployerId(d.id ?? d.employerId ?? '');
       }
-    } catch (_) { }
+    } catch (_) {}
   }, []);
+
+  const loadJobs = useCallback(async (pageNum = 1, search = '', filterOverride?: JobFilters | null, employerIdOverride?: string) => {
+    const f = filterOverride ?? filters;
+    const eid = employerIdOverride ?? employerId;
+    if (pageNum > 1) loadingMoreRef.current = true;
+    if (pageNum === 1) setLoading(true);
+    const employmentType = f?.jobType?.length ? f.jobType : undefined;
+    try {
+      const response = await apiClient.getJobs({
+        page: pageNum,
+        limit: 20,
+        search: search || undefined,
+        employerId: eid || undefined,
+        employmentType,
+        datePosted: (f?.datePosted ?? 'all') as any,
+        sortBy: (f?.sortBy ?? 'relevance') as any,
+        remote: Array.isArray(f?.remote) ? f!.remote : undefined,
+        experienceLevel: f?.experienceLevel && f.experienceLevel !== 'all' ? f.experienceLevel : undefined,
+        salary: f?.salary && f.salary !== 'all' ? f.salary : undefined,
+        education: f?.education && f.education !== 'all' ? f.education : undefined,
+      });
+      if (response.success && response.data) {
+        const raw = response.data as any;
+        const list = Array.isArray(raw?.jobs) ? raw.jobs : Array.isArray(raw) ? raw : [];
+        const totalPages = typeof raw?.totalPages === 'number' ? raw.totalPages : null;
+        const total = typeof raw?.total === 'number' ? raw.total : null;
+        const limit = 20;
+        if (pageNum === 1) setJobs(list);
+        else setJobs((prev) => [...prev, ...list]);
+        if (totalPages !== null) setHasMore(pageNum < totalPages);
+        else if (total !== null) setHasMore(pageNum * limit < total);
+        else setHasMore(list.length >= limit);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+      loadingMoreRef.current = false;
+    }
+  }, [employerId, filters]);
 
   useFocusEffect(
     useCallback(() => {
       loadEmployerProfile();
-      setLoading(true);
-      loadJobs(searchQuery);
-    }, [loadJobs, searchQuery, loadEmployerProfile])
+      loadFilters().then((f) => {
+        setPage(1);
+        setLoading(true);
+        apiClient.getEmployerProfile().then((res) => {
+          const id = res.success && res.data ? (res.data as any).id ?? (res.data as any).employerId : '';
+          setEmployerId(id || '');
+          if (id) loadJobs(1, searchQuery, f ?? undefined, id);
+          else setLoading(false);
+        });
+      });
+    }, [loadEmployerProfile, loadFilters, loadJobs, searchQuery])
   );
+
+  useEffect(() => {
+    if (employerId && filters !== undefined) loadFilters().then((f) => { if (f) setFilters(f); });
+  }, [employerId, loadFilters]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
-    loadJobs(searchQuery);
-  }, [searchQuery, loadJobs]);
+    setPage(1);
+    loadFilters().then((f) => loadJobs(1, searchQuery, f ?? undefined));
+  }, [searchQuery, loadJobs, loadFilters]);
 
-  const handleSearch = useCallback((q: string) => {
-    setSearchQuery(q);
-    setLoading(true);
-    loadJobs(q);
-  }, [loadJobs]);
+  const loadMore = useCallback(() => {
+    if (loadingMoreRef.current || loading || !hasMore || jobs.length === 0) return;
+    const next = page + 1;
+    setPage(next);
+    loadJobs(next, searchQuery);
+  }, [loading, hasMore, page, searchQuery, jobs.length, loadJobs]);
 
   const handleDeleteJob = useCallback((item: any) => {
     showDialog({
@@ -398,6 +450,18 @@ function EmployerDashboardScreen() {
     });
   }, [showDialog]);
 
+  const mapJobToCard = (item: any) => {
+    const benefits = item.benefits ? (Array.isArray(item.benefits) ? item.benefits : [item.benefits]) : [];
+    return {
+      id: item.id,
+      title: item.title || 'Job Title',
+      companyName: companyName || item.employer?.companyName || item.companyName || 'Company',
+      location: item.location || 'Location',
+      benefits: benefits.length ? benefits : [],
+      companyLogoLetter: (companyName || item.employer?.companyName || item.companyName || '?').charAt(0),
+    };
+  };
+
   if (loading && jobs.length === 0) {
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
@@ -414,60 +478,80 @@ function EmployerDashboardScreen() {
         <View style={styles.header}>
           <View style={styles.greetingBlock}>
             <Text style={styles.greeting}>Hi, {firstName}</Text>
-            <Text style={styles.subGreeting}>Power up your job posting.</Text>
+            <Text style={styles.subGreeting}>Time to level up your job hunt.</Text>
+          </View>
+          <View style={styles.headerIcons}>
+            <TouchableOpacity onPress={onRefresh} style={styles.iconBtn} hitSlop={12}>
+              <Ionicons name="timer-outline" size={24} color={APP_COLORS.textPrimary} />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => router.push('/notifications')} style={styles.iconBtn} hitSlop={12}>
+              <Ionicons name="notifications-outline" size={24} color={APP_COLORS.textPrimary} />
+            </TouchableOpacity>
           </View>
         </View>
         <View style={styles.searchWrap}>
-          <SearchBar
-            value={searchQuery}
-            onChangeText={handleSearch}
-            placeholder="Search jobs you posted..."
-            returnKeyType="search"
-          />
-        </View>
-        {jobs.length === 0 ? (
-          <View style={styles.employerEmpty}>
-            <View style={styles.employerEmptyIconWrap}>
-              <Ionicons name="paper-plane-outline" size={64} color={APP_COLORS.primary} />
-            </View>
-            <Text style={styles.employerEmptyTitle}>Start hiring with your first job post !!</Text>
-            <Text style={styles.employerEmptySubtext}>
-              Post a job to reach qualified candidates. You can edit or close it anytime.
+          <TouchableOpacity
+            style={styles.searchBarTouchable}
+            onPress={() => router.push('/search')}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="search-outline" size={22} color="#6B7280" style={styles.searchBarIcon} />
+            <Text style={styles.searchBarPlaceholder} numberOfLines={1}>
+              {searchQuery || 'Job title, keywords, or company...'}
             </Text>
-            <TouchableOpacity
-              style={styles.createJobBtn}
-              onPress={() => router.push('/post-job')}
-              activeOpacity={0.85}
-            >
-              <Text style={styles.createJobBtnText}>Post your first job</Text>
-            </TouchableOpacity>
-          </View>
-        ) : (
-          <>
-            <Text style={styles.sectionTitle}>Posted Jobs</Text>
-            <FlatList
-              data={jobs}
-              keyExtractor={(item) => item.id}
-              contentContainerStyle={[styles.list, { paddingBottom: listPaddingBottom }]}
-              showsVerticalScrollIndicator={false}
-              refreshControl={
-                <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={APP_COLORS.primary} />
-              }
-              renderItem={({ item }) => (
-                <EmployerJobCard
-                  title={item.title}
-                  companyName={companyName || 'Company'}
-                  location={item.location || '—'}
-                  benefits={item.benefits || []}
-                  companyLogoLetter={companyName?.charAt(0)}
-                  onPress={() => router.push(`/job-details/${item.id}`)}
-                  onEdit={() => router.push(`/edit-job/${item.id}`)}
-                  onDelete={() => handleDeleteJob(item)}
-                />
-              )}
-            />
-          </>
-        )}
+          </TouchableOpacity>
+        </View>
+        <Text style={styles.sectionTitle}>Popular Jobs</Text>
+        <FlatList
+          data={jobs}
+          keyExtractor={(item, index) => item?.id ?? `job-${index}`}
+          contentContainerStyle={[styles.list, { paddingBottom: listPaddingBottom }]}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={APP_COLORS.primary} />
+          }
+          onEndReached={loadMore}
+          onEndReachedThreshold={0.3}
+          ListFooterComponent={
+            hasMore && jobs.length > 0 ? (
+              <View style={styles.footerLoader}>
+                {loading && page > 1 ? (
+                  <ActivityIndicator size="small" color={APP_COLORS.primary} />
+                ) : (
+                  <Text style={styles.footerLoaderText}>Pull up for more</Text>
+                )}
+              </View>
+            ) : null
+          }
+          ListEmptyComponent={
+            <View style={styles.empty}>
+              <Text style={styles.emptyText}>No jobs found</Text>
+              <Text style={styles.emptySubtext}>Check back later or try a different search.</Text>
+              <TouchableOpacity
+                style={[styles.createJobBtn, { marginTop: 20 }]}
+                onPress={() => router.push('/post-job')}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.createJobBtnText}>Post a job</Text>
+              </TouchableOpacity>
+            </View>
+          }
+          renderItem={({ item }) => {
+            const card = mapJobToCard(item);
+            return (
+              <EmployerJobCard
+                title={card.title}
+                companyName={card.companyName}
+                location={card.location}
+                benefits={card.benefits}
+                companyLogoLetter={card.companyLogoLetter}
+                onPress={() => router.push(`/job-details/${item.id}`)}
+                onEdit={() => router.push(`/edit-job/${item.id}`)}
+                onDelete={() => handleDeleteJob(item)}
+              />
+            );
+          }}
+        />
       </View>
     </SafeAreaView>
   );
