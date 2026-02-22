@@ -41,6 +41,7 @@ export default function EmployerProfileAboutScreen() {
     founded: '',
     revenue: '',
     headquarter: '',
+    companyWebsite: '',
   });
   const [revenueDropdownOpen, setRevenueDropdownOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -64,6 +65,7 @@ export default function EmployerProfileAboutScreen() {
           founded: d.founded || '',
           revenue: d.revenue || '',
           headquarter: d.headquarter || [d.city, d.country].filter(Boolean).join(', ') || '',
+          companyWebsite: d.companyWebsite || '',
         });
       }
     } catch (error) {
@@ -80,6 +82,10 @@ export default function EmployerProfileAboutScreen() {
       const res = await apiClient.updateEmployerProfile({
         industry: formData.industry,
         companySize: formData.companySize,
+        founded: formData.founded,
+        revenue: formData.revenue,
+        headquarter: formData.headquarter,
+        companyWebsite: formData.companyWebsite,
         address: formData.address,
         city: formData.city,
         country: formData.country,
@@ -120,14 +126,16 @@ export default function EmployerProfileAboutScreen() {
         <View style={styles.headerBtn} />
       </View>
       <KeyboardAvoidingView
-        style={styles.flex1}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={0}
+        style={styles.keyboard}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 24 }]}
           keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
+          showsVerticalScrollIndicator={false}
         >
           <Text style={styles.instruction}>
             Share details about the company, highlighting history, revenue, industry, and website.
@@ -191,7 +199,18 @@ export default function EmployerProfileAboutScreen() {
             placeholder="Enter address"
             placeholderTextColor={APP_COLORS.textMuted}
           />
-          <View style={styles.row}>
+          <Text style={[styles.label, { marginTop: 16 }]}>Company link (website)</Text>
+          <TextInput
+            style={styles.input}
+            value={formData.companyWebsite}
+            onChangeText={(t) => setFormData({ ...formData, companyWebsite: t })}
+            placeholder="https://www.example.com"
+            placeholderTextColor={APP_COLORS.textMuted}
+            autoCapitalize="none"
+            autoCorrect={false}
+            keyboardType="url"
+          />
+          <View style={[styles.row, { marginTop: 16 }]}>
             <View style={styles.half}>
               <Text style={styles.label}>City</Text>
               <TextInput
@@ -236,7 +255,7 @@ export default function EmployerProfileAboutScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: APP_COLORS.white },
-  flex1: { flex: 1 },
+  keyboard: { flex: 1 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -250,14 +269,14 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 18, fontWeight: '700', color: APP_COLORS.textPrimary },
   centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   scroll: { flex: 1 },
-  scrollContent: { padding: APP_SPACING.screenPadding, paddingTop: 8 },
+  scrollContent: { flexGrow: 1, padding: APP_SPACING.screenPadding, paddingTop: 8 },
   instruction: {
     fontSize: 14,
     color: APP_COLORS.textSecondary,
     lineHeight: 20,
     marginBottom: 16,
   },
-  label: { fontSize: 14, fontWeight: '600', color: APP_COLORS.textPrimary, marginBottom: 8 },
+  label: { fontSize: 14, fontWeight: '600', color: APP_COLORS.textPrimary, marginBottom: 8, marginTop: 0 },
   input: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -265,7 +284,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F3F4F6',
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    borderRadius: 12,
+    borderRadius: 60,
     paddingHorizontal: 16,
     paddingVertical: 14,
   },
@@ -292,7 +311,7 @@ const styles = StyleSheet.create({
     marginTop: 24,
     backgroundColor: APP_COLORS.primary,
     paddingVertical: 14,
-    borderRadius: 12,
+    borderRadius: 60,
     alignItems: 'center',
     justifyContent: 'center',
   },

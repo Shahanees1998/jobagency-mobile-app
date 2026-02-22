@@ -146,6 +146,9 @@ export default function CompanyProfileScreen() {
     companyWebsite?: string;
     industry?: string;
     companySize?: string;
+    founded?: string;
+    revenue?: string;
+    headquarter?: string;
     city?: string;
     country?: string;
     companyBanner?: string;
@@ -185,6 +188,9 @@ export default function CompanyProfileScreen() {
           companyWebsite: d.companyWebsite,
           industry: d.industry,
           companySize: d.companySize,
+          founded: d.founded,
+          revenue: d.revenue,
+          headquarter: d.headquarter,
           city: d.city,
           country: d.country,
           companyBanner: d.companyBanner,
@@ -215,6 +221,9 @@ export default function CompanyProfileScreen() {
           companyWebsite: d.companyWebsite,
           industry: d.industry,
           companySize: d.companySize,
+          founded: d.founded,
+          revenue: d.revenue,
+          headquarter: d.headquarter,
           city: d.city,
           country: d.country,
           companyBanner: d.companyBanner,
@@ -324,7 +333,7 @@ export default function CompanyProfileScreen() {
 
   const letter = (companyName || '?').charAt(0).toUpperCase();
   const overview = profile.companyDescription || DEFAULT_OVERVIEW;
-  const headquarters = [profile.city, profile.country].filter(Boolean).join(', ') || '—';
+  const headquarters = profile.headquarter || [profile.city, profile.country].filter(Boolean).join(', ') || '—';
   const websiteUrl = profile.companyWebsite || undefined;
   const bannerUri = imageUriForDisplay(profile.companyBanner);
   const logoUri = imageUriForDisplay(profile.companyLogo);
@@ -409,7 +418,7 @@ export default function CompanyProfileScreen() {
             <View style={styles.aboutGridRow}>
               <View style={styles.aboutGridItem}>
                 <Text style={styles.gridLabel}>Founded</Text>
-                <Text style={styles.gridValue}>—</Text>
+                <Text style={styles.gridValue}>{profile.founded || '—'}</Text>
               </View>
               <View style={styles.aboutGridItem}>
                 <Text style={styles.gridLabel}>Company size</Text>
@@ -419,7 +428,7 @@ export default function CompanyProfileScreen() {
             <View style={styles.aboutGridRow}>
               <View style={styles.aboutGridItem}>
                 <Text style={styles.gridLabel}>Revenue</Text>
-                <Text style={styles.gridValue}>—</Text>
+                <Text style={styles.gridValue}>{profile.revenue || '—'}</Text>
               </View>
               <View style={styles.aboutGridItem}>
                 <Text style={styles.gridLabel}>Industry</Text>

@@ -292,6 +292,9 @@ export default function JobDetailsScreen() {
   const companyWebsite = job.employer?.companyWebsite ?? job.website;
   const companyBannerUri = imageUriForDisplay(job.employer?.companyBanner);
   const companyLogoUri = imageUriForDisplay(job.employer?.companyLogo);
+  const averageRating = job.employer?.averageRating != null ? Number(job.employer.averageRating) : null;
+  const reviewCount = typeof job.employer?.reviewCount === 'number' ? job.employer.reviewCount : 0;
+  const ratingLabel = averageRating != null && reviewCount > 0 ? `${averageRating} • ${reviewCount} review${reviewCount !== 1 ? 's' : ''}` : reviewCount === 0 ? 'No reviews yet' : null;
 
   const renderStandardView = () => (
     <>
@@ -324,9 +327,13 @@ export default function JobDetailsScreen() {
         >
           <Text style={styles.companyName}>{companyName}</Text>
           <Ionicons name="open-outline" size={16} color={APP_COLORS.link} style={styles.linkIcon} />
-          <Text style={styles.dot}>•</Text>
-          <Text style={styles.ratingText}>4.6</Text>
-          <Ionicons name="star" size={16} color="#031019" />
+          {ratingLabel != null && (
+            <>
+              <Text style={styles.dot}>•</Text>
+              <Text style={styles.ratingText}>{averageRating != null && reviewCount > 0 ? String(averageRating) : ratingLabel}</Text>
+              {averageRating != null && reviewCount > 0 && <Ionicons name="star" size={16} color="#031019" />}
+            </>
+          )}
         </TouchableOpacity>
       </View>
 
@@ -413,10 +420,12 @@ export default function JobDetailsScreen() {
           <View style={styles.companyMetaRow}>
             <View style={styles.companyMeta}>
               <Text style={styles.companyNameHero}>{companyName}</Text>
-              <View style={styles.ratingHero}>
-                <Text style={styles.ratingTextHero}>{companyName} 2.7 • 45</Text>
-                <Ionicons name="star" size={14} color="#031019" style={{ marginLeft: 4 }} />
-              </View>
+              {ratingLabel != null && (
+                <View style={styles.ratingHero}>
+                  <Text style={styles.ratingTextHero}>{ratingLabel}</Text>
+                  {averageRating != null && reviewCount > 0 && <Ionicons name="star" size={14} color="#031019" style={{ marginLeft: 4 }} />}
+                </View>
+              )}
             </View>
             <TouchableOpacity
               style={styles.writeReviewBtnInline}
@@ -442,7 +451,7 @@ export default function JobDetailsScreen() {
         <View style={styles.gridRow}>
           <View style={styles.gridItem}>
             <Text style={styles.gridLabel}>Founded</Text>
-            <Text style={styles.gridValue}>{job.founded || '—'}</Text>
+            <Text style={styles.gridValue}>{job.employer?.founded ?? job.founded ?? '—'}</Text>
           </View>
           <View style={styles.gridItem}>
             <Text style={styles.gridLabel}>Company size</Text>
@@ -452,7 +461,7 @@ export default function JobDetailsScreen() {
         <View style={styles.gridRow}>
           <View style={styles.gridItem}>
             <Text style={styles.gridLabel}>Revenue</Text>
-            <Text style={styles.gridValue}>{job.revenue || '—'}</Text>
+            <Text style={styles.gridValue}>{job.employer?.revenue ?? job.revenue ?? '—'}</Text>
           </View>
           <View style={styles.gridItem}>
             <Text style={styles.gridLabel}>Industry</Text>
@@ -466,15 +475,18 @@ export default function JobDetailsScreen() {
           </View>
           <View style={styles.gridItem}>
             <Text style={styles.gridLabel}>Link</Text>
-            <TouchableOpacity
-              style={styles.gridWebRow}
-              onPress={() => companyWebsite && Linking.openURL(companyWebsite)}
-              disabled={!companyWebsite}
-              activeOpacity={companyWebsite ? 0.8 : 1}
-            >
-              <Text style={styles.gridWebLink}>Visit website</Text>
-              <Ionicons name="open-outline" size={14} color={APP_COLORS.link} style={{ marginLeft: 4 }} />
-            </TouchableOpacity>
+            {companyWebsite ? (
+              <TouchableOpacity
+                style={styles.gridWebRow}
+                onPress={() => Linking.openURL(companyWebsite)}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.gridWebLink} numberOfLines={1}>{companyWebsite.startsWith('http') ? 'Visit website' : companyWebsite}</Text>
+                <Ionicons name="open-outline" size={14} color={APP_COLORS.link} style={{ marginLeft: 4 }} />
+              </TouchableOpacity>
+            ) : (
+              <Text style={styles.gridValue}>—</Text>
+            )}
           </View>
         </View>
       </View>
@@ -861,7 +873,7 @@ const styles = StyleSheet.create({
   },
   jobTitle: {
     fontFamily: 'Kanit',
-    fontSize: 22,
+    fontSize: 20,
     fontWeight: '700',
     color: '#031019',
     marginBottom: 6,
@@ -904,8 +916,8 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontFamily: 'Kanit',
-    fontSize: 20,
-    fontWeight: '700',
+    fontSize: 18,
+    fontWeight: '600',
     color: '#031019',
     marginBottom: 16,
   },
@@ -915,16 +927,16 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   iconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 30,
+    height: 30,
+    borderRadius: 3,
     backgroundColor: '#1E4154',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 16,
   },
   detailText: {
-    fontSize: 15,
+    fontSize: 13,
     color: '#031019',
     fontWeight: '500',
     flex: 1,
@@ -1114,8 +1126,8 @@ const styles = StyleSheet.create({
   applyButtonText: {
     color: '#FFFFFF',
     fontFamily: 'Kanit',
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 14,
+    fontWeight: '500',
   },
   centerContainer: {
     flex: 1,

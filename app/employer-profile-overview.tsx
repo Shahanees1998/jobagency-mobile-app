@@ -220,7 +220,7 @@ const styles = StyleSheet.create({
   saveBtn: {
     backgroundColor: APP_COLORS.primary,
     paddingVertical: 14,
-    borderRadius: 12,
+    borderRadius: 60,
     alignItems: 'center',
     justifyContent: 'center',
   },

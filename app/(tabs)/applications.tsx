@@ -303,7 +303,7 @@ function CandidateMyJobsScreen() {
       </View>
       <Text style={styles.emptyTitle}>No applications yet !!</Text>
       <Text style={styles.emptySubtext}>
-        All applications you've completed on Next Job will appear here.
+        All applications you&apos;ve completed on Next Job will appear here.
       </Text>
       <TouchableOpacity style={styles.findJobsBtnFull} onPress={() => router.push('/(tabs)')} activeOpacity={0.85}>
         <Text style={styles.findJobsBtnText}>Find jobs</Text>

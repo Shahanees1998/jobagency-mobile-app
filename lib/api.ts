@@ -310,6 +310,9 @@ class ApiClient {
     companyWebsite?: string;
     industry?: string;
     companySize?: string;
+    founded?: string;
+    revenue?: string;
+    headquarter?: string;
     address?: string;
     city?: string;
     country?: string;

@@ -182,14 +182,14 @@ export default function EmployerInterviewsScreen() {
       {items.length === 0 ? (
         <View style={styles.empty}>
           <View style={styles.emptyIconWrap}>
-            <Ionicons name="document-text-outline" size={64} color={APP_COLORS.primary} />
+            <Ionicons name="paper-plane-outline" size={56} color={APP_COLORS.textPrimary} />
           </View>
-          <Text style={styles.emptyTitle}>No interviews have been scheduled yet!!</Text>
+          <Text style={styles.emptyTitle}>No interviews have been scheduled yet !!</Text>
           <Text style={styles.emptySubtext}>
-            Schedule an interview from a job{'\u2019'}s candidates to see them here.
+            You haven{'\u2019'}t scheduled any interviews yet. Once you invite candidates, their interviews will appear here.
           </Text>
           <TouchableOpacity style={styles.scheduleBtn} onPress={() => router.push('/schedule-interview')} activeOpacity={0.85}>
-            <Text style={styles.scheduleBtnText}>Schedule interview.</Text>
+            <Text style={styles.scheduleBtnText}>Schedule interview</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -283,33 +283,42 @@ const styles = StyleSheet.create({
   pillHalf: { flex: 1 },
   pillIcon: { marginRight: 10 },
   pillText: { fontSize: 12, fontWeight: '700', color: APP_COLORS.textPrimary, flex: 1 },
+  empty: { flex: 1, paddingHorizontal: APP_SPACING.screenPadding, paddingTop: 48, alignItems: 'center' },
+  emptyIconWrap: {
+    width: 88,
+    height: 88,
+    borderRadius: 16,
+    backgroundColor: '#72A4BF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
+  },
+  emptyTitle: { fontSize: 20, fontWeight: '700', color: APP_COLORS.textPrimary, textAlign: 'center', marginBottom: 12 },
+  emptySubtext: { fontSize: 14, color: APP_COLORS.textSecondary, textAlign: 'center', marginBottom: 28, lineHeight: 22, maxWidth: 280 },
+  scheduleBtn: {
+    alignSelf: 'stretch',
+    backgroundColor: APP_COLORS.primary,
+    paddingVertical: 16,
+    paddingHorizontal: 32,
+    marginTop: 20,
+    borderRadius: 60,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  scheduleBtnText: { color: APP_COLORS.white, fontSize: 16, fontWeight: '600' },
   fab: {
     position: 'absolute',
     right: 24,
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: APP_COLORS.primary,
+    backgroundColor: '#B8D0D9',
     alignItems: 'center',
     justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 4,
   },
-  empty: { flex: 1, paddingHorizontal: APP_SPACING.screenPadding, paddingTop: 48, alignItems: 'center' },
-  emptyIconWrap: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: APP_COLORS.surfaceGray,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 24,
-  },
-  emptyTitle: { fontSize: 18, fontWeight: '700', color: APP_COLORS.textPrimary, textAlign: 'center', marginBottom: 12 },
-  emptySubtext: { fontSize: 14, color: APP_COLORS.textSecondary, textAlign: 'center', marginBottom: 28, lineHeight: 20 },
-  scheduleBtn: {
-    backgroundColor: APP_COLORS.primary,
-    paddingVertical: 16,
-    paddingHorizontal: 32,
-    borderRadius: APP_SPACING.borderRadius,
-  },
-  scheduleBtnText: { color: APP_COLORS.white, fontSize: 16, fontWeight: '600' },
 });

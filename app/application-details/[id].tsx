@@ -100,20 +100,15 @@ export default function ApplicationDetailsScreen() {
     if (application?.candidate?.cvUrl) Linking.openURL(application.candidate.cvUrl);
   };
 
-  const handleApprove = async () => {
-    try {
-      const res = await apiClient.updateApplicationStatus(application.jobId, application.id, 'APPROVED');
-      if (res.success) await loadApplicationDetails();
-      else showDialog({ title: 'Error', message: res.error || 'Failed to approve', primaryButton: { text: 'OK' } });
-    } catch (e: any) {
-      showDialog({ title: 'Error', message: e?.message || 'Failed to approve', primaryButton: { text: 'OK' } });
-    }
+  const handleApprove = () => {
+    const jobId = application.jobId || application.job?.id;
+    if (jobId) router.push(`/schedule-interview?jobId=${jobId}&applicationId=${application.id}`);
   };
 
-  const handleReject = async () => {
+  const handleReject = () => {
     showDialog({
       title: 'Reject application',
-      message: 'Reject this candidate? They will be notified.',
+      message: 'Are you sure you want to reject this candidate? They will be notified.',
       primaryButton: { text: 'Yes, Reject', onPress: async () => {
         try {
           const res = await apiClient.updateApplicationStatus(application.jobId, application.id, 'REJECTED');
@@ -483,7 +478,7 @@ const styles = StyleSheet.create({
   actionReject: {
     flex: 1,
     paddingVertical: 14,
-    borderRadius: 12,
+    borderRadius: 60,
     backgroundColor: APP_COLORS.danger,
     alignItems: 'center',
     justifyContent: 'center',
@@ -492,7 +487,7 @@ const styles = StyleSheet.create({
   actionApprove: {
     flex: 1,
     paddingVertical: 14,
-    borderRadius: 12,
+    borderRadius: 60,
     backgroundColor: APP_COLORS.primary,
     alignItems: 'center',
     justifyContent: 'center',
@@ -500,7 +495,7 @@ const styles = StyleSheet.create({
   actionApproveText: { fontSize: 16, fontWeight: '600', color: APP_COLORS.white },
   actionPrimary: {
     paddingVertical: 14,
-    borderRadius: 14,
+    borderRadius: 60,
     backgroundColor: APP_COLORS.primary,
     alignItems: 'center',
     justifyContent: 'center',

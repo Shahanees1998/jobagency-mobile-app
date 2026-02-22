@@ -374,7 +374,7 @@ export default function EditEmployerProfileScreen() {
           <View style={styles.aboutUsHeader}>
             <Text style={styles.aboutUsTitle}>About us</Text>
             <TouchableOpacity style={styles.aboutUsEditBtn} onPress={() => router.push('/employer-profile-about')} activeOpacity={0.85}>
-              <Ionicons name="create-outline" size={20} color="#93C5FD" />
+              <Ionicons name="create-outline" size={15} color="white" />
             </TouchableOpacity>
           </View>
           <View style={styles.aboutUsGrid}>
@@ -751,10 +751,10 @@ const styles = StyleSheet.create({
   aboutUsHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
   aboutUsTitle: { fontSize: 15, fontWeight: '600', color: APP_COLORS.textPrimary },
   aboutUsEditBtn: {
-    width: 40,
-    height: 40,
+    width: 35,
+    height: 35,
     borderRadius: 20,
-    backgroundColor: APP_COLORS.primary,
+    backgroundColor: ICON_CIRCLE_BG,
     alignItems: 'center',
     justifyContent: 'center',
   },
