@@ -1,5 +1,6 @@
 import { JobCard } from '@/components/jobs';
 import { APP_COLORS, APP_SPACING } from '@/constants/appTheme';
+import { useAuth } from '@/contexts/AuthContext';
 import { apiClient } from '@/lib/api';
 import { imageUriForDisplay } from '@/lib/imageUri';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -133,6 +134,7 @@ function formatReviewDate(isoDate: string): string {
 const DEFAULT_OVERVIEW = 'We are a technology-driven company delivering innovative solutions. Our expertise spans software development, web and mobile applications, and design.';
 
 export default function CompanyProfileScreen() {
+  const { user } = useAuth();
   const params = useLocalSearchParams<{ employerId?: string; own?: string }>();
   const employerIdParam = params.employerId ?? '';
   const isOwnProfile = params.own === '1';
@@ -166,14 +168,16 @@ export default function CompanyProfileScreen() {
       setResolvedEmployerId(employerIdParam);
       return;
     }
+    // For "my" we must use employer.id from profile (not user.id) — reviews API expects Employer table id
     let cancelled = false;
     (async () => {
       try {
         const res = await apiClient.getEmployerProfile();
+        if (__DEV__) console.log('[company-reviews] getEmployerProfile response:', JSON.stringify({ success: res.success, hasData: !!res.data, id: (res.data as any)?.id }));
         if (cancelled || !res.success || !res.data) return;
         const d = res.data as any;
-        const id = d.id ?? d.employerId ?? '';
-        if (id) setResolvedEmployerId(id);
+        const employerId = d.id ?? d.employerId ?? '';
+        if (employerId) setResolvedEmployerId(employerId);
         else if (!cancelled) setLoading(false);
         setCompanyName(d.companyName || 'Company');
         setProfile({
@@ -186,10 +190,11 @@ export default function CompanyProfileScreen() {
           companyBanner: d.companyBanner,
           companyLogo: d.companyLogo,
         });
-      } catch {
+      } catch (e) {
+        if (__DEV__) console.log('[company-reviews] getEmployerProfile error:', e);
         if (!cancelled) setLoading(false);
       } finally {
-        if (!cancelled && employerIdParam !== 'my') setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     })();
     return () => { cancelled = true; };
@@ -197,10 +202,11 @@ export default function CompanyProfileScreen() {
 
   const loadReviews = useCallback(async () => {
     if (!resolvedEmployerId) return;
-    if (employerIdParam === 'my' && !resolvedEmployerId) return;
     setLoading(true);
     try {
+      if (__DEV__) console.log('[company-reviews] getEmployerReviews called with employerId:', resolvedEmployerId);
       const res = await apiClient.getEmployerReviews(resolvedEmployerId);
+      if (__DEV__) console.log('[company-reviews] getEmployerReviews response:', JSON.stringify({ success: res.success, reviewCount: (res.data as any)?.reviews?.length ?? 0, data: res.data }));
       if (res.success && res.data) {
         const d = res.data as any;
         setCompanyName(d.companyName || 'Company');
@@ -226,7 +232,8 @@ export default function CompanyProfileScreen() {
       } else {
         setReviews([]);
       }
-    } catch {
+    } catch (e) {
+      if (__DEV__) console.log('[company-reviews] getEmployerReviews error:', e);
       setReviews([]);
     } finally {
       setLoading(false);
@@ -248,8 +255,13 @@ export default function CompanyProfileScreen() {
   }, [resolvedEmployerId]);
 
   useEffect(() => {
-    if (resolvedEmployerId) loadReviews();
-  }, [resolvedEmployerId, loadReviews]);
+    if (resolvedEmployerId) {
+      loadReviews();
+      if (employerIdParam !== 'my') {
+        apiClient.recordEmployerProfileView(resolvedEmployerId).catch(() => {});
+      }
+    }
+  }, [resolvedEmployerId, loadReviews, employerIdParam]);
 
   useEffect(() => {
     if (resolvedEmployerId) loadJobs();

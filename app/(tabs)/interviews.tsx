@@ -7,6 +7,7 @@ import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  Image,
   RefreshControl,
   StyleSheet,
   Text,
@@ -20,6 +21,8 @@ type InterviewItem = {
   jobId: string;
   jobTitle: string;
   candidateName: string;
+  candidateLocation: string;
+  candidateAvatarUrl?: string;
   location: string;
   date: string;
   time: string;
@@ -55,6 +58,8 @@ export default function EmployerInterviewsScreen() {
               jobId: job.id,
               jobTitle: job.title || 'Job',
               candidateName: name,
+              candidateLocation: app.candidate?.location || candidate.city || '—',
+              candidateAvatarUrl: candidate.profileImage || app.candidate?.profileImage,
               location: app.interviewLocation || '—',
               date: d ? d.toLocaleDateString(undefined, { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—',
               time: d ? d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }) : '—',
@@ -102,22 +107,58 @@ export default function EmployerInterviewsScreen() {
     });
   };
 
+  const getInitial = (name: string) => (name && name[0]) ? name.trim().split(/\s/).map((s) => s[0]).slice(0, 2).join('').toUpperCase() : '?';
+
   const renderItem = ({ item }: { item: InterviewItem }) => (
     <View style={styles.card}>
       <View style={styles.cardHeader}>
         <Text style={styles.jobTitle} numberOfLines={1}>{item.jobTitle}</Text>
         <View style={styles.cardIcons}>
-          <TouchableOpacity style={styles.iconBtn} onPress={() => router.push(`/edit-interview/${item.applicationId}?jobId=${item.jobId}`)} hitSlop={12}>
-            <Ionicons name="checkmark-circle" size={24} color="#22C55E" />
+          <TouchableOpacity
+            style={styles.iconBtnEdit}
+            onPress={() => router.push(`/edit-interview/${item.applicationId}?jobId=${item.jobId}`)}
+            hitSlop={12}
+            activeOpacity={0.85}
+          >
+            <Ionicons name="create-outline" size={15} color={APP_COLORS.white} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.iconBtn} onPress={() => handleDelete(item)} hitSlop={12}>
-            <Ionicons name="trash-outline" size={24} color={APP_COLORS.danger} />
+          <TouchableOpacity
+            style={styles.iconBtnDelete}
+            onPress={() => handleDelete(item)}
+            hitSlop={12}
+            activeOpacity={0.85}
+          >
+            <Ionicons name="trash-outline" size={15} color={APP_COLORS.white} />
           </TouchableOpacity>
         </View>
       </View>
-      <Text style={styles.candidateName}>{item.candidateName}</Text>
-      <Text style={styles.meta}>{item.location}</Text>
-      <Text style={styles.meta}>{item.date} · {item.time}</Text>
+      <View style={styles.candidateRow}>
+        <View style={styles.avatarWrap}>
+          {item.candidateAvatarUrl ? (
+            <Image source={{ uri: item.candidateAvatarUrl }} style={styles.avatarImg} />
+          ) : (
+            <Text style={styles.avatarLetter}>{getInitial(item.candidateName)}</Text>
+          )}
+        </View>
+        <View style={styles.candidateInfo}>
+          <Text style={styles.candidateName} numberOfLines={1}>{item.candidateName}</Text>
+          <Text style={styles.candidateLocation} numberOfLines={1}>{item.candidateLocation}</Text>
+        </View>
+      </View>
+      <View style={styles.pillRow}>
+        <View style={[styles.pill, styles.pillHalf]}>
+          <Ionicons name="calendar-outline" size={18} color={APP_COLORS.textPrimary} style={styles.pillIcon} />
+          <Text style={styles.pillText} numberOfLines={1}>{item.date}</Text>
+        </View>
+        <View style={[styles.pill, styles.pillHalf]}>
+          <Ionicons name="time-outline" size={18} color={APP_COLORS.textPrimary} style={styles.pillIcon} />
+          <Text style={styles.pillText} numberOfLines={1}>{item.time}</Text>
+        </View>
+      </View>
+      <View style={styles.pill}>
+        <Ionicons name="location-outline" size={18} color={APP_COLORS.textPrimary} style={styles.pillIcon} />
+        <Text style={styles.pillText} numberOfLines={1}>{item.location}</Text>
+      </View>
     </View>
   );
 
@@ -146,27 +187,32 @@ export default function EmployerInterviewsScreen() {
           </View>
           <Text style={styles.emptyTitle}>No interviews have been scheduled yet!!</Text>
           <Text style={styles.emptySubtext}>
-            Schedule an interview from a job's candidates to see them here.
+            Schedule an interview from a job{'\u2019'}s candidates to see them here.
           </Text>
           <TouchableOpacity style={styles.scheduleBtn} onPress={() => router.push('/schedule-interview')} activeOpacity={0.85}>
             <Text style={styles.scheduleBtnText}>Schedule interview.</Text>
           </TouchableOpacity>
         </View>
       ) : (
-        <FlatList
-          data={items}
-          renderItem={renderItem}
-          keyExtractor={(item) => item.applicationId}
-          contentContainerStyle={[styles.list, { paddingBottom: listPaddingBottom }]}
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={APP_COLORS.primary} />
-          }
-        />
+        <>
+          <FlatList
+            data={items}
+            renderItem={renderItem}
+            keyExtractor={(item) => item.applicationId}
+            contentContainerStyle={[styles.list, { paddingBottom: listPaddingBottom + 72 }]}
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={APP_COLORS.primary} />
+            }
+          />
+        </>
       )}
     </SafeAreaView>
   );
 }
+
+const CARD_BG = '#72A4BF26';
+const PILL_RADIUS = 10;
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: APP_COLORS.background },
@@ -185,19 +231,69 @@ const styles = StyleSheet.create({
   bellBtn: { padding: 4 },
   list: { padding: APP_SPACING.screenPadding, paddingBottom: 24 },
   card: {
-    backgroundColor: APP_COLORS.white,
-    borderRadius: APP_SPACING.borderRadiusLg,
-    padding: APP_SPACING.itemPadding,
-    marginBottom: 12,
+    backgroundColor: CARD_BG,
+    borderRadius: 10,
+    padding: 18,
+    marginBottom: 16,
     borderWidth: 1,
-    borderColor: APP_COLORS.border,
+    borderColor: '#DDE4E9',
   },
-  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  jobTitle: { fontSize: 17, fontWeight: '700', color: APP_COLORS.textPrimary, flex: 1 },
-  cardIcons: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  iconBtn: { padding: 4 },
-  candidateName: { fontSize: 15, fontWeight: '600', color: APP_COLORS.textPrimary },
-  meta: { fontSize: 13, color: APP_COLORS.textMuted, marginTop: 4 },
+  cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 },
+  jobTitle: { fontSize: 16, fontWeight: '700', color: APP_COLORS.textPrimary, flex: 1, marginRight: 12 },
+  cardIcons: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  iconBtnEdit: {
+    width: 35,
+    height: 35,
+    borderRadius: 20,
+    backgroundColor: APP_COLORS.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  iconBtnDelete: {
+    width: 35,
+    height: 35,
+    borderRadius: 20,
+    backgroundColor: APP_COLORS.danger,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  candidateRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 14 },
+  avatarWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 0,
+    backgroundColor: APP_COLORS.avatarBg,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  avatarImg: { width: 44, height: 44, borderRadius: 0 },
+  avatarLetter: { fontSize: 14, fontWeight: '700', color: APP_COLORS.white },
+  candidateInfo: { flex: 1 },
+  candidateName: { fontSize: 14, fontWeight: '500', color: APP_COLORS.textPrimary },
+  candidateLocation: { fontSize: 13, color: APP_COLORS.textMuted, marginTop: 2 },
+  pillRow: { flexDirection: 'row', gap: 10, marginBottom: 8 },
+  pill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: APP_COLORS.white,
+    borderRadius: PILL_RADIUS,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+  },
+  pillHalf: { flex: 1 },
+  pillIcon: { marginRight: 10 },
+  pillText: { fontSize: 12, fontWeight: '700', color: APP_COLORS.textPrimary, flex: 1 },
+  fab: {
+    position: 'absolute',
+    right: 24,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: APP_COLORS.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   empty: { flex: 1, paddingHorizontal: APP_SPACING.screenPadding, paddingTop: 48, alignItems: 'center' },
   emptyIconWrap: {
     width: 120,

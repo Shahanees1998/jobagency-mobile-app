@@ -129,59 +129,48 @@ export default function EditInterviewScreen() {
         <View style={styles.headerBtn} />
       </View>
       <Text style={styles.instruction}>Update date, time and location as needed.</Text>
-      <KeyboardAvoidingView style={styles.safe} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView style={styles.flex1} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom, 24) + 24 }]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          <View style={styles.readOnlyRow}>
-            <Text style={styles.readOnlyLabel}>Job role</Text>
-            <Text style={styles.readOnlyValue}>{jobTitle}</Text>
+          <View style={styles.selectRow}>
+            <Text style={styles.selectRowText} numberOfLines={1}>{jobTitle}</Text>
           </View>
-          <View style={styles.readOnlyRow}>
-            <Text style={styles.readOnlyLabel}>Candidate</Text>
-            <Text style={styles.readOnlyValue}>{candidateName}</Text>
+          <View style={styles.selectRow}>
+            <Text style={styles.selectRowText} numberOfLines={1}>{candidateName}</Text>
           </View>
-          <View style={styles.field}>
-            <Text style={styles.label}>Select interview date</Text>
-            <View style={styles.inputWrap}>
-              <Ionicons name="calendar-outline" size={20} color={APP_COLORS.textMuted} style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="e.g. 15/02/2026"
-                placeholderTextColor={APP_COLORS.textMuted}
-                value={date}
-                onChangeText={setDate}
-              />
-            </View>
+          <View style={styles.inputRow}>
+            <TextInput
+              style={styles.input}
+              placeholder="Select interview date"
+              placeholderTextColor={APP_COLORS.textMuted}
+              value={date}
+              onChangeText={setDate}
+            />
+            <Ionicons name="calendar-outline" size={20} color={APP_COLORS.textMuted} />
           </View>
-          <View style={styles.field}>
-            <Text style={styles.label}>Select interview time</Text>
-            <View style={styles.inputWrap}>
-              <Ionicons name="time-outline" size={20} color={APP_COLORS.textMuted} style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="e.g. 11:00 AM"
-                placeholderTextColor={APP_COLORS.textMuted}
-                value={time}
-                onChangeText={setTime}
-              />
-            </View>
+          <View style={styles.inputRow}>
+            <TextInput
+              style={styles.input}
+              placeholder="Select interview time"
+              placeholderTextColor={APP_COLORS.textMuted}
+              value={time}
+              onChangeText={setTime}
+            />
+            <Ionicons name="time-outline" size={20} color={APP_COLORS.textMuted} />
           </View>
-          <View style={styles.field}>
-            <Text style={styles.label}>Enter interview location</Text>
-            <View style={styles.inputWrap}>
-              <Ionicons name="location-outline" size={20} color={APP_COLORS.textMuted} style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Office address or video link"
-                placeholderTextColor={APP_COLORS.textMuted}
-                value={location}
-                onChangeText={setLocation}
-              />
-            </View>
+          <View style={[styles.inputRow, styles.inputRowLocation]}>
+            <Ionicons name="location-outline" size={20} color={APP_COLORS.textMuted} style={styles.locationIcon} />
+            <TextInput
+              style={styles.input}
+              placeholder="Enter interview location"
+              placeholderTextColor={APP_COLORS.textMuted}
+              value={location}
+              onChangeText={setLocation}
+            />
           </View>
           <TouchableOpacity
             style={[styles.primaryBtn, submitting && styles.primaryBtnDisabled]}
@@ -189,7 +178,7 @@ export default function EditInterviewScreen() {
             disabled={submitting}
             activeOpacity={0.9}
           >
-            {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryBtnText}>Update interview.</Text>}
+            {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryBtnText}>Update interview</Text>}
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -197,8 +186,13 @@ export default function EditInterviewScreen() {
   );
 }
 
+const INPUT_BG = '#F3F4F6';
+const INPUT_BORDER = '#E8EAED';
+const PILL_RADIUS = 24;
+
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: APP_COLORS.background },
+  safe: { flex: 1, backgroundColor: APP_COLORS.white },
+  flex1: { flex: 1 },
   centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   notFound: { fontSize: 16, color: APP_COLORS.textMuted, marginBottom: 16 },
   backBtn: { paddingVertical: 12, paddingHorizontal: 24 },
@@ -210,39 +204,55 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: APP_COLORS.border,
-    backgroundColor: APP_COLORS.background,
+    borderBottomColor: '#E5E7EB',
+    backgroundColor: APP_COLORS.white,
   },
   headerBtn: { padding: 4, minWidth: 40 },
   headerTitle: { fontSize: 18, fontWeight: '700', color: APP_COLORS.textPrimary },
-  instruction: { fontSize: 13, color: APP_COLORS.textSecondary, paddingHorizontal: APP_SPACING.screenPadding, paddingTop: 12, marginBottom: 8 },
+  instruction: {
+    fontSize: 14,
+    color: APP_COLORS.textSecondary,
+    lineHeight: 20,
+    paddingHorizontal: APP_SPACING.screenPadding,
+    paddingTop: 12,
+    marginBottom: 20,
+  },
   scroll: { flex: 1 },
-  scrollContent: { paddingHorizontal: APP_SPACING.screenPadding, paddingTop: 8 },
-  readOnlyRow: { marginBottom: 12 },
-  readOnlyLabel: { fontSize: 12, color: APP_COLORS.textMuted, marginBottom: 4 },
-  readOnlyValue: { fontSize: 15, color: APP_COLORS.textPrimary, fontWeight: '500' },
-  field: { marginBottom: 16 },
-  label: { fontSize: 13, fontWeight: '600', color: APP_COLORS.textSecondary, marginBottom: 8 },
-  inputWrap: {
+  scrollContent: { paddingHorizontal: APP_SPACING.screenPadding, paddingTop: 4 },
+  selectRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    height: 48,
-    backgroundColor: APP_COLORS.surfaceGray,
-    borderRadius: APP_SPACING.borderRadius,
+    height: 52,
+    backgroundColor: INPUT_BG,
+    borderRadius: PILL_RADIUS,
     borderWidth: 1,
-    borderColor: APP_COLORS.border,
-    paddingHorizontal: 14,
+    borderColor: INPUT_BORDER,
+    paddingHorizontal: 18,
+    marginBottom: 14,
   },
-  inputIcon: { marginRight: 10 },
+  selectRowText: { fontSize: 16, color: APP_COLORS.textPrimary, flex: 1 },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 52,
+    backgroundColor: INPUT_BG,
+    borderRadius: PILL_RADIUS,
+    borderWidth: 1,
+    borderColor: INPUT_BORDER,
+    paddingHorizontal: 18,
+    marginBottom: 14,
+  },
+  inputRowLocation: {},
+  locationIcon: { marginRight: 12 },
   input: { flex: 1, fontSize: 16, color: APP_COLORS.textPrimary, paddingVertical: 0 },
   primaryBtn: {
     height: 54,
-    borderRadius: APP_SPACING.borderRadiusLg,
+    borderRadius: 14,
     backgroundColor: APP_COLORS.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 24,
+    marginTop: 28,
   },
   primaryBtnDisabled: { opacity: 0.7 },
-  primaryBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  primaryBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
 });

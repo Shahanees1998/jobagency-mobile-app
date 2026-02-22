@@ -7,7 +7,7 @@ export const APP_COLORS = {
   white: '#FFFFFF',
   background: '#FFFFFF',
   surface: '#F9FAFB',
-  surfaceGray: '#E6E6E6',
+  surfaceGray: '#72A4BF26',
   border: '#D1D5DB',
   textPrimary: '#111827',
   textSecondary: '#374151',

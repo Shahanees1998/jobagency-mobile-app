@@ -33,14 +33,30 @@ export function EmployerJobCard({
       onPress={onPress}
       activeOpacity={0.85}
     >
-      {/* Top Row: Title */}
-      <View style={styles.topRow}>
+      {/* Title and action buttons in one row */}
+      <View style={styles.titleRow}>
         <Text style={styles.title} numberOfLines={1}>
           {title}
         </Text>
+        <View style={styles.actions}>
+          <TouchableOpacity
+            onPress={(e) => { e?.stopPropagation?.(); onEdit?.(); }}
+            hitSlop={8}
+            style={styles.iconBtnEdit}
+          >
+            <Ionicons name="create-outline" size={15} color="#FFFFFF" />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={(e) => { e?.stopPropagation?.(); onDelete?.(); }}
+            hitSlop={8}
+            style={styles.iconBtnDelete}
+          >
+            <Ionicons name="trash-outline" size={15} color="#FFFFFF" />
+          </TouchableOpacity>
+        </View>
       </View>
 
-      {/* Middle Row: Logo, Company Info, and Actions */}
+      {/* Row: Logo and Company Info */}
       <View style={styles.middleRow}>
         <View style={styles.logoAndInfo}>
           <View style={styles.logo}>
@@ -50,22 +66,6 @@ export function EmployerJobCard({
             <Text style={styles.companyName} numberOfLines={1}>{companyName}</Text>
             <Text style={styles.location} numberOfLines={1}>{location}</Text>
           </View>
-        </View>
-        <View style={styles.actions}>
-          <TouchableOpacity
-            onPress={(e) => { e?.stopPropagation?.(); onEdit?.(); }}
-            hitSlop={8}
-            style={styles.iconBtn}
-          >
-            <Ionicons name="pencil-outline" size={20} color="#6B7280" />
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={(e) => { e?.stopPropagation?.(); onDelete?.(); }}
-            hitSlop={8}
-            style={styles.iconBtn}
-          >
-            <Ionicons name="trash-outline" size={20} color="#EF4444" />
-          </TouchableOpacity>
         </View>
       </View>
 
@@ -86,22 +86,26 @@ export function EmployerJobCard({
 const styles = StyleSheet.create({
   card: {
     backgroundColor: '#F2F7FB',
-    borderRadius: 16,
-    padding: 16,
+    borderRadius: 5,
+    padding: 8,
     marginBottom: 16,
   },
-  topRow: {
-    marginBottom: 12,
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 10,
   },
   title: {
     fontFamily: 'Kanit',
-    fontSize: 20,
-    fontWeight: '700',
+    fontSize: 15,
+    fontWeight: '800',
     color: '#031019',
+    flex: 1,
+    marginRight: 8,
   },
   middleRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     marginBottom: 16,
   },
@@ -111,17 +115,17 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   logo: {
-    width: 48,
-    height: 48,
-    borderRadius: 8,
+    width: 38,
+    height: 38,
+    borderRadius: 5,
     backgroundColor: '#031019',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    marginRight: 8,
   },
   logoText: {
     color: '#FFFFFF',
-    fontSize: 20,
+    fontSize: 15,
     fontWeight: '700',
   },
   companyInfo: {
@@ -130,38 +134,50 @@ const styles = StyleSheet.create({
   },
   companyName: {
     fontFamily: 'Kanit',
-    fontSize: 16,
-    fontWeight: '700',
+    fontSize: 12,
     color: '#031019',
   },
   location: {
-    fontSize: 13,
+    fontSize: 12,
     color: '#6B7280',
     marginTop: 2,
   },
   actions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 10,
   },
-  iconBtn: {
-    padding: 4,
+  iconBtnEdit: {
+    width: 25,
+    height: 25,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#1E4154',
+    borderRadius: 50,
+  },
+  iconBtnDelete: {
+    width: 25,
+    height: 25,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#EF4444',
+    borderRadius: 50,
   },
   tags: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: 2,
   },
   tag: {
     backgroundColor: '#FFFFFF',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
     borderRadius: 6,
     borderWidth: 1,
     borderColor: '#EFEFEF',
   },
   tagText: {
-    fontSize: 12,
+    fontSize: 10,
     color: '#4B5563',
     fontWeight: '500',
   },

@@ -1,23 +1,74 @@
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Colors } from '@/constants/theme';
+import { APP_COLORS, APP_SPACING } from '@/constants/appTheme';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDialog } from '@/contexts/DialogContext';
-import { useColorScheme } from '@/hooks/use-color-scheme';
 import { apiClient } from '@/lib/api';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Linking, ScrollView, StyleSheet, TouchableOpacity, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Linking,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+
+const CARD_BG = '#F8F8F8';
+const CARD_RADIUS = 10;
+const SECTION_TITLE_SIZE = 16;
+const PILL_RADIUS = 10;
+
+function parseJsonArray(str: string | null | undefined): any[] {
+  if (!str || typeof str !== 'string') return [];
+  try {
+    const v = JSON.parse(str);
+    return Array.isArray(v) ? v : [];
+  } catch {
+    return [];
+  }
+}
+
+function parseCertifications(input: string[] | any[] | null | undefined): { title: string; startDate?: string; endDate?: string; description?: string }[] {
+  if (!Array.isArray(input)) return [];
+  return input.map((item) => {
+    if (typeof item === 'string') {
+      try {
+        const o = JSON.parse(item);
+        if (o && typeof o === 'object') {
+          return {
+            title: o.title ?? o.name ?? String(item),
+            startDate: o.startDate ?? o.start,
+            endDate: o.endDate ?? o.end,
+            description: o.description,
+          };
+        }
+      } catch {
+        // not JSON
+      }
+      return { title: item };
+    }
+    if (item && typeof item === 'object') {
+      return {
+        title: item.title ?? item.name ?? 'Certification',
+        startDate: item.startDate ?? item.start,
+        endDate: item.endDate ?? item.end,
+        description: item.description,
+      };
+    }
+    return { title: String(item) };
+  });
+}
 
 export default function ApplicationDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
+  const insets = useSafeAreaInsets();
   const { user } = useAuth();
   const { showDialog } = useDialog();
   const [application, setApplication] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const colorScheme = useColorScheme();
-  const colors = Colors[colorScheme ?? 'light'];
 
   useEffect(() => {
     loadApplicationDetails();
@@ -26,9 +77,7 @@ export default function ApplicationDetailsScreen() {
   const loadApplicationDetails = async () => {
     try {
       const response = await apiClient.getApplicationById(id);
-      if (response.success && response.data) {
-        setApplication(response.data);
-      }
+      if (response.success && response.data) setApplication(response.data);
     } catch (error) {
       console.error('Error loading application:', error);
     } finally {
@@ -36,357 +85,401 @@ export default function ApplicationDetailsScreen() {
     }
   };
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'APPROVED':
-        return '#4CAF50';
-      case 'REJECTED':
-        return '#F44336';
-      case 'REVIEWING':
-        return '#FF9800';
-      default:
-        return colors.icon;
+  const handleViewCV = () => {
+    if (application?.candidate?.cvUrl) Linking.openURL(application.candidate.cvUrl);
+  };
+
+  const handleApprove = async () => {
+    try {
+      const res = await apiClient.updateApplicationStatus(application.jobId, application.id, 'APPROVED');
+      if (res.success) await loadApplicationDetails();
+      else showDialog({ title: 'Error', message: res.error || 'Failed to approve', primaryButton: { text: 'OK' } });
+    } catch (e: any) {
+      showDialog({ title: 'Error', message: e?.message || 'Failed to approve', primaryButton: { text: 'OK' } });
     }
   };
 
-  const handleViewCV = () => {
-    if (application?.candidate?.cvUrl) {
-      Linking.openURL(application.candidate.cvUrl);
-    }
+  const handleReject = async () => {
+    showDialog({
+      title: 'Reject application',
+      message: 'Reject this candidate? They will be notified.',
+      primaryButton: { text: 'Yes, Reject', onPress: async () => {
+        try {
+          const res = await apiClient.updateApplicationStatus(application.jobId, application.id, 'REJECTED');
+          if (res.success) await loadApplicationDetails();
+          else showDialog({ title: 'Error', message: res.error || 'Failed to reject', primaryButton: { text: 'OK' } });
+        } catch (e: any) {
+          showDialog({ title: 'Error', message: (e as Error)?.message || 'Failed to reject', primaryButton: { text: 'OK' } });
+        }
+      } },
+      secondaryButton: { text: 'Cancel' },
+    });
   };
 
   if (loading) {
     return (
-      <ThemedView style={styles.centerContainer}>
-        <ActivityIndicator size="large" color={colors.tint} />
-      </ThemedView>
+      <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+        <View style={styles.centerContainer}>
+          <ActivityIndicator size="large" color={APP_COLORS.primary} />
+        </View>
+      </SafeAreaView>
     );
   }
 
   if (!application) {
     return (
-      <ThemedView style={styles.centerContainer}>
-        <ThemedText>Application not found</ThemedText>
-      </ThemedView>
+      <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+        <View style={styles.centerContainer}>
+          <Text style={styles.notFound}>Application not found</Text>
+        </View>
+      </SafeAreaView>
     );
   }
 
-  return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      <ThemedView style={styles.content}>
-        <View style={styles.header}>
-          <ThemedText type="title" style={styles.title}>
-            {application.job?.title || 'Application Details'}
-          </ThemedText>
-          <View style={[styles.statusBadge, { backgroundColor: getStatusColor(application.status) }]}>
-            <ThemedText style={styles.statusText}>{application.status}</ThemedText>
-          </View>
+  const isEmployer = user?.role === 'EMPLOYER';
+  const c = application.candidate;
+  const u = c?.user;
+  const name = u ? [u.firstName, u.lastName].filter(Boolean).join(' ') || u.email || 'Candidate' : 'Candidate';
+  const phone = u?.phone || '—';
+  const email = u?.email || '—';
+  const location = c?.location || '—';
+  const experienceList = parseJsonArray(c?.experience);
+  const educationList = parseJsonArray(c?.education);
+  const skills: string[] = Array.isArray(c?.skills) ? c.skills : [];
+  const languages: string[] = Array.isArray(c?.languages) ? c.languages : [];
+  const certificationsList = parseCertifications(
+    Array.isArray(c?.certifications) ? c.certifications : []
+  );
+
+  const renderEmployerCandidateProfile = () => (
+    <>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.headerBtn} hitSlop={12}>
+          <Ionicons name="arrow-back" size={24} color={APP_COLORS.textPrimary} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Candidate Profile</Text>
+        <View style={styles.headerBtn} />
+      </View>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 24 }]}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* Candidate Contact Information Card - only section with coloured bg */}
+        <View style={styles.cardFirst}>
+          <Text style={styles.cardName}>{name}</Text>
+          <Text style={styles.cardMuted}>{phone}</Text>
+          <Text style={styles.cardMuted}>{email}</Text>
+          <Text style={styles.cardMuted}>{location}</Text>
         </View>
 
-        <ThemedText style={styles.companyName}>
-          {application.job?.employer?.companyName}
-        </ThemedText>
+        {/* Summary */}
+        <Text style={styles.sectionTitle}>Summary</Text>
+        <View style={styles.cardRest}>
+          {(c?.bio || application.coverLetter) ? (
+            <>
+              {(c?.bio || application.coverLetter)
+                .split(/\n/)
+                .map((line: string, idx: number) => (
+                  <Text key={idx} style={line.trimStart().startsWith('•') ? styles.cardBullet : styles.cardBody}>
+                    {line.trim() || ' '}
+                  </Text>
+                ))}
+            </>
+          ) : (
+            <Text style={styles.cardBodyMuted}>No summary provided.</Text>
+          )}
+        </View>
 
-        <View style={styles.section}>
-          <ThemedText type="defaultSemiBold" style={styles.sectionTitle}>Application Information</ThemedText>
-          <View style={styles.infoRow}>
-            <ThemedText style={styles.label}>Applied Date:</ThemedText>
-            <ThemedText style={styles.value}>
-              {new Date(application.appliedAt).toLocaleDateString()}
-            </ThemedText>
+        {/* Work experience - after Summary, white bg */}
+        <Text style={styles.sectionTitle}>Work experience</Text>
+        <View style={styles.cardRest}>
+          {experienceList.length > 0 ? (
+            experienceList.map((exp: any, i: number) => (
+              <View key={i} style={i > 0 ? styles.cardBlock : undefined}>
+                <Text style={styles.cardSubtitle}>{exp.title || exp.role || 'Role'}</Text>
+                <Text style={styles.cardMeta}>
+                  {[exp.company, exp.location].filter(Boolean).join(' - ') || '—'}
+                </Text>
+                <Text style={styles.cardMeta}>
+                  {[exp.startDate, exp.endDate].filter(Boolean).join(' to ') || '—'}
+                </Text>
+                {exp.description ? (
+                  exp.description.split(/\n/).map((line: string, idx: number) => (
+                    <Text key={idx} style={line.trimStart().startsWith('•') ? styles.cardBullet : styles.cardBody}>
+                      {line.trim() || ' '}
+                    </Text>
+                  ))
+                ) : null}
+              </View>
+            ))
+          ) : (
+            <Text style={styles.cardBodyMuted}>No work experience added.</Text>
+          )}
+        </View>
+
+        {/* Education - white bg */}
+        <Text style={styles.sectionTitle}>Education</Text>
+        <View style={styles.cardRest}>
+          {educationList.length > 0 ? (
+            educationList.map((ed: any, i: number) => (
+              <View key={i} style={i > 0 ? styles.cardBlock : undefined}>
+                <Text style={styles.cardSubtitle}>{ed.degree || ed.school || 'Education'}</Text>
+                <Text style={styles.cardMeta}>
+                  {[ed.school || ed.institution || ed.university, ed.location || ed.city].filter(Boolean).join(' - ') || '—'}
+                </Text>
+                <Text style={styles.cardMeta}>
+                  {[ed.startDate, ed.endDate].filter(Boolean).join(' to ') || '—'}
+                </Text>
+              </View>
+            ))
+          ) : (
+            <Text style={styles.cardBodyMuted}>No education added.</Text>
+          )}
+        </View>
+
+        {/* Skills - each skill in its own card, vertical stack, white bg */}
+        <Text style={styles.sectionTitle}>Skills</Text>
+        <View style={styles.cardList}>
+          {skills.length > 0 ? (
+            skills.map((s: string, i: number) => (
+              <View key={i} style={styles.cardItem}>
+                <Text style={styles.cardItemText}>{s}</Text>
+              </View>
+            ))
+          ) : (
+            <View style={styles.cardItem}>
+              <Text style={styles.cardItemTextMuted}>No skills added.</Text>
+            </View>
+          )}
+        </View>
+
+        {/* Languages - each language in its own card, vertical stack, white bg */}
+        <Text style={styles.sectionTitle}>Languages</Text>
+        <View style={styles.cardList}>
+          {languages.length > 0 ? (
+            languages.map((lang: string, i: number) => (
+              <View key={i} style={styles.cardItem}>
+                <Text style={styles.cardItemText}>{lang}</Text>
+              </View>
+            ))
+          ) : (
+            <View style={styles.cardItem}>
+              <Text style={styles.cardItemTextMuted}>No languages added.</Text>
+            </View>
+          )}
+        </View>
+
+        {/* Certifications & licenses - white bg */}
+        <Text style={styles.sectionTitle}>Certifications & licenses</Text>
+        <View style={styles.cardRest}>
+          {certificationsList.length > 0 ? (
+            certificationsList.map((cert: { title: string; startDate?: string; endDate?: string; description?: string }, i: number) => (
+              <View key={i} style={i > 0 ? styles.cardBlock : undefined}>
+                <Text style={styles.cardSubtitle}>{cert.title}</Text>
+                {(cert.startDate || cert.endDate) && (
+                  <Text style={styles.cardMeta}>
+                    {[cert.startDate, cert.endDate].filter(Boolean).join(' to ') || '—'}
+                  </Text>
+                )}
+                {cert.description ? <Text style={styles.cardBody}>{cert.description}</Text> : null}
+              </View>
+            ))
+          ) : (
+            <Text style={styles.cardBodyMuted}>No certifications or licenses added.</Text>
+          )}
+        </View>
+
+        {/* View CV */}
+        {c?.cvUrl ? (
+          <TouchableOpacity style={styles.cvButton} onPress={handleViewCV} activeOpacity={0.85}>
+            <Ionicons name="document-text-outline" size={20} color={APP_COLORS.white} />
+            <Text style={styles.cvButtonText}>View CV</Text>
+          </TouchableOpacity>
+        ) : null}
+
+        {/* Actions for employer */}
+        {application.status === 'APPLIED' && (
+          <View style={styles.actionRow}>
+            <TouchableOpacity style={styles.actionReject} onPress={handleReject} activeOpacity={0.85}>
+              <Text style={styles.actionRejectText}>Reject</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.actionApprove} onPress={handleApprove} activeOpacity={0.85}>
+              <Text style={styles.actionApproveText}>Approve</Text>
+            </TouchableOpacity>
           </View>
+        )}
+        {application.status === 'APPROVED' && (
+          <TouchableOpacity
+            style={styles.actionPrimary}
+            onPress={() => {
+              const jobId = application.jobId || application.job?.id;
+              if (jobId) router.push(`/schedule-interview?jobId=${jobId}&applicationId=${application.id}`);
+            }}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.actionPrimaryText}>Schedule interview</Text>
+          </TouchableOpacity>
+        )}
+        {application.status === 'INTERVIEW_SCHEDULED' && (
+          <TouchableOpacity
+            style={styles.actionPrimary}
+            onPress={() => router.push(`/edit-interview/${application.id}?jobId=${application.jobId || application.job?.id}`)}
+            activeOpacity={0.85}
+          >
+            <Text style={styles.actionPrimaryText}>Update interview</Text>
+          </TouchableOpacity>
+        )}
+      </ScrollView>
+    </>
+  );
+
+  const renderCandidateView = () => (
+    <>
+      <View style={styles.header}>
+        <TouchableOpacity onPress={() => router.back()} style={styles.headerBtn} hitSlop={12}>
+          <Ionicons name="arrow-back" size={24} color={APP_COLORS.textPrimary} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Application Details</Text>
+        <View style={styles.headerBtn} />
+      </View>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[styles.scrollContent, { paddingBottom: insets.bottom + 24 }]}
+        showsVerticalScrollIndicator={false}
+      >
+        <Text style={styles.sectionTitle}>Application Information</Text>
+        <View style={styles.card}>
+          <Text style={styles.cardMuted}>Applied: {application.appliedAt ? new Date(application.appliedAt).toLocaleDateString() : '—'}</Text>
           {application.reviewedAt && (
-            <View style={styles.infoRow}>
-              <ThemedText style={styles.label}>Reviewed Date:</ThemedText>
-              <ThemedText style={styles.value}>
-                {new Date(application.reviewedAt).toLocaleDateString()}
-              </ThemedText>
-            </View>
-          )}
-          {application.interviewScheduled && application.interviewDate && (
-            <View style={styles.infoRow}>
-              <ThemedText style={styles.label}>Interview Date:</ThemedText>
-              <ThemedText style={styles.value}>
-                {new Date(application.interviewDate).toLocaleString()}
-              </ThemedText>
-            </View>
-          )}
-          {application.interviewLocation && (
-            <View style={styles.infoRow}>
-              <ThemedText style={styles.label}>Interview Location:</ThemedText>
-              <ThemedText style={styles.value}>{application.interviewLocation}</ThemedText>
-            </View>
+            <Text style={styles.cardMuted}>Reviewed: {new Date(application.reviewedAt).toLocaleDateString()}</Text>
           )}
         </View>
-
-        {user?.role === 'EMPLOYER' && application.candidate && (
-          <View style={styles.section}>
-            <ThemedText type="defaultSemiBold" style={styles.sectionTitle}>Candidate Information</ThemedText>
-            <View style={styles.infoRow}>
-              <ThemedText style={styles.label}>Name:</ThemedText>
-              <ThemedText style={styles.value}>
-                {application.candidate.user?.firstName} {application.candidate.user?.lastName}
-              </ThemedText>
-            </View>
-            <View style={styles.infoRow}>
-              <ThemedText style={styles.label}>Email:</ThemedText>
-              <ThemedText style={styles.value}>{application.candidate.user?.email}</ThemedText>
-            </View>
-            {application.candidate.bio && (
-              <View style={styles.bioContainer}>
-                <ThemedText style={styles.label}>Bio:</ThemedText>
-                <ThemedText style={styles.bioText}>{application.candidate.bio}</ThemedText>
-              </View>
-            )}
-            {application.candidate.skills && application.candidate.skills.length > 0 && (
-              <View style={styles.skillsContainer}>
-                <ThemedText style={styles.label}>Skills:</ThemedText>
-                <View style={styles.skillsList}>
-                  {application.candidate.skills.map((skill: string, index: number) => (
-                    <View key={index} style={[styles.skillTag, { backgroundColor: colors.tint }]}>
-                      <ThemedText style={styles.skillText}>{skill}</ThemedText>
-                    </View>
-                  ))}
-                </View>
-              </View>
-            )}
-            {application.candidate.cvUrl && (
-              <TouchableOpacity
-                style={[styles.cvButton, { backgroundColor: colors.tint }]}
-                onPress={handleViewCV}
-              >
-                <IconSymbol name="doc.fill" size={20} color="#fff" />
-                <ThemedText style={styles.cvButtonText}>View CV</ThemedText>
-              </TouchableOpacity>
-            )}
-          </View>
-        )}
-
         {application.coverLetter && (
-          <View style={styles.section}>
-            <ThemedText type="defaultSemiBold" style={styles.sectionTitle}>Cover Letter</ThemedText>
-            <ThemedText style={styles.coverLetterText}>{application.coverLetter}</ThemedText>
-          </View>
+          <>
+            <Text style={styles.sectionTitle}>Cover Letter</Text>
+            <View style={styles.card}>
+              <Text style={styles.cardBody}>{application.coverLetter}</Text>
+            </View>
+          </>
         )}
+      </ScrollView>
+    </>
+  );
 
-        {application.rejectionReason && (
-          <View style={styles.section}>
-            <ThemedText type="defaultSemiBold" style={styles.sectionTitle}>Rejection Reason</ThemedText>
-            <ThemedText style={styles.rejectionText}>{application.rejectionReason}</ThemedText>
-          </View>
-        )}
-
-        {application.interviewNotes && (
-          <View style={styles.section}>
-            <ThemedText type="defaultSemiBold" style={styles.sectionTitle}>Interview Notes</ThemedText>
-            <ThemedText style={styles.notesText}>{application.interviewNotes}</ThemedText>
-          </View>
-        )}
-
-        {user?.role === 'EMPLOYER' && application.status === 'APPLIED' && (
-          <View style={styles.actionButtons}>
-            <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: '#4CAF50' }]}
-              onPress={async () => {
-                try {
-                  const response = await apiClient.updateApplicationStatus(
-                    application.jobId,
-                    application.id,
-                    'APPROVED'
-                  );
-                  if (response.success) {
-                    await loadApplicationDetails();
-                  }
-                } catch (error: any) {
-                  showDialog({ title: 'Error', message: error.message || 'Failed to approve application', primaryButton: { text: 'OK' } });
-                }
-              }}
-            >
-              <ThemedText style={styles.actionButtonText}>Approve</ThemedText>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: '#F44336' }]}
-              onPress={async () => {
-                try {
-                  const response = await apiClient.updateApplicationStatus(
-                    application.jobId,
-                    application.id,
-                    'REJECTED'
-                  );
-                  if (response.success) {
-                    await loadApplicationDetails();
-                  }
-                } catch (error: any) {
-                  showDialog({ title: 'Error', message: error.message || 'Failed to reject application', primaryButton: { text: 'OK' } });
-                }
-              }}
-            >
-              <ThemedText style={styles.actionButtonText}>Reject</ThemedText>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {user?.role === 'EMPLOYER' && application.status === 'APPROVED' && (
-          <View style={[styles.actionButtons, { marginTop: 12 }]}>
-            <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: colors.tint }]}
-              onPress={() => {
-                const jobId = application.jobId || application.job?.id;
-                if (jobId) router.push(`/schedule-interview?jobId=${jobId}&applicationId=${application.id}`);
-              }}
-            >
-              <ThemedText style={styles.actionButtonText}>Schedule interview</ThemedText>
-            </TouchableOpacity>
-          </View>
-        )}
-        {user?.role === 'EMPLOYER' && application.status === 'INTERVIEW_SCHEDULED' && (
-          <View style={[styles.actionButtons, { marginTop: 12 }]}>
-            <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: colors.tint }]}
-              onPress={() => router.push(`/edit-interview/${application.id}?jobId=${application.jobId || application.job?.id}`)}
-            >
-              <ThemedText style={styles.actionButtonText}>Update interview</ThemedText>
-            </TouchableOpacity>
-          </View>
-        )}
-      </ThemedView>
-    </ScrollView>
+  return (
+    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+      {isEmployer && c ? renderEmployerCandidateProfile() : renderCandidateView()}
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  content: {
-    padding: 16,
-  },
-  centerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
+  safe: { flex: 1, backgroundColor: APP_COLORS.white },
+  centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  notFound: { fontSize: 16, color: APP_COLORS.textMuted },
   header: {
     flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+    backgroundColor: APP_COLORS.white,
   },
-  title: {
-    fontSize: 24,
-    flex: 1,
-  },
-  statusBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-    marginLeft: 8,
-  },
-  statusText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  companyName: {
-    fontSize: 18,
-    opacity: 0.7,
-    marginBottom: 24,
-  },
-  section: {
-    marginBottom: 24,
-  },
+  headerBtn: { padding: 4, minWidth: 40 },
+  headerTitle: { fontSize: 18, fontWeight: '700', color: APP_COLORS.textPrimary },
+  scroll: { flex: 1 },
+  scrollContent: { padding: APP_SPACING.screenPadding, paddingTop: 20 },
   sectionTitle: {
-    fontSize: 18,
-    marginBottom: 12,
+    fontSize: SECTION_TITLE_SIZE,
+    fontWeight: '700',
+    color: APP_COLORS.textPrimary,
+    marginBottom: 10,
   },
-  infoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
+  cardFirst: {
+    backgroundColor: CARD_BG,
+    borderRadius: CARD_RADIUS,
+    padding: 18,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#E8EAED',
   },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    opacity: 0.7,
+  cardRest: {
+    backgroundColor: APP_COLORS.white,
+    borderRadius: CARD_RADIUS,
+    padding: 18,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#E8EAED',
   },
-  value: {
-    fontSize: 14,
-    flex: 1,
-    textAlign: 'right',
+  card: {
+    backgroundColor: APP_COLORS.white,
+    borderRadius: CARD_RADIUS,
+    padding: 18,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#E8EAED',
   },
-  bioContainer: {
-    marginTop: 12,
+  cardBlock: { marginTop: 16, paddingTop: 16, borderTopWidth: 1, borderTopColor: '#E8EAED' },
+  cardName: { fontSize: 19, fontWeight: '700', color: APP_COLORS.textPrimary, marginBottom: 8 },
+  cardSubtitle: { fontSize: 15, fontWeight: '700', color: APP_COLORS.textPrimary, marginBottom: 4 },
+  cardMeta: { fontSize: 13, color: APP_COLORS.textMuted, marginBottom: 4 },
+  cardMuted: { fontSize: 14, color: APP_COLORS.textMuted, marginBottom: 6 },
+  cardBody: { fontSize: 14, color: APP_COLORS.textSecondary, lineHeight: 22, marginBottom: 4 },
+  cardBodyMuted: { fontSize: 14, color: APP_COLORS.textMuted, lineHeight: 22, fontStyle: 'italic' },
+  cardBullet: { fontSize: 14, color: APP_COLORS.textSecondary, lineHeight: 22, marginBottom: 4, paddingLeft: 4 },
+  cardList: { marginBottom: 20 },
+  cardItem: {
+    backgroundColor: APP_COLORS.white,
+    borderRadius: CARD_RADIUS,
+    paddingVertical: 14,
+    paddingHorizontal: 18,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#E8EAED',
   },
-  bioText: {
-    fontSize: 14,
-    lineHeight: 20,
-    marginTop: 4,
-    opacity: 0.8,
-  },
-  skillsContainer: {
-    marginTop: 12,
-  },
-  skillsList: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginTop: 8,
-    gap: 8,
-  },
-  skillTag: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
-  },
-  skillText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: '600',
-  },
+  cardItemText: { fontSize: 14, color: APP_COLORS.textPrimary },
+  cardItemTextMuted: { fontSize: 14, color: APP_COLORS.textMuted },
   cvButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 12,
-    borderRadius: 8,
-    marginTop: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    backgroundColor: APP_COLORS.primary,
+    marginBottom: 20,
     gap: 8,
   },
-  cvButtonText: {
-    color: '#fff',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  coverLetterText: {
-    fontSize: 14,
-    lineHeight: 20,
-    opacity: 0.8,
-  },
-  rejectionText: {
-    fontSize: 14,
-    lineHeight: 20,
-    color: '#F44336',
-    opacity: 0.8,
-  },
-  notesText: {
-    fontSize: 14,
-    lineHeight: 20,
-    opacity: 0.8,
-  },
-  actionButtons: {
-    flexDirection: 'row',
-    gap: 12,
-    marginTop: 24,
-  },
-  actionButton: {
+  cvButtonText: { fontSize: 16, fontWeight: '600', color: APP_COLORS.white },
+  actionRow: { flexDirection: 'row', gap: 12, marginTop: 16 },
+  actionReject: {
     flex: 1,
-    padding: 16,
-    borderRadius: 8,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: APP_COLORS.danger,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  actionButtonText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+  actionRejectText: { fontSize: 16, fontWeight: '600', color: APP_COLORS.white },
+  actionApprove: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: '#22C55E',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
+  actionApproveText: { fontSize: 16, fontWeight: '600', color: APP_COLORS.white },
+  actionPrimary: {
+    paddingVertical: 14,
+    borderRadius: 14,
+    backgroundColor: APP_COLORS.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 16,
+  },
+  actionPrimaryText: { fontSize: 16, fontWeight: '600', color: APP_COLORS.white },
 });
-

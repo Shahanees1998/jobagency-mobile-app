@@ -15,6 +15,22 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
+function formatNotificationDate(createdAt: string): string {
+  const d = new Date(createdAt);
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const yesterday = new Date(today);
+  yesterday.setDate(yesterday.getDate() - 1);
+  const dateOnly = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const timeStr = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  if (dateOnly.getTime() === today.getTime()) return `Today, ${timeStr}`;
+  if (dateOnly.getTime() === yesterday.getTime()) return `Yesterday, ${timeStr}`;
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  const yyyy = d.getFullYear();
+  return `${mm}/${dd}/${yyyy}, ${timeStr}`;
+}
+
 function getGroupKey(createdAt: string): 'Today' | 'Yesterday' | string {
   const d = new Date(createdAt);
   const now = new Date();
@@ -24,22 +40,10 @@ function getGroupKey(createdAt: string): 'Today' | 'Yesterday' | string {
   const dateOnly = new Date(d.getFullYear(), d.getMonth(), d.getDate());
   if (dateOnly.getTime() === today.getTime()) return 'Today';
   if (dateOnly.getTime() === yesterday.getTime()) return 'Yesterday';
-  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-}
-
-function getTimeAgo(createdAt: string): string {
-  const d = new Date(createdAt);
-  const now = new Date();
-  const diffMs = now.getTime() - d.getTime();
-  const diffMins = Math.floor(diffMs / 60000);
-  if (diffMins < 1) return 'Just now';
-  if (diffMins < 60) return `${diffMins}m ago`;
-  const diffHours = Math.floor(diffMins / 60);
-  if (diffHours < 24) return `${diffHours}h ago`;
-  const diffDays = Math.floor(diffHours / 24);
-  if (diffDays === 1) return 'Yesterday';
-  if (diffDays < 7) return `${diffDays}d ago`;
-  return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  const yyyy = d.getFullYear();
+  return `${mm}/${dd}/${yyyy}`;
 }
 
 export default function NotificationsScreen() {
@@ -140,10 +144,7 @@ export default function NotificationsScreen() {
             const company = item.company || item.employer?.companyName || item.user?.companyName || 'Company';
             const letter = (company || '?').charAt(0).toUpperCase();
 
-            const d = new Date(item.createdAt || item.created_at);
-            const dateStr = d.toLocaleDateString('en-GB');
-            const timeStr = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            const statusLabel = `${dateStr} • ${timeStr}`;
+            const statusLabel = formatNotificationDate(item.createdAt || item.created_at || '');
 
             return (
               <TouchableOpacity

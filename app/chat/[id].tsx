@@ -16,7 +16,6 @@ import {
 import * as FileSystem from 'expo-file-system/legacy';
 import * as DocumentPicker from 'expo-document-picker';
 import { useLocalSearchParams, router } from 'expo-router';
-import { usePusherChat } from '@/hooks/usePusherChat';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDialog } from '@/contexts/DialogContext';
 import { apiClient } from '@/lib/api';
@@ -64,14 +63,6 @@ export default function ChatDetailScreen() {
   const [messageText, setMessageText] = useState('');
   const flatListRef = useRef<FlatList>(null);
   const insets = useSafeAreaInsets();
-
-  usePusherChat(id, (payload) => {
-    setMessages((prev) => {
-      if (prev.some((m) => m.id === payload.id)) return prev;
-      return [...prev, payload];
-    });
-    setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
-  });
 
   useEffect(() => {
     loadChatAndMessages();

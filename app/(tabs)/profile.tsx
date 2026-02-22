@@ -18,6 +18,11 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const MENU_ICON_COLOR = '#374151';
+const PAGE_BACKGROUND = '#F2F4F7';
+const MENU_ITEM_RADIUS = 10;
+const ICON_CIRCLE_BG = '#325E73';
+const ICON_CIRCLE_SIZE = 38;
+const ICON_SIZE = 20;
 
 function MenuRow({
   icon,
@@ -38,12 +43,9 @@ function MenuRow({
       onPress={onPress}
       activeOpacity={0.7}
     >
-      <Ionicons
-        name={icon}
-        size={22}
-        color={highlighted ? APP_COLORS.primary : MENU_ICON_COLOR}
-        style={styles.menuIcon}
-      />
+      <View style={styles.menuIconCircle}>
+        <Ionicons name={icon} size={ICON_SIZE} color="#FFFFFF" />
+      </View>
       <View style={styles.menuContent}>
         <Text style={styles.menuLabel}>{label}</Text>
         {subtitle ? (
@@ -191,7 +193,7 @@ export default function ProfileScreen() {
                   <Image source={{ uri: user.profileImage }} style={styles.avatar} />
                 ) : (
                   <View style={styles.avatarPlaceholder}>
-                    <Ionicons name="person" size={44} color="#9CA3AF" />
+                    <Ionicons name="person" size={44} color="#FFFFFF" />
                   </View>
                 )}
                 {uploading && (
@@ -222,7 +224,7 @@ export default function ProfileScreen() {
                 icon="create-outline"
                 label="Company details"
                 subtitle={`Updated ${updatedDate}`}
-                onPress={() => router.push('/company-reviews/my?own=1')}
+                onPress={() => router.push('/edit-employer-profile')}
                 highlighted
               />
             ) : (
@@ -242,17 +244,13 @@ export default function ProfileScreen() {
             <MenuRow
               icon="star-outline"
               label="My reviews"
+              subtitle={isEmployer ? 'Reviews your company received' : 'Reviews you wrote'}
               onPress={() => router.push('/my-reviews')}
             />
             <MenuRow
               icon="document-text-outline"
               label="Policies & terms"
               onPress={() => router.push('/policies-terms')}
-            />
-            <MenuRow
-              icon="help-circle-outline"
-              label="Support"
-              onPress={() => router.push('/support')}
             />
             <MenuRow
               icon="trash-outline"
@@ -286,11 +284,11 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: APP_COLORS.background,
+    backgroundColor: PAGE_BACKGROUND,
   },
   container: {
     flex: 1,
-    backgroundColor: APP_COLORS.background,
+    backgroundColor: 'white',
   },
   scrollContent: {
     paddingBottom: 32,
@@ -299,10 +297,10 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: APP_COLORS.background,
+    backgroundColor: PAGE_BACKGROUND,
   },
   header: {
-    backgroundColor: APP_COLORS.background,
+    backgroundColor: PAGE_BACKGROUND,
     alignItems: 'center',
     paddingVertical: 18,
     paddingHorizontal: APP_SPACING.screenPadding,
@@ -317,7 +315,7 @@ const styles = StyleSheet.create({
   avatarPlaceholder: {
     width: '100%',
     height: '100%',
-    backgroundColor: '#5A8FA3',
+    backgroundColor: '#ADD8E6',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -353,7 +351,7 @@ const styles = StyleSheet.create({
     color: APP_COLORS.textPrimary,
     marginTop: 16,
     marginBottom: 8,
-    paddingHorizontal: 4,
+    paddingHorizontal: APP_SPACING.screenPadding,
   },
   menuItem: {
     flexDirection: 'row',
@@ -361,7 +359,7 @@ const styles = StyleSheet.create({
     backgroundColor: APP_COLORS.white,
     paddingVertical: 14,
     paddingHorizontal: APP_SPACING.itemPadding,
-    borderRadius: APP_SPACING.borderRadius,
+    borderRadius: MENU_ITEM_RADIUS,
     marginBottom: 2,
   },
   menuItemDarker: {
@@ -370,7 +368,13 @@ const styles = StyleSheet.create({
   menuItemHighlighted: {
     backgroundColor: '#E8F4FC',
   },
-  menuIcon: {
+  menuIconCircle: {
+    width: ICON_CIRCLE_SIZE,
+    height: ICON_CIRCLE_SIZE,
+    borderRadius: ICON_CIRCLE_SIZE / 2,
+    backgroundColor: ICON_CIRCLE_BG,
+    alignItems: 'center',
+    justifyContent: 'center',
     marginRight: 14,
   },
   menuContent: {

@@ -7,7 +7,9 @@ import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
+  Modal,
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -30,6 +32,8 @@ export default function ScheduleInterviewScreen() {
   const [date, setDate] = useState('');
   const [time, setTime] = useState('');
   const [location, setLocation] = useState('');
+  const [jobPickerOpen, setJobPickerOpen] = useState(false);
+  const [candidatePickerOpen, setCandidatePickerOpen] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -126,6 +130,9 @@ export default function ScheduleInterviewScreen() {
     );
   }
 
+  const selectedJob = jobs.find((j) => j.id === jobId);
+  const selectedApp = applications.find((a) => a.id === applicationId);
+
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <View style={styles.header}>
@@ -135,80 +142,55 @@ export default function ScheduleInterviewScreen() {
         <Text style={styles.headerTitle}>Schedule new interview</Text>
         <View style={styles.headerBtn} />
       </View>
-      <Text style={styles.instruction}>Select job, candidate, date, time and location.</Text>
-      <KeyboardAvoidingView style={styles.safe} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <Text style={styles.instruction}>Choose a candidate and set the interview details to move forward in the hiring process.</Text>
+      <KeyboardAvoidingView style={styles.flex1} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom, 24) + 24 }]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          <View style={styles.field}>
-            <Text style={styles.label}>Select job role</Text>
-            <View style={styles.pickerWrap}>
-              {jobs.map((j) => (
-                <TouchableOpacity
-                  key={j.id}
-                  style={[styles.chip, jobId === j.id && styles.chipActive]}
-                  onPress={() => setJobId(j.id)}
-                >
-                  <Text style={[styles.chipText, jobId === j.id && styles.chipTextActive]} numberOfLines={1}>{j.title}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+          <TouchableOpacity style={styles.selectRow} onPress={() => setJobPickerOpen(true)} activeOpacity={0.85}>
+            <Text style={[styles.selectRowText, !selectedJob && styles.selectRowPlaceholder]} numberOfLines={1}>
+              {selectedJob ? selectedJob.title : 'Select job role'}
+            </Text>
+            <Ionicons name="chevron-down" size={20} color={APP_COLORS.textMuted} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.selectRow} onPress={() => setCandidatePickerOpen(true)} activeOpacity={0.85}>
+            <Text style={[styles.selectRowText, !selectedApp && styles.selectRowPlaceholder]} numberOfLines={1}>
+              {selectedApp ? getCandidateName(selectedApp) : 'Select candidate'}
+            </Text>
+            <Ionicons name="chevron-down" size={20} color={APP_COLORS.textMuted} />
+          </TouchableOpacity>
+          <View style={styles.inputRow}>
+            <TextInput
+              style={styles.input}
+              placeholder="Select interview date"
+              placeholderTextColor={APP_COLORS.textMuted}
+              value={date}
+              onChangeText={setDate}
+            />
+            <Ionicons name="calendar-outline" size={20} color={APP_COLORS.textMuted} />
           </View>
-          <View style={styles.field}>
-            <Text style={styles.label}>Select candidate</Text>
-            <View style={styles.pickerWrap}>
-              {applications.map((app) => (
-                <TouchableOpacity
-                  key={app.id}
-                  style={[styles.chip, applicationId === app.id && styles.chipActive]}
-                  onPress={() => setApplicationId(app.id)}
-                >
-                  <Text style={[styles.chipText, applicationId === app.id && styles.chipTextActive]} numberOfLines={1}>{getCandidateName(app)}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
+          <View style={styles.inputRow}>
+            <TextInput
+              style={styles.input}
+              placeholder="Select interview time"
+              placeholderTextColor={APP_COLORS.textMuted}
+              value={time}
+              onChangeText={setTime}
+            />
+            <Ionicons name="time-outline" size={20} color={APP_COLORS.textMuted} />
           </View>
-          <View style={styles.field}>
-            <Text style={styles.label}>Select interview date</Text>
-            <View style={styles.inputWrap}>
-              <Ionicons name="calendar-outline" size={20} color={APP_COLORS.textMuted} style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="e.g. 15/02/2026"
-                placeholderTextColor={APP_COLORS.textMuted}
-                value={date}
-                onChangeText={setDate}
-              />
-            </View>
-          </View>
-          <View style={styles.field}>
-            <Text style={styles.label}>Select interview time</Text>
-            <View style={styles.inputWrap}>
-              <Ionicons name="time-outline" size={20} color={APP_COLORS.textMuted} style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="e.g. 11:00 AM"
-                placeholderTextColor={APP_COLORS.textMuted}
-                value={time}
-                onChangeText={setTime}
-              />
-            </View>
-          </View>
-          <View style={styles.field}>
-            <Text style={styles.label}>Enter interview location</Text>
-            <View style={styles.inputWrap}>
-              <Ionicons name="location-outline" size={20} color={APP_COLORS.textMuted} style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Office address or video link"
-                placeholderTextColor={APP_COLORS.textMuted}
-                value={location}
-                onChangeText={setLocation}
-              />
-            </View>
+          <View style={[styles.inputRow, styles.inputRowLocation]}>
+            <Ionicons name="location-outline" size={20} color={APP_COLORS.textMuted} style={styles.locationIcon} />
+            <TextInput
+              style={styles.input}
+              placeholder="Enter interview location"
+              placeholderTextColor={APP_COLORS.textMuted}
+              value={location}
+              onChangeText={setLocation}
+            />
           </View>
           <TouchableOpacity
             style={[styles.primaryBtn, submitting && styles.primaryBtnDisabled]}
@@ -216,16 +198,58 @@ export default function ScheduleInterviewScreen() {
             disabled={submitting}
             activeOpacity={0.9}
           >
-            {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryBtnText}>Schedule interview.</Text>}
+            {submitting ? <ActivityIndicator color="#fff" /> : <Text style={styles.primaryBtnText}>Schedule interview</Text>}
           </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <Modal visible={jobPickerOpen} transparent animationType="fade">
+        <Pressable style={styles.modalOverlay} onPress={() => setJobPickerOpen(false)}>
+          <Pressable style={styles.modalContent} onPress={(e) => e.stopPropagation()}>
+            <Text style={styles.modalTitle}>Select job role</Text>
+            <ScrollView style={styles.modalList} keyboardShouldPersistTaps="handled">
+              {jobs.map((j) => (
+                <TouchableOpacity
+                  key={j.id}
+                  style={styles.modalOption}
+                  onPress={() => { setJobId(j.id); setJobPickerOpen(false); }}
+                >
+                  <Text style={styles.modalOptionText} numberOfLines={1}>{j.title}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
+      <Modal visible={candidatePickerOpen} transparent animationType="fade">
+        <Pressable style={styles.modalOverlay} onPress={() => setCandidatePickerOpen(false)}>
+          <Pressable style={styles.modalContent} onPress={(e) => e.stopPropagation()}>
+            <Text style={styles.modalTitle}>Select candidate</Text>
+            <ScrollView style={styles.modalList} keyboardShouldPersistTaps="handled">
+              {applications.map((app) => (
+                <TouchableOpacity
+                  key={app.id}
+                  style={styles.modalOption}
+                  onPress={() => { setApplicationId(app.id); setCandidatePickerOpen(false); }}
+                >
+                  <Text style={styles.modalOptionText} numberOfLines={1}>{getCandidateName(app)}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
 
+const INPUT_BG = '#F3F4F6';
+const INPUT_BORDER = '#E8EAED';
+const PILL_RADIUS = 24;
+
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: APP_COLORS.background },
+  safe: { flex: 1, backgroundColor: APP_COLORS.white },
+  flex1: { flex: 1 },
   centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   header: {
     flexDirection: 'row',
@@ -234,48 +258,63 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: APP_COLORS.border,
-    backgroundColor: APP_COLORS.background,
+    borderBottomColor: '#E5E7EB',
+    backgroundColor: APP_COLORS.white,
   },
   headerBtn: { padding: 4, minWidth: 40 },
   headerTitle: { fontSize: 18, fontWeight: '700', color: APP_COLORS.textPrimary },
-  instruction: { fontSize: 13, color: APP_COLORS.textSecondary, paddingHorizontal: APP_SPACING.screenPadding, paddingTop: 12, marginBottom: 8 },
-  scroll: { flex: 1 },
-  scrollContent: { paddingHorizontal: APP_SPACING.screenPadding, paddingTop: 8 },
-  field: { marginBottom: 16 },
-  label: { fontSize: 13, fontWeight: '600', color: APP_COLORS.textSecondary, marginBottom: 8 },
-  pickerWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: {
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    borderRadius: 999,
-    backgroundColor: APP_COLORS.surfaceGray,
-    borderWidth: 1,
-    borderColor: APP_COLORS.border,
+  instruction: {
+    fontSize: 14,
+    color: APP_COLORS.textSecondary,
+    lineHeight: 20,
+    paddingHorizontal: APP_SPACING.screenPadding,
+    paddingTop: 12,
+    marginBottom: 20,
   },
-  chipActive: { backgroundColor: APP_COLORS.primary, borderColor: APP_COLORS.primary },
-  chipText: { fontSize: 14, color: APP_COLORS.textSecondary },
-  chipTextActive: { color: APP_COLORS.white },
-  inputWrap: {
+  scroll: { flex: 1 },
+  scrollContent: { paddingHorizontal: APP_SPACING.screenPadding, paddingTop: 4 },
+  selectRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    height: 48,
-    backgroundColor: APP_COLORS.surfaceGray,
-    borderRadius: APP_SPACING.borderRadius,
+    justifyContent: 'space-between',
+    height: 52,
+    backgroundColor: INPUT_BG,
+    borderRadius: PILL_RADIUS,
     borderWidth: 1,
-    borderColor: APP_COLORS.border,
-    paddingHorizontal: 14,
+    borderColor: INPUT_BORDER,
+    paddingHorizontal: 18,
+    marginBottom: 14,
   },
-  inputIcon: { marginRight: 10 },
+  selectRowText: { fontSize: 16, color: APP_COLORS.textPrimary, flex: 1 },
+  selectRowPlaceholder: { color: APP_COLORS.textMuted },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 52,
+    backgroundColor: INPUT_BG,
+    borderRadius: PILL_RADIUS,
+    borderWidth: 1,
+    borderColor: INPUT_BORDER,
+    paddingHorizontal: 18,
+    marginBottom: 14,
+  },
+  inputRowLocation: {},
+  locationIcon: { marginRight: 12 },
   input: { flex: 1, fontSize: 16, color: APP_COLORS.textPrimary, paddingVertical: 0 },
   primaryBtn: {
     height: 54,
-    borderRadius: APP_SPACING.borderRadiusLg,
+    borderRadius: 14,
     backgroundColor: APP_COLORS.primary,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 24,
+    marginTop: 28,
   },
   primaryBtnDisabled: { opacity: 0.7 },
-  primaryBtnText: { color: '#fff', fontSize: 16, fontWeight: '600' },
+  primaryBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', padding: 24 },
+  modalContent: { backgroundColor: APP_COLORS.white, borderRadius: 16, padding: 20, maxHeight: '70%' },
+  modalTitle: { fontSize: 18, fontWeight: '700', color: APP_COLORS.textPrimary, marginBottom: 12 },
+  modalList: { maxHeight: 320 },
+  modalOption: { paddingVertical: 14, paddingHorizontal: 4 },
+  modalOptionText: { fontSize: 16, color: APP_COLORS.textPrimary },
 });

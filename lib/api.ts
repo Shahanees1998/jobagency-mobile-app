@@ -162,22 +162,6 @@ class ApiClient {
     });
   }
 
-  /** Register FCM device token for push notifications (same as admin panel). */
-  async registerFcmToken(data: { token: string; platform?: 'ios' | 'android' }): Promise<ApiResponse<{ success: boolean }>> {
-    return this.request('/api/users/fcm-token', {
-      method: 'POST',
-      body: JSON.stringify(data),
-    });
-  }
-
-  /** Unregister FCM token (e.g. on logout). */
-  async unregisterFcmToken(token: string): Promise<ApiResponse<{ success: boolean }>> {
-    return this.request('/api/users/fcm-token', {
-      method: 'DELETE',
-      body: JSON.stringify({ token }),
-    });
-  }
-
   // User APIs
   async getUserProfile(): Promise<ApiResponse<any>> {
     return this.request('/api/auth/me');
@@ -612,6 +596,16 @@ class ApiClient {
   /** GET /api/employers/[id]/reviews - Public reviews for a company */
   async getEmployerReviews(employerId: string): Promise<ApiResponse<{ companyName: string; reviews: any[] }>> {
     return this.request(`/api/employers/${employerId}/reviews`);
+  }
+
+  /** POST /api/employers/[id]/profile-view - Record profile view (employer gets PROFILE_VIEWED notification) */
+  async recordEmployerProfileView(employerId: string): Promise<ApiResponse<{ recorded?: boolean }>> {
+    return this.request(`/api/employers/${employerId}/profile-view`, { method: 'POST' });
+  }
+
+  /** DELETE /api/employers/reviews/[id] - Employer removes a review from their company */
+  async deleteEmployerReview(reviewId: string): Promise<ApiResponse> {
+    return this.request(`/api/employers/reviews/${reviewId}`, { method: 'DELETE' });
   }
 
   /** POST /api/candidates/reviews - Create (e.g. from company page) */

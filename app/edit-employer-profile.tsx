@@ -3,18 +3,27 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useDialog } from '@/contexts/DialogContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { apiClient } from '@/lib/api';
-import { router } from 'expo-router';
-import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Image, Linking, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { router, useFocusEffect } from 'expo-router';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Dimensions, Image, Linking, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { EmployerJobCard } from '@/components/jobs';
 import { APP_COLORS, APP_SPACING } from '@/constants/appTheme';
 
-const REVENUE_OPTIONS = ['Under $1M (USD)', '$1M to $10M (USD)', '$10M to $50M (USD)', '$50M to $100M (USD)', '$100M to $500M (USD)', '$500M to $1B (USD)', '$1B to $5B (USD)', '$5B+ (USD)'];
+const PAGE_BACKGROUND = '#F5F5F5';
+const PROFILE_SECTION_BG = '#F5F5F5';
+const BANNER_PLACEHOLDER_COLOR = '#E0E0E0';
+const ICON_CIRCLE_BG = '#325E73';
+const ICON_CIRCLE_SIZE = 38;
+const BANNER_HEIGHT = 140;
+const CAROUSEL_CARD_WIDTH = 240;
+const CAROUSEL_GAP = 10;
+const CAROUSEL_PAD = 10;
 
 export default function EditEmployerProfileScreen() {
   const insets = useSafeAreaInsets();
-  const { refreshUser } = useAuth();
+  const { user, refreshUser } = useAuth();
   const { showDialog } = useDialog();
   const [formData, setFormData] = useState({
     companyName: '',
@@ -29,18 +38,21 @@ export default function EditEmployerProfileScreen() {
     revenue: '',
     headquarter: '',
   });
-  const [loading, setLoading] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [uploadingBanner, setUploadingBanner] = useState(false);
   const [initialLoading, setInitialLoading] = useState(true);
   const [companyLogo, setCompanyLogo] = useState<string>('');
   const [companyBanner, setCompanyBanner] = useState<string>('');
-  const [overviewModalVisible, setOverviewModalVisible] = useState(false);
-  const [detailsModalVisible, setDetailsModalVisible] = useState(false);
-  const [aboutUsModalVisible, setAboutUsModalVisible] = useState(false);
   const [profilePicModalVisible, setProfilePicModalVisible] = useState(false);
   const [profilePicUri, setProfilePicUri] = useState<string | null>(null);
-  const [revenueDropdownOpen, setRevenueDropdownOpen] = useState(false);
+  const [employerId, setEmployerId] = useState<string>('');
+  const [employerJobs, setEmployerJobs] = useState<any[]>([]);
+  const [employerReviews, setEmployerReviews] = useState<any[]>([]);
+  const jobsScrollRef = useRef<ScrollView>(null);
+  const reviewsScrollRef = useRef<ScrollView>(null);
+  const [jobsScrollIndex, setJobsScrollIndex] = useState(0);
+  const [reviewsScrollIndex, setReviewsScrollIndex] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
   const colorScheme = useColorScheme();
   const colors = Colors[colorScheme ?? 'light'];
 
@@ -48,11 +60,26 @@ export default function EditEmployerProfileScreen() {
     loadProfile();
   }, []);
 
+  useFocusEffect(
+    useCallback(() => {
+      if (!initialLoading) loadProfile();
+    }, [initialLoading])
+  );
+
+  useEffect(() => {
+    setJobsScrollIndex((i) => (employerJobs.length ? Math.min(i, employerJobs.length - 1) : 0));
+  }, [employerJobs.length]);
+  useEffect(() => {
+    setReviewsScrollIndex((i) => (employerReviews.length ? Math.min(i, employerReviews.length - 1) : 0));
+  }, [employerReviews.length]);
+
   const loadProfile = async () => {
     try {
       const response = await apiClient.getEmployerProfile();
       if (response.success && response.data) {
-        const d = response.data;
+        const d = response.data as any;
+        const eid = d.id ?? d.employerId ?? '';
+        if (eid) setEmployerId(eid);
         setCompanyLogo(d.companyLogo || '');
         setCompanyBanner(d.companyBanner || '');
         setFormData({
@@ -75,6 +102,45 @@ export default function EditEmployerProfileScreen() {
       setInitialLoading(false);
     }
   };
+
+  const loadJobsAndReviews = useCallback(async () => {
+    if (!employerId) return;
+    try {
+      if (__DEV__) console.log('[edit-employer-profile] getEmployerReviews employerId:', employerId);
+      const [jobsRes, reviewsRes] = await Promise.all([
+        apiClient.getEmployerJobs({ limit: 20 }),
+        apiClient.getEmployerReviews(employerId),
+      ]);
+      if (__DEV__) console.log('[edit-employer-profile] getEmployerReviews response:', { success: reviewsRes.success, reviewCount: (reviewsRes.data as any)?.reviews?.length ?? 0 });
+      if (jobsRes.success && jobsRes.data) {
+        const list = Array.isArray(jobsRes.data) ? jobsRes.data : (jobsRes.data as any)?.jobs ?? [];
+        setEmployerJobs(list);
+      }
+      if (reviewsRes.success && reviewsRes.data?.reviews) {
+        setEmployerReviews(reviewsRes.data.reviews);
+      }
+    } catch (e) {
+      console.error('Error loading jobs/reviews:', e);
+    }
+  }, [employerId]);
+
+  useEffect(() => {
+    loadJobsAndReviews();
+  }, [loadJobsAndReviews]);
+
+  const handleRefresh = useCallback(async () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    try {
+      await loadProfile();
+      await loadJobsAndReviews();
+    } catch (e) {
+      console.error('Refresh error:', e);
+      showDialog({ title: 'Error', message: 'Failed to refresh. Please try again.', primaryButton: { text: 'OK' } });
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refreshing, loadJobsAndReviews, showDialog]);
 
   const pickImage = async () => {
     try {
@@ -150,92 +216,6 @@ export default function EditEmployerProfileScreen() {
     }
   };
 
-  const handleSave = async () => {
-    if (!formData.companyName.trim()) {
-      showDialog({ title: 'Error', message: 'Company name is required', primaryButton: { text: 'OK' } });
-      return;
-    }
-    setLoading(true);
-    try {
-      const response = await apiClient.updateEmployerProfile({
-        companyName: formData.companyName,
-        companyDescription: formData.companyDescription,
-        companyWebsite: formData.companyWebsite,
-        industry: formData.industry,
-        companySize: formData.companySize,
-        address: formData.address,
-        city: formData.city,
-        country: formData.country,
-      });
-      if (response.success) {
-        await refreshUser();
-        showDialog({
-          title: 'Success',
-          message: 'Profile updated successfully',
-          primaryButton: { text: 'OK', onPress: () => router.back() },
-        });
-      } else {
-        showDialog({ title: 'Error', message: response.error || 'Failed to update profile', primaryButton: { text: 'OK' } });
-      }
-    } catch (error: any) {
-      showDialog({ title: 'Error', message: error.message || 'Failed to update profile', primaryButton: { text: 'OK' } });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const saveOverview = async () => {
-    setLoading(true);
-    try {
-      const res = await apiClient.updateEmployerProfile({ companyDescription: formData.companyDescription });
-      if (res.success) { setOverviewModalVisible(false); await loadProfile(); }
-      else showDialog({ title: 'Error', message: res.error || 'Failed to save', primaryButton: { text: 'OK' } });
-    } catch (e: any) {
-      showDialog({ title: 'Error', message: e.message || 'Failed to save', primaryButton: { text: 'OK' } });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const saveDetails = async () => {
-    if (!formData.companyName.trim()) {
-      showDialog({ title: 'Error', message: 'Company name is required', primaryButton: { text: 'OK' } });
-      return;
-    }
-    setLoading(true);
-    try {
-      const res = await apiClient.updateEmployerProfile({
-        companyName: formData.companyName,
-        companyWebsite: formData.companyWebsite,
-      });
-      if (res.success) { setDetailsModalVisible(false); await loadProfile(); }
-      else showDialog({ title: 'Error', message: res.error || 'Failed to save', primaryButton: { text: 'OK' } });
-    } catch (e: any) {
-      showDialog({ title: 'Error', message: e.message || 'Failed to save', primaryButton: { text: 'OK' } });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const saveAboutUs = async () => {
-    setLoading(true);
-    try {
-      const res = await apiClient.updateEmployerProfile({
-        industry: formData.industry,
-        companySize: formData.companySize,
-        address: formData.address,
-        city: formData.city,
-        country: formData.country,
-      });
-      if (res.success) { setAboutUsModalVisible(false); setRevenueDropdownOpen(false); await loadProfile(); }
-      else showDialog({ title: 'Error', message: res.error || 'Failed to save', primaryButton: { text: 'OK' } });
-    } catch (e: any) {
-      showDialog({ title: 'Error', message: e.message || 'Failed to save', primaryButton: { text: 'OK' } });
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const openProfilePicModal = () => {
     setProfilePicUri(null);
     setProfilePicModalVisible(true);
@@ -286,8 +266,17 @@ export default function EditEmployerProfileScreen() {
           <Ionicons name="arrow-back" size={24} color={APP_COLORS.textPrimary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Company profile</Text>
-        <TouchableOpacity onPress={() => loadProfile()} style={styles.headerBtn} hitSlop={12}>
-          <Ionicons name="refresh" size={22} color={APP_COLORS.textPrimary} />
+        <TouchableOpacity
+          onPress={handleRefresh}
+          style={styles.headerBtn}
+          hitSlop={12}
+          disabled={refreshing}
+        >
+          {refreshing ? (
+            <ActivityIndicator size="small" color={APP_COLORS.textPrimary} />
+          ) : (
+            <Ionicons name="refresh" size={22} color={APP_COLORS.textPrimary} />
+          )}
         </TouchableOpacity>
       </View>
 
@@ -297,242 +286,278 @@ export default function EditEmployerProfileScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* Main profile card */}
-        <View style={styles.mainCard}>
-          <View style={styles.mainCardTop}>
-            <TouchableOpacity onPress={openProfilePicModal} disabled={uploadingLogo} style={styles.mainCardLogoWrap}>
-              {companyLogo ? (
-                <Image source={{ uri: companyLogo }} style={styles.mainCardLogo} />
-              ) : (
-                <View style={styles.mainCardLogoPlaceholder}>
-                  <Ionicons name="person" size={32} color={APP_COLORS.textMuted} />
-                </View>
-              )}
-              {uploadingLogo && (
-                <View style={styles.mainCardLogoOverlay}>
-                  <ActivityIndicator color="#fff" size="small" />
-                </View>
-              )}
+        {/* Banner image area – full width, no radius, edit button top right */}
+        <View style={[styles.bannerWrap, { width: Dimensions.get('window').width}]}>
+          <TouchableOpacity
+            style={styles.bannerTouchable}
+            onPress={handleUploadBanner}
+            disabled={uploadingBanner}
+            activeOpacity={0.9}
+          >
+            {companyBanner ? (
+              <Image source={{ uri: companyBanner }} style={styles.bannerImage} resizeMode="cover" />
+            ) : (
+              <View style={styles.bannerPlaceholder} />
+            )}
+            {uploadingBanner && (
+              <View style={styles.bannerOverlay}>
+                <ActivityIndicator color="#fff" size="small" />
+              </View>
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.bannerEditBtn}
+            onPress={handleUploadBanner}
+            disabled={uploadingBanner}
+          >
+            {uploadingBanner ? (
+              <ActivityIndicator color="#FFFFFF" size="small" />
+            ) : (
+              <Ionicons name="create-outline" size={15} color="#FFFFFF" />
+            )}
+          </TouchableOpacity>
+        </View>
+
+        {/* Profile block – white; profile image on top (half on banner), then company name, then link row */}
+        <View style={styles.profileBlock}>
+          <TouchableOpacity
+            style={styles.profileBlockEditBtn}
+            onPress={() => router.push('/employer-profile-details')}
+          >
+            <Ionicons name="create-outline" size={15} color="#FFFFFF" />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={openProfilePicModal} disabled={uploadingLogo} style={styles.profileImageWrap}>
+            {companyLogo ? (
+              <Image source={{ uri: companyLogo }} style={styles.mainCardLogo} />
+            ) : (
+              <View style={styles.mainCardLogoPlaceholder}>
+                <Ionicons name="person" size={32} color={APP_COLORS.textMuted} />
+              </View>
+            )}
+            {uploadingLogo && (
+              <View style={styles.mainCardLogoOverlay}>
+                <ActivityIndicator color="#fff" size="small" />
+              </View>
+            )}
+          </TouchableOpacity>
+          <Text style={styles.mainCardNameLeft} numberOfLines={1}>{formData.companyName || 'Lorem ipsum'}</Text>
+          <View style={styles.mainCardLinkRowLeft}>
+            <TouchableOpacity onPress={() => formData.companyWebsite && Linking.openURL(formData.companyWebsite)} style={styles.mainCardLinkWrap}>
+              <Text style={styles.mainCardLink} numberOfLines={1}>{formData.companyWebsite || 'Website link'}</Text>
+              <Ionicons name="open-outline" size={14} color="#1e3a5f" style={{ marginLeft: 4 }} />
             </TouchableOpacity>
-            <TouchableOpacity onPress={handleUploadBanner} disabled={uploadingBanner} style={styles.mainCardEditIcon}>
-              {uploadingBanner ? <ActivityIndicator color={APP_COLORS.textPrimary} size="small" /> : <Ionicons name="refresh" size={20} color={APP_COLORS.textPrimary} />}
-            </TouchableOpacity>
-          </View>
-          <View style={styles.mainCardBottom}>
-            <View style={styles.mainCardNameRow}>
-              <Text style={styles.mainCardName}>{formData.companyName || 'Company name'}</Text>
-              <TouchableOpacity style={styles.mainCardEditIcon} onPress={() => setDetailsModalVisible(true)}>
-                <Ionicons name="create-outline" size={20} color={APP_COLORS.textPrimary} />
-              </TouchableOpacity>
-            </View>
-            <View style={styles.mainCardLinkRow}>
-              <TouchableOpacity onPress={() => formData.companyWebsite && Linking.openURL(formData.companyWebsite)} style={styles.mainCardLinkWrap}>
-                <Text style={styles.mainCardLink} numberOfLines={1}>{formData.companyWebsite || 'Website link'}</Text>
-                <Ionicons name="open-outline" size={14} color={APP_COLORS.link} style={{ marginLeft: 4 }} />
-              </TouchableOpacity>
-              <Text style={styles.mainCardDot}>•</Text>
-              <Text style={styles.mainCardRating}>No rating yet</Text>
-            </View>
+            <Text style={styles.mainCardDot}>•</Text>
+            <Text style={styles.mainCardRating}>No rating yet</Text>
           </View>
         </View>
 
-        <View style={styles.inlineFields}>
-          <Text style={styles.label}>Company name *</Text>
-          <TextInput style={[styles.input, { color: colors.text, borderColor: colors.icon }]} value={formData.companyName} onChangeText={(t) => setFormData({ ...formData, companyName: t })} placeholder="Company name" placeholderTextColor={colors.icon} />
-          <Text style={[styles.label, { marginTop: 12 }]}>Website</Text>
-          <TextInput style={[styles.input, { color: colors.text, borderColor: colors.icon }]} value={formData.companyWebsite} onChangeText={(t) => setFormData({ ...formData, companyWebsite: t })} placeholder="Website link" placeholderTextColor={colors.icon} keyboardType="url" autoCapitalize="none" />
-        </View>
-
-        {/* Company overview card */}
+        {/* Company overview card – read-only; edit via + redirect to page */}
         <View style={styles.sectionCard}>
           <View style={styles.sectionCardHeader}>
             <Text style={styles.sectionCardTitle}>Company overview</Text>
-            <TouchableOpacity style={styles.sectionCardPlus} onPress={() => setOverviewModalVisible(true)}>
+            <TouchableOpacity style={styles.sectionCardPlus} onPress={() => router.push('/employer-profile-overview')}>
               <Ionicons name="add" size={22} color={APP_COLORS.textPrimary} />
             </TouchableOpacity>
           </View>
-          <TextInput
-            style={[styles.sectionCardInput, { color: colors.text, borderColor: colors.icon }]}
-            value={formData.companyDescription}
-            onChangeText={(text) => setFormData({ ...formData, companyDescription: text })}
-            placeholder="Your summary will appear here"
-            placeholderTextColor={APP_COLORS.textMuted}
-            multiline
-            numberOfLines={3}
-          />
-        </View>
-
-        {/* About us card */}
-        <View style={styles.sectionCard}>
-          <View style={styles.sectionCardHeader}>
-            <Text style={styles.sectionCardTitle}>About us</Text>
-            <TouchableOpacity style={styles.sectionCardPlus} onPress={() => setAboutUsModalVisible(true)}>
-              <Ionicons name="add" size={22} color={APP_COLORS.textPrimary} />
-            </TouchableOpacity>
-          </View>
-          <View style={styles.aboutUsFields}>
-            <TextInput style={[styles.input, { color: colors.text, borderColor: colors.icon }]} value={formData.industry} onChangeText={(t) => setFormData({ ...formData, industry: t })} placeholder="Industry" placeholderTextColor={colors.icon} />
-            <TextInput style={[styles.input, { color: colors.text, borderColor: colors.icon }]} value={formData.companySize} onChangeText={(t) => setFormData({ ...formData, companySize: t })} placeholder="Company size" placeholderTextColor={colors.icon} />
-            <TextInput style={[styles.input, { color: colors.text, borderColor: colors.icon }]} value={formData.address} onChangeText={(t) => setFormData({ ...formData, address: t })} placeholder="Address" placeholderTextColor={colors.icon} />
-            <View style={styles.row}>
-              <TextInput style={[styles.input, { flex: 1, color: colors.text, borderColor: colors.icon }]} value={formData.city} onChangeText={(t) => setFormData({ ...formData, city: t })} placeholder="City" placeholderTextColor={colors.icon} />
-              <TextInput style={[styles.input, { flex: 1, color: colors.text, borderColor: colors.icon }]} value={formData.country} onChangeText={(t) => setFormData({ ...formData, country: t })} placeholder="Country" placeholderTextColor={colors.icon} />
-            </View>
+          <View style={styles.sectionCardReadOnly}>
+            <Text
+              style={[styles.sectionCardReadOnlyText, !formData.companyDescription?.trim() && styles.sectionCardReadOnlyPlaceholder]}
+              selectable={false}
+            >
+              {formData.companyDescription?.trim() || 'Your summary will appear here'}
+            </Text>
           </View>
         </View>
 
-        {/* Job listing card */}
-        <View style={styles.sectionCard}>
-          <Text style={styles.sectionCardTitle}>Job listing</Text>
-          <View style={styles.sectionCardPlaceholder}>
-            <Text style={styles.sectionCardPlaceholderText}>Your posted jobs will appear here</Text>
-          </View>
-          <TouchableOpacity style={styles.sectionCardLink} onPress={() => router.push('/(tabs)/')}>
-            <Text style={styles.sectionCardLinkText}>View jobs</Text>
-            <Ionicons name="chevron-forward" size={18} color={APP_COLORS.primary} />
-          </TouchableOpacity>
-        </View>
-
-        {/* Company Reviews card */}
-        <View style={styles.sectionCard}>
-          <Text style={styles.sectionCardTitle}>Company Reviews</Text>
-          <View style={styles.sectionCardPlaceholder}>
-            <Text style={styles.sectionCardPlaceholderText}>Reviews received will appear here</Text>
-          </View>
-          <TouchableOpacity style={styles.sectionCardLink} onPress={() => router.push(`/company-reviews/my?own=1`)}>
-            <Text style={styles.sectionCardLinkText}>View profile</Text>
-            <Ionicons name="chevron-forward" size={18} color={APP_COLORS.primary} />
-          </TouchableOpacity>
-        </View>
-
-        <TouchableOpacity style={[styles.saveButton, { backgroundColor: colors.tint }]} onPress={handleSave} disabled={loading}>
-          {loading ? <ActivityIndicator color="#fff" /> : <Text style={styles.saveButtonText}>Save Changes</Text>}
-        </TouchableOpacity>
-      </ScrollView>
-
-      {/* Company overview modal */}
-      <Modal visible={overviewModalVisible} animationType="slide" onRequestClose={() => setOverviewModalVisible(false)}>
-        <SafeAreaView style={styles.modalSafe} edges={['top', 'bottom']}>
-          <View style={styles.modalHeader}>
-            <TouchableOpacity onPress={() => setOverviewModalVisible(false)} style={styles.modalHeaderBtn} hitSlop={12}>
-              <Ionicons name="arrow-back" size={24} color={APP_COLORS.textPrimary} />
-            </TouchableOpacity>
-            <Text style={styles.modalTitle}>Company overview</Text>
-            <View style={styles.modalHeaderBtn} />
-          </View>
-          <Text style={styles.modalInstruction}>
-            Add a company overview, including primary services, industry focus, and key milestones.
-          </Text>
-          <View style={styles.modalBody}>
-            <View style={styles.modalTextAreaWrap}>
-              <Ionicons name="reorder-three" size={22} color={APP_COLORS.textMuted} style={styles.modalTextAreaIcon} />
-              <TextInput
-                style={styles.modalTextArea}
-                value={formData.companyDescription}
-                onChangeText={(t) => setFormData({ ...formData, companyDescription: t })}
-                placeholder="Enter company overview"
-                placeholderTextColor={APP_COLORS.textMuted}
-                multiline
-                numberOfLines={8}
-                textAlignVertical="top"
-              />
-            </View>
-          </View>
-          <View style={[styles.modalFooter, { paddingBottom: insets.bottom + 16 }]}>
-            <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setOverviewModalVisible(false)} activeOpacity={0.85}>
-              <Text style={styles.modalCancelBtnText}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.modalSaveBtn} onPress={saveOverview} disabled={loading} activeOpacity={0.85}>
-              {loading ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.modalSaveBtnText}>Save</Text>}
+        {/* About us – grid of 6 cards; edit via icon */}
+        <View style={styles.aboutUsSection}>
+          <View style={styles.aboutUsHeader}>
+            <Text style={styles.aboutUsTitle}>About us</Text>
+            <TouchableOpacity style={styles.aboutUsEditBtn} onPress={() => router.push('/employer-profile-about')} activeOpacity={0.85}>
+              <Ionicons name="create-outline" size={20} color="#93C5FD" />
             </TouchableOpacity>
           </View>
-        </SafeAreaView>
-      </Modal>
-
-      {/* Company details modal */}
-      <Modal visible={detailsModalVisible} animationType="slide" onRequestClose={() => setDetailsModalVisible(false)}>
-        <SafeAreaView style={styles.modalSafe} edges={['top', 'bottom']}>
-          <View style={styles.modalHeaderCentered}>
-            <Text style={styles.modalTitle}>{(formData.companyName || formData.companyWebsite) ? 'Edit company details' : 'Add company details'}</Text>
-          </View>
-          <ScrollView style={styles.modalScroll} contentContainerStyle={styles.modalScrollContent} keyboardShouldPersistTaps="handled">
-            <Text style={styles.modalLabel}>Company name</Text>
-            <TextInput
-              style={styles.modalInput}
-              value={formData.companyName}
-              onChangeText={(t) => setFormData({ ...formData, companyName: t })}
-              placeholder="Enter company name"
-              placeholderTextColor={APP_COLORS.textMuted}
-            />
-            <Text style={[styles.modalLabel, { marginTop: 16 }]}>Company website</Text>
-            <TextInput
-              style={styles.modalInput}
-              value={formData.companyWebsite}
-              onChangeText={(t) => setFormData({ ...formData, companyWebsite: t })}
-              placeholder="Enter website link"
-              placeholderTextColor={APP_COLORS.textMuted}
-              keyboardType="url"
-              autoCapitalize="none"
-            />
-          </ScrollView>
-          <View style={[styles.modalFooter, { paddingBottom: insets.bottom + 16 }]}>
-            <TouchableOpacity style={styles.modalCancelBtn} onPress={() => setDetailsModalVisible(false)} activeOpacity={0.85}>
-              <Text style={styles.modalCancelBtnText}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.modalSaveBtn} onPress={saveDetails} disabled={loading} activeOpacity={0.85}>
-              {loading ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.modalSaveBtnText}>Save</Text>}
-            </TouchableOpacity>
-          </View>
-        </SafeAreaView>
-      </Modal>
-
-      {/* About us modal */}
-      <Modal visible={aboutUsModalVisible} animationType="slide" onRequestClose={() => { setAboutUsModalVisible(false); setRevenueDropdownOpen(false); }}>
-        <SafeAreaView style={styles.modalSafe} edges={['top', 'bottom']}>
-          <View style={styles.modalHeader}>
-            <TouchableOpacity onPress={() => { setAboutUsModalVisible(false); setRevenueDropdownOpen(false); }} style={styles.modalHeaderBtn} hitSlop={12}>
-              <Ionicons name="arrow-back" size={24} color={APP_COLORS.textPrimary} />
-            </TouchableOpacity>
-            <Text style={styles.modalTitle}>About us</Text>
-            <View style={styles.modalHeaderBtn} />
-          </View>
-          <Text style={styles.modalInstruction}>
-            Share details about the company, highlighting history, revenue, industry, and website.
-          </Text>
-          <ScrollView style={styles.modalScroll} contentContainerStyle={styles.modalScrollContent} keyboardShouldPersistTaps="handled">
-            <Text style={styles.modalLabel}>Company founded</Text>
-            <TextInput style={styles.modalInput} value={formData.founded} onChangeText={(t) => setFormData({ ...formData, founded: t })} placeholder="Enter your company founded" placeholderTextColor={APP_COLORS.textMuted} keyboardType="numeric" />
-            <Text style={[styles.modalLabel, { marginTop: 16 }]}>Company size</Text>
-            <TextInput style={styles.modalInput} value={formData.companySize} onChangeText={(t) => setFormData({ ...formData, companySize: t })} placeholder="Enter company size" placeholderTextColor={APP_COLORS.textMuted} />
-            <Text style={[styles.modalLabel, { marginTop: 16 }]}>Company revenue</Text>
-            <Pressable style={styles.modalInput} onPress={() => setRevenueDropdownOpen(!revenueDropdownOpen)}>
-              <Text style={[styles.modalInputText, !formData.revenue && { color: APP_COLORS.textMuted }]}>{formData.revenue || 'Enter company revenue'}</Text>
-              <Ionicons name="chevron-down" size={20} color={APP_COLORS.textMuted} />
-            </Pressable>
-            {revenueDropdownOpen && (
-              <View style={styles.dropdownList}>
-                {REVENUE_OPTIONS.map((opt) => (
-                  <TouchableOpacity key={opt} style={styles.dropdownItem} onPress={() => { setFormData({ ...formData, revenue: opt }); setRevenueDropdownOpen(false); }}>
-                    <Text style={styles.dropdownItemText}>{opt}</Text>
-                  </TouchableOpacity>
-                ))}
+          <View style={styles.aboutUsGrid}>
+            <View style={styles.aboutUsGridRow}>
+              <View style={styles.aboutUsCard}>
+                <Text style={styles.aboutUsCardLabel}>Founded</Text>
+                <Text style={styles.aboutUsCardValue}>{formData.founded || '—'}</Text>
               </View>
-            )}
-            <Text style={[styles.modalLabel, { marginTop: 16 }]}>Company industry</Text>
-            <TextInput style={styles.modalInput} value={formData.industry} onChangeText={(t) => setFormData({ ...formData, industry: t })} placeholder="Enter company niche" placeholderTextColor={APP_COLORS.textMuted} />
-            <Text style={[styles.modalLabel, { marginTop: 16 }]}>Company headquarter</Text>
-            <TextInput style={styles.modalInput} value={formData.headquarter} onChangeText={(t) => setFormData({ ...formData, headquarter: t })} placeholder="Enter company headquarter" placeholderTextColor={APP_COLORS.textMuted} />
-          </ScrollView>
-          <View style={[styles.modalFooter, { paddingBottom: insets.bottom + 16 }]}>
-            <TouchableOpacity style={styles.modalCancelBtn} onPress={() => { setAboutUsModalVisible(false); setRevenueDropdownOpen(false); }} activeOpacity={0.85}>
-              <Text style={styles.modalCancelBtnText}>Cancel</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.modalSaveBtn} onPress={saveAboutUs} disabled={loading} activeOpacity={0.85}>
-              {loading ? <ActivityIndicator color="#fff" size="small" /> : <Text style={styles.modalSaveBtnText}>Save</Text>}
-            </TouchableOpacity>
+              <View style={styles.aboutUsCard}>
+                <Text style={styles.aboutUsCardLabel}>Company size</Text>
+                <Text style={styles.aboutUsCardValue}>{formData.companySize || '—'}</Text>
+              </View>
+            </View>
+            <View style={styles.aboutUsGridRow}>
+              <View style={styles.aboutUsCard}>
+                <Text style={styles.aboutUsCardLabel}>Revenue</Text>
+                <Text style={styles.aboutUsCardValue} numberOfLines={2}>{formData.revenue || '—'}</Text>
+              </View>
+              <View style={styles.aboutUsCard}>
+                <Text style={styles.aboutUsCardLabel}>Industry</Text>
+                <Text style={styles.aboutUsCardValue} numberOfLines={2}>{formData.industry || '—'}</Text>
+              </View>
+            </View>
+            <View style={styles.aboutUsGridRow}>
+              <View style={styles.aboutUsCard}>
+                <Text style={styles.aboutUsCardLabel}>Headquarters</Text>
+                <Text style={styles.aboutUsCardValue}>{formData.headquarter || [formData.city, formData.country].filter(Boolean).join(', ') || '—'}</Text>
+              </View>
+              <TouchableOpacity
+                style={styles.aboutUsCard}
+                onPress={() => formData.companyWebsite && Linking.openURL(formData.companyWebsite)}
+                disabled={!formData.companyWebsite}
+                activeOpacity={0.85}
+              >
+                <Text style={styles.aboutUsCardLabel}>Link</Text>
+                <View style={styles.aboutUsCardLinkRow}>
+                  <Text style={[styles.aboutUsCardLink, !formData.companyWebsite && styles.aboutUsCardLinkDisabled]} numberOfLines={1}>
+                    {formData.companyWebsite ? 'Visit website' : '—'}
+                  </Text>
+                  {formData.companyWebsite ? <Ionicons name="open-outline" size={18} color={APP_COLORS.primary} style={styles.aboutUsCardLinkIcon} /> : null}
+                </View>
+              </TouchableOpacity>
+            </View>
           </View>
-        </SafeAreaView>
-      </Modal>
+        </View>
+
+        {/* Job listing card – carousel with move left/right buttons */}
+        <View style={styles.sectionCard}>
+          <Text style={[styles.sectionCardTitle, styles.sectionCardTitleWithMargin]}>Job listing</Text>
+          {employerJobs.length > 0 ? (
+            <View style={styles.carouselWrap}>
+              <TouchableOpacity
+                style={[styles.carouselArrowBtn, jobsScrollIndex <= 0 && styles.carouselArrowBtnDisabled]}
+                onPress={() => {
+                  const next = Math.max(0, jobsScrollIndex - 1);
+                  setJobsScrollIndex(next);
+                  jobsScrollRef.current?.scrollTo({ x: next * (CAROUSEL_CARD_WIDTH + CAROUSEL_GAP), animated: true });
+                }}
+                disabled={jobsScrollIndex <= 0}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="chevron-back" size={14} color="#FFFFFF" />
+              </TouchableOpacity>
+              <View style={styles.carouselScrollArea}>
+                <ScrollView
+                  ref={jobsScrollRef}
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={[styles.carouselScrollContent, { paddingRight: APP_SPACING.screenPadding + CAROUSEL_PAD }]}
+                  decelerationRate="fast"
+                  snapToInterval={CAROUSEL_CARD_WIDTH + CAROUSEL_GAP}
+                  snapToAlignment="start"
+                  onMomentumScrollEnd={(e) => {
+                    const x = e.nativeEvent.contentOffset.x;
+                    const index = Math.round(x / (CAROUSEL_CARD_WIDTH + CAROUSEL_GAP));
+                    setJobsScrollIndex(Math.min(employerJobs.length - 1, Math.max(0, index)));
+                  }}
+                >
+                  {employerJobs.map((job) => {
+                    const jobId = job.id ?? job._id;
+                    return (
+                      <View key={jobId || job.title} style={[styles.carouselCardWrap, { width: CAROUSEL_CARD_WIDTH, marginRight: CAROUSEL_GAP }]}>
+                        <EmployerJobCard
+                          title={job.title || 'Job'}
+                          companyName={formData.companyName || 'Company'}
+                          location={job.location || job.city || '—'}
+                          benefits={job.benefits || []}
+                          companyLogoLetter={formData.companyName?.charAt(0)}
+                          onPress={jobId ? () => router.push(`/job-details/${jobId}`) : undefined}
+                          onEdit={jobId ? () => router.push(`/post-job?id=${jobId}`) : undefined}
+                          style={styles.jobCardItem}
+                        />
+                      </View>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+              <TouchableOpacity
+                style={[styles.carouselArrowBtn, jobsScrollIndex >= employerJobs.length - 1 && styles.carouselArrowBtnDisabled]}
+                onPress={() => {
+                  const next = Math.min(employerJobs.length - 1, jobsScrollIndex + 1);
+                  setJobsScrollIndex(next);
+                  jobsScrollRef.current?.scrollTo({ x: next * (CAROUSEL_CARD_WIDTH + CAROUSEL_GAP), animated: true });
+                }}
+                disabled={jobsScrollIndex >= employerJobs.length - 1}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="chevron-forward" size={14} color="#FFFFFF" />
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={styles.sectionCardPlaceholder}>
+              <Text style={styles.sectionCardPlaceholderText}>Your posted jobs will appear here</Text>
+            </View>
+          )}
+        </View>
+
+        {/* Company Reviews card – carousel with move left/right buttons */}
+        <View style={styles.sectionCard}>
+          <Text style={[styles.sectionCardTitle, styles.sectionCardTitleWithMargin]}>Company Reviews</Text>
+          {employerReviews.length > 0 ? (
+            <View style={styles.carouselWrap}>
+              <TouchableOpacity
+                style={[styles.carouselArrowBtn, reviewsScrollIndex <= 0 && styles.carouselArrowBtnDisabled]}
+                onPress={() => {
+                  const next = Math.max(0, reviewsScrollIndex - 1);
+                  setReviewsScrollIndex(next);
+                  reviewsScrollRef.current?.scrollTo({ x: next * (CAROUSEL_CARD_WIDTH + CAROUSEL_GAP), animated: true });
+                }}
+                disabled={reviewsScrollIndex <= 0}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="chevron-back" size={14} color="#FFFFFF" />
+              </TouchableOpacity>
+              <View style={styles.carouselScrollArea}>
+                <ScrollView
+                  ref={reviewsScrollRef}
+                  horizontal
+                  showsHorizontalScrollIndicator={false}
+                  contentContainerStyle={[styles.carouselScrollContent, { paddingHorizontal: CAROUSEL_PAD, paddingRight: APP_SPACING.screenPadding + CAROUSEL_PAD }]}
+                  decelerationRate="fast"
+                  snapToInterval={CAROUSEL_CARD_WIDTH + CAROUSEL_GAP}
+                  snapToAlignment="start"
+                  onMomentumScrollEnd={(e) => {
+                    const x = e.nativeEvent.contentOffset.x;
+                    const index = Math.round(x / (CAROUSEL_CARD_WIDTH + CAROUSEL_GAP));
+                    setReviewsScrollIndex(Math.min(employerReviews.length - 1, Math.max(0, index)));
+                  }}
+                >
+                  {employerReviews.map((review) => (
+                    <View key={review.id} style={[styles.carouselCardWrap, { width: CAROUSEL_CARD_WIDTH, marginRight: CAROUSEL_GAP }]}>
+                      <View style={styles.reviewCard}>
+                        <View style={styles.reviewCardHeader}>
+                          <Text style={styles.reviewCardMeta}>Reviewer • {review.rating ?? '—'}</Text>
+                          <Text style={styles.reviewCardDate}>{review.date ? `On ${review.date}` : ''}</Text>
+                        </View>
+                        <Text style={styles.reviewCardTitle} numberOfLines={1}>{review.title || 'Review'}</Text>
+                        <Text style={styles.reviewCardBody} numberOfLines={3}>{review.description || ''}</Text>
+                      </View>
+                    </View>
+                  ))}
+                </ScrollView>
+              </View>
+              <TouchableOpacity
+                style={[styles.carouselArrowBtn, reviewsScrollIndex >= employerReviews.length - 1 && styles.carouselArrowBtnDisabled]}
+                onPress={() => {
+                  const next = Math.min(employerReviews.length - 1, reviewsScrollIndex + 1);
+                  setReviewsScrollIndex(next);
+                  reviewsScrollRef.current?.scrollTo({ x: next * (CAROUSEL_CARD_WIDTH + CAROUSEL_GAP), animated: true });
+                }}
+                disabled={reviewsScrollIndex >= employerReviews.length - 1}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="chevron-forward" size={14} color="#FFFFFF" />
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={styles.sectionCardPlaceholder}>
+              <Text style={styles.sectionCardPlaceholderText}>Reviews received will appear here</Text>
+            </View>
+          )}
+        </View>
+      </ScrollView>
 
       {/* Profile pic modal */}
       <Modal visible={profilePicModalVisible} animationType="slide" onRequestClose={() => setProfilePicModalVisible(false)}>
@@ -569,7 +594,7 @@ export default function EditEmployerProfileScreen() {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: APP_COLORS.background,
+    backgroundColor: APP_COLORS.white,
   },
   header: {
     flexDirection: 'row',
@@ -577,14 +602,18 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: APP_COLORS.border,
-    backgroundColor: APP_COLORS.background,
+    backgroundColor: APP_COLORS.white,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 2,
+    elevation: 2,
   },
   headerBtn: { padding: 4, minWidth: 40 },
   headerTitle: { fontSize: 18, fontWeight: '700', color: APP_COLORS.textPrimary },
   container: {
     flex: 1,
+    backgroundColor: PAGE_BACKGROUND,
   },
   content: {
     padding: 16,
@@ -596,67 +625,165 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   scrollContent: {
-    paddingHorizontal: APP_SPACING.screenPadding,
+    paddingHorizontal: 0,
     paddingBottom: 24,
   },
-  mainCard: {
-    backgroundColor: APP_COLORS.white,
-    borderRadius: 16,
-    marginBottom: 16,
+  bannerWrap: {
+    height: BANNER_HEIGHT,
+    backgroundColor: BANNER_PLACEHOLDER_COLOR,
     overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderRadius: 0,
+    position: 'relative',
   },
-  mainCardTop: {
-    backgroundColor: APP_COLORS.surfaceGray,
-    paddingVertical: 20,
-    paddingHorizontal: 16,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    justifyContent: 'space-between',
+  bannerTouchable: {
+    flex: 1,
+    width: '100%',
+    alignSelf: 'stretch',
+  },
+  bannerEditBtn: {
+    position: 'absolute',
+    top: 12,
+    right: APP_SPACING.screenPadding,
+    width: ICON_CIRCLE_SIZE-5,
+    height: ICON_CIRCLE_SIZE-5,
+    borderRadius: ICON_CIRCLE_SIZE / 2,
+    backgroundColor: ICON_CIRCLE_BG,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  bannerPlaceholder: {
+    flex: 1,
+    backgroundColor: BANNER_PLACEHOLDER_COLOR,
+  },
+  bannerImage: {
+    width: '100%',
+    height: '100%',
+  },
+  bannerOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  profileBlock: {
+    backgroundColor: APP_COLORS.white,
+    marginTop: -36,
+    marginBottom: 20,
+  paddingHorizontal: APP_SPACING.screenPadding,
+    paddingTop: 36,
+    paddingBottom: 20,
+    position: 'relative',
+  },
+  profileBlockEditBtn: {
+    position: 'absolute',
+    top: 12,
+    right: APP_SPACING.screenPadding,
+    width: ICON_CIRCLE_SIZE-5,
+    height: ICON_CIRCLE_SIZE-5,
+    borderRadius: ICON_CIRCLE_SIZE / 2,
+    backgroundColor: ICON_CIRCLE_BG,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  profileImageWrap: {
+    marginTop: -76,
+    width: 72,
+    height: 72,
+    borderRadius: 0,
+    overflow: 'hidden',
+    backgroundColor: '#D3D3D3',
+    marginBottom: 12,
+    alignSelf: 'flex-start',
   },
   mainCardLogoWrap: {
     width: 72,
     height: 72,
-    borderRadius: 12,
+    borderRadius: 10,
     overflow: 'hidden',
-    backgroundColor: '#E5E7EB',
+    backgroundColor: '#D3D3D3',
   },
   mainCardLogo: { width: '100%', height: '100%' },
   mainCardLogoPlaceholder: { width: '100%', height: '100%', alignItems: 'center', justifyContent: 'center' },
   mainCardLogoOverlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.4)', alignItems: 'center', justifyContent: 'center' },
-  mainCardEditIcon: { padding: 4 },
-  mainCardBottom: { padding: 16 },
-  mainCardNameRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
-  mainCardName: { fontSize: 18, fontWeight: '700', color: APP_COLORS.textPrimary, flex: 1 },
-  mainCardLinkRow: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 },
+  mainCardEditIcon: {
+    width: ICON_CIRCLE_SIZE,
+    height: ICON_CIRCLE_SIZE,
+    borderRadius: ICON_CIRCLE_SIZE / 2,
+    backgroundColor: ICON_CIRCLE_BG,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  mainCardNameLeft: { fontSize: 16, fontWeight: '700', color: '#111827', marginBottom: 6, textAlign: 'left' },
+  mainCardLinkRowLeft: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 },
   mainCardLinkWrap: { flexDirection: 'row', alignItems: 'center' },
-  mainCardLink: { fontSize: 14, color: APP_COLORS.link, textDecorationLine: 'underline', fontWeight: '600' },
-  mainCardDot: { fontSize: 14, color: APP_COLORS.textMuted },
-  mainCardRating: { fontSize: 14, color: APP_COLORS.textMuted, fontWeight: '600' },
+  mainCardLink: { fontSize: 13, color: APP_COLORS.primary, textDecorationLine: 'underline', fontWeight: '600' },
+  mainCardDot: { fontSize: 13, color: '#6B7280' },
+  mainCardRating: { fontSize: 13, color: '#6B7280' },
   inlineFields: { marginBottom: 16 },
   sectionCard: {
     backgroundColor: APP_COLORS.white,
-    borderRadius: 16,
+    paddingHorizontal: APP_SPACING.screenPadding,
     padding: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
+    marginBottom: 20,
   },
   sectionCardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 },
-  sectionCardTitle: { fontSize: 18, fontWeight: '800', color: APP_COLORS.textPrimary },
+  sectionCardTitle: { fontSize: 15, fontWeight: '600', color: APP_COLORS.textPrimary },
+  sectionCardTitleWithMargin: { marginBottom: 12 },
   sectionCardPlus: { padding: 4 },
-  sectionCardInput: {
+  sectionCardReadOnly: {
+    backgroundColor: PROFILE_SECTION_BG,
     borderWidth: 1,
+    borderColor: '#E5E7EB',
     borderRadius: 10,
+    padding: 14,
+    minHeight: 80,
+  },
+  sectionCardReadOnlyText: {
+    fontSize: 15,
+    color: APP_COLORS.textPrimary,
+    lineHeight: 22,
+  },
+  sectionCardReadOnlyPlaceholder: { color: APP_COLORS.textMuted },
+  readOnlyLabel: { fontSize: 12, fontWeight: '600', color: APP_COLORS.textMuted, marginBottom: 4 },
+  readOnlyValue: { fontSize: 15, color: APP_COLORS.textPrimary },
+  readOnlyField: { flex: 1 },
+  aboutUsSection: { marginBottom: 24 , backgroundColor:'white', paddingHorizontal: APP_SPACING.screenPadding, paddingVertical:15},
+  aboutUsHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 },
+  aboutUsTitle: { fontSize: 15, fontWeight: '600', color: APP_COLORS.textPrimary },
+  aboutUsEditBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: APP_COLORS.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  aboutUsGrid: { gap: 12 },
+  aboutUsGridRow: { flexDirection: 'row', gap: 12 },
+  aboutUsCard: {
+    flex: 1,
+    backgroundColor: '#F5F5F5',
+    borderRadius: 5,
+    padding: 16,
+  },
+  aboutUsCardLabel: { fontSize: 11, fontWeight: '700', color: APP_COLORS.textPrimary, marginBottom: 6 },
+  aboutUsCardValue: { fontSize: 12, color: APP_COLORS.textPrimary, lineHeight: 20 },
+  aboutUsCardLinkRow: { flexDirection: 'row', alignItems: 'center' },
+  aboutUsCardLink: { fontSize: 12, color: APP_COLORS.primary, textDecorationLine: 'underline', flex: 1 },
+  aboutUsCardLinkDisabled: { color: APP_COLORS.textMuted, textDecorationLine: 'none' },
+  aboutUsCardLinkIcon: { marginLeft: 4 },
+  sectionCardInput: {
+    borderColor: '#E6E6E6',
+    borderRadius: 5,
     padding: 14,
     fontSize: 15,
     minHeight: 80,
     textAlignVertical: 'top',
-    backgroundColor: APP_COLORS.surfaceGray,
+    backgroundColor: PROFILE_SECTION_BG,
   },
   sectionCardPlaceholder: {
-    backgroundColor: APP_COLORS.surfaceGray,
+    backgroundColor: PROFILE_SECTION_BG,
+    borderColor: '#E5E7EB',
     borderRadius: 10,
     padding: 16,
     minHeight: 72,
@@ -665,6 +792,44 @@ const styles = StyleSheet.create({
   sectionCardPlaceholderText: { fontSize: 14, color: APP_COLORS.textMuted },
   sectionCardLink: { flexDirection: 'row', alignItems: 'center', marginTop: 10 },
   sectionCardLinkText: { fontSize: 14, fontWeight: '600', color: APP_COLORS.primary, marginRight: 4 },
+  jobCardsList: { gap: 12 },
+  jobCardItem: { marginBottom: 0 },
+  carouselWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    width: '100%',
+  },
+  carouselScrollArea: {
+    flex: 1,
+    minWidth: 0,
+    overflow: 'hidden',
+  },
+  carouselScrollContent: {},
+  carouselCardWrap: {},
+  carouselArrowBtn: {
+    height: 20,
+    width:20,
+    borderRadius: 14,
+    backgroundColor: '#374151',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  carouselArrowBtnDisabled: {
+    opacity: 0.4,
+  },
+  reviewCard: {
+    backgroundColor: PROFILE_SECTION_BG,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 10,
+    padding: 14,
+  },
+  reviewCardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  reviewCardMeta: { fontSize: 13, color: APP_COLORS.textMuted, fontWeight: '600' },
+  reviewCardDate: { fontSize: 12, color: APP_COLORS.textMuted },
+  reviewCardTitle: { fontSize: 15, fontWeight: '600', color: APP_COLORS.textPrimary, marginBottom: 4 },
+  reviewCardBody: { fontSize: 14, color: APP_COLORS.textSecondary, lineHeight: 20 },
   aboutUsFields: { gap: 12, marginTop: 8 },
   row: {
     flexDirection: 'row',
@@ -686,10 +851,11 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   input: {
-    borderWidth: 1,
-    borderRadius: 8,
+    borderColor: '#E5E7EB',
+    borderRadius: 10,
     padding: 12,
     fontSize: 16,
+    backgroundColor: PROFILE_SECTION_BG,
   },
   textArea: {
     borderWidth: 1,
@@ -719,16 +885,6 @@ const styles = StyleSheet.create({
     color: APP_COLORS.textPrimary,
     marginBottom: 10,
   },
-  bannerWrap: {
-    width: '100%',
-    height: 140,
-    borderRadius: 12,
-    overflow: 'hidden',
-    backgroundColor: APP_COLORS.surfaceGray,
-    position: 'relative',
-  },
-  bannerImage: { width: '100%', height: '100%' },
-  bannerPlaceholder: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   bannerPlaceholderText: { marginTop: 6, color: APP_COLORS.textMuted, fontSize: 13, fontWeight: '600' },
   bannerBtn: {
     position: 'absolute',

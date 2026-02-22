@@ -1,5 +1,6 @@
 import { PrimaryButton } from '@/components/auth';
 import { APP_COLORS, APP_SPACING } from '@/constants/appTheme';
+import { useAuth } from '@/contexts/AuthContext';
 import { useDialog } from '@/contexts/DialogContext';
 import { apiClient } from '@/lib/api';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -25,6 +26,7 @@ interface ReviewItem {
   rating: number;
   title: string;
   description: string;
+  reviewerName?: string;
 }
 
 function formatReviewDate(isoDate: string): string {
@@ -52,11 +54,13 @@ function DeleteReviewModal({
   onClose,
   onConfirm,
   loading,
+  isEmployer,
 }: {
   visible: boolean;
   onClose: () => void;
   onConfirm: () => void;
   loading?: boolean;
+  isEmployer?: boolean;
 }) {
   const insets = useSafeAreaInsets();
 
@@ -69,7 +73,11 @@ function DeleteReviewModal({
         >
           <View style={styles.handle} />
           <Text style={styles.sheetTitle}>Delete review</Text>
-          <Text style={styles.sheetMessage}>Sure you want to delete your review?</Text>
+          <Text style={styles.sheetMessage}>
+            {isEmployer
+              ? 'Remove this review from your company page?'
+              : 'Sure you want to delete your review?'}
+          </Text>
           <View style={styles.modalActions}>
             <TouchableOpacity style={styles.cancelButton} onPress={onClose} disabled={loading} activeOpacity={0.85}>
               <Text style={styles.cancelText}>Cancel</Text>
@@ -83,6 +91,54 @@ function DeleteReviewModal({
               <Text style={styles.confirmText}>{loading ? 'Deleting...' : 'Yes, Delete'}</Text>
             </TouchableOpacity>
           </View>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
+function ViewReviewModal({
+  visible,
+  onClose,
+  review,
+}: {
+  visible: boolean;
+  onClose: () => void;
+  review: ReviewItem | null;
+}) {
+  const insets = useSafeAreaInsets();
+  if (!review) return null;
+
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose} statusBarTranslucent>
+      <Pressable style={styles.bottomOverlay} onPress={onClose}>
+        <Pressable
+          style={[styles.sheet, styles.viewSheet, { paddingBottom: Math.max(insets.bottom, 24) + 16 }]}
+          onPress={(e) => e.stopPropagation()}
+        >
+          <View style={styles.handle} />
+          <Text style={styles.sheetTitle}>Review</Text>
+          <View style={styles.viewReviewMeta}>
+            <Text style={styles.viewReviewName}>{review.reviewerName || 'Reviewer'}</Text>
+            <Text style={styles.viewReviewDate}>On {review.date}</Text>
+            <View style={styles.viewReviewStars}>
+              {[1, 2, 3, 4, 5].map((i) => (
+                <Ionicons
+                  key={i}
+                  name={i <= review.rating ? 'star' : 'star-outline'}
+                  size={20}
+                  color={i <= review.rating ? '#FBBF24' : '#D1D5DB'}
+                />
+              ))}
+            </View>
+          </View>
+          <Text style={styles.viewReviewTitle}>{review.title}</Text>
+          <ScrollView style={styles.viewReviewScroll} showsVerticalScrollIndicator={false}>
+            <Text style={styles.viewReviewBody}>{review.description}</Text>
+          </ScrollView>
+          <TouchableOpacity style={styles.viewReviewCloseBtn} onPress={onClose} activeOpacity={0.85}>
+            <Text style={styles.viewReviewCloseText}>Close</Text>
+          </TouchableOpacity>
         </Pressable>
       </Pressable>
     </Modal>
@@ -195,11 +251,14 @@ function EditReviewModal({
 }
 
 export default function MyReviewsScreen() {
+  const { user } = useAuth();
   const { showDialog } = useDialog();
+  const isEmployer = user?.role === 'EMPLOYER';
   const [reviews, setReviews] = useState<ReviewItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [viewModalVisible, setViewModalVisible] = useState(false);
   const [selectedReview, setSelectedReview] = useState<ReviewItem | null>(null);
   const [updating, setUpdating] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -207,17 +266,45 @@ export default function MyReviewsScreen() {
   const loadReviews = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await apiClient.getMyReviews();
-      if (res.success && res.data?.reviews) {
-        const list = res.data.reviews.map((r: any) => ({
-          id: r.id,
-          companyName: r.companyName || 'Company',
-          date: r.date ? formatReviewDate(r.date) : (r.createdAt ? formatReviewDate(r.createdAt) : ''),
-          rating: r.rating ?? 0,
-          title: r.title ?? '',
-          description: r.description ?? '',
-        }));
-        setReviews(list);
+      if (isEmployer) {
+        const profileRes = await apiClient.getEmployerProfile();
+        const employerId = (profileRes.success && profileRes.data) ? ((profileRes.data as any).id ?? (profileRes.data as any).employerId) : '';
+        if (!employerId) {
+          setReviews([]);
+          return;
+        }
+        if (__DEV__) console.log('[my-reviews] employer getEmployerReviews employerId:', employerId);
+        const res = await apiClient.getEmployerReviews(employerId);
+        if (__DEV__) console.log('[my-reviews] getEmployerReviews response:', { success: res.success, reviewCount: res.data?.reviews?.length ?? 0 });
+        if (res.success && res.data?.reviews) {
+          const list = (res.data.reviews as any[]).map((r: any) => ({
+            id: r.id,
+            companyName: res.data?.companyName || 'Company',
+            date: r.date ? formatReviewDate(r.date) : (r.createdAt ? formatReviewDate(r.createdAt) : ''),
+            rating: r.rating ?? 0,
+            title: r.title ?? '',
+            description: r.description ?? '',
+            reviewerName: r.reviewerName ?? r.candidateName ?? r.authorName ?? undefined,
+          }));
+          setReviews(list);
+        } else {
+          setReviews([]);
+        }
+      } else if (!isEmployer) {
+        const res = await apiClient.getMyReviews();
+        if (res.success && res.data?.reviews) {
+          const list = res.data.reviews.map((r: any) => ({
+            id: r.id,
+            companyName: r.companyName || 'Company',
+            date: r.date ? formatReviewDate(r.date) : (r.createdAt ? formatReviewDate(r.createdAt) : ''),
+            rating: r.rating ?? 0,
+            title: r.title ?? '',
+            description: r.description ?? '',
+          }));
+          setReviews(list);
+        } else {
+          setReviews([]);
+        }
       } else {
         setReviews([]);
       }
@@ -226,7 +313,7 @@ export default function MyReviewsScreen() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isEmployer]);
 
   useEffect(() => {
     loadReviews();
@@ -266,12 +353,14 @@ export default function MyReviewsScreen() {
     if (!selectedReview) return;
     setDeleting(true);
     try {
-      const res = await apiClient.deleteReview(selectedReview.id);
+      const res = isEmployer
+        ? await apiClient.deleteEmployerReview(selectedReview.id)
+        : await apiClient.deleteReview(selectedReview.id);
       if (res.success) {
         await loadReviews();
         setDeleteModalVisible(false);
         setSelectedReview(null);
-        showDialog({ title: 'Success', message: 'Review deleted.', primaryButton: { text: 'OK' } });
+        showDialog({ title: 'Success', message: isEmployer ? 'Review removed.' : 'Review deleted.', primaryButton: { text: 'OK' } });
       } else {
         showDialog({ title: 'Error', message: res.error ?? 'Failed to delete review', primaryButton: { text: 'OK' } });
       }
@@ -280,6 +369,11 @@ export default function MyReviewsScreen() {
     } finally {
       setDeleting(false);
     }
+  };
+
+  const openView = (review: ReviewItem) => {
+    setSelectedReview(review);
+    setViewModalVisible(true);
   };
 
   if (loading) {
@@ -307,7 +401,11 @@ export default function MyReviewsScreen() {
           <View style={styles.emptyState}>
             <Ionicons name="star-outline" size={48} color={APP_COLORS.textMuted} />
             <Text style={styles.emptyTitle}>No reviews yet</Text>
-            <Text style={styles.emptyText}>Reviews you write for companies will appear here.</Text>
+            <Text style={styles.emptyText}>
+              {isEmployer
+                ? 'Reviews from candidates about your company will appear here.'
+                : 'Reviews you write for companies will appear here.'}
+            </Text>
           </View>
         ) : (
           <>
@@ -316,11 +414,13 @@ export default function MyReviewsScreen() {
                 <View style={styles.cardLeft}>
                   <View style={styles.avatar}>
                     <Text style={styles.avatarLetter}>
-                      {review.companyName.charAt(0).toUpperCase()}
+                      {(review.reviewerName || review.companyName).charAt(0).toUpperCase()}
                     </Text>
                   </View>
                   <View style={styles.cardBody}>
-                    <Text style={styles.companyName}>{review.companyName}</Text>
+                    <Text style={styles.companyName}>
+                      {isEmployer ? (review.reviewerName || 'Reviewer') : review.companyName}
+                    </Text>
                     <Text style={styles.dateRating}>
                       On {review.date} • {review.rating}{' '}
                       <Ionicons name="star" size={14} color={APP_COLORS.textPrimary} />
@@ -328,19 +428,29 @@ export default function MyReviewsScreen() {
                   </View>
                 </View>
                 <View style={styles.actions}>
-                  <TouchableOpacity
-                    style={styles.editBtn}
-                    onPress={() => openEdit(review)}
-                    activeOpacity={0.8}
-                  >
-                    <Ionicons name="pencil" size={18} color={APP_COLORS.white} />
-                  </TouchableOpacity>
+                  {isEmployer ? (
+                    <TouchableOpacity
+                      style={styles.editBtn}
+                      onPress={() => openView(review)}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons name="eye-outline" size={18} color={APP_COLORS.white} />
+                    </TouchableOpacity>
+                  ) : (
+                    <TouchableOpacity
+                      style={styles.editBtn}
+                      onPress={() => openEdit(review)}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons name="pencil" size={15} color={APP_COLORS.white} />
+                    </TouchableOpacity>
+                  )}
                   <TouchableOpacity
                     style={styles.deleteBtn}
                     onPress={() => openDelete(review)}
                     activeOpacity={0.8}
                   >
-                    <Ionicons name="trash-outline" size={18} color={APP_COLORS.white} />
+                    <Ionicons name="trash-outline" size={15} color={APP_COLORS.white} />
                   </TouchableOpacity>
                 </View>
               </View>
@@ -368,6 +478,16 @@ export default function MyReviewsScreen() {
         }}
         onConfirm={handleDelete}
         loading={deleting}
+        isEmployer={isEmployer}
+      />
+
+      <ViewReviewModal
+        visible={viewModalVisible}
+        onClose={() => {
+          setViewModalVisible(false);
+          setSelectedReview(null);
+        }}
+        review={selectedReview}
       />
     </View>
   );
@@ -377,7 +497,7 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: APP_COLORS.background },
   centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   scroll: { flex: 1 },
-  scrollContent: { padding: APP_SPACING.screenPadding, paddingBottom: 32 },
+  scrollContent: { paddingHorizontal: 0, paddingTop: 16, paddingBottom: 32 },
   emptyState: {
     alignItems: 'center',
     paddingVertical: 48,
@@ -417,27 +537,27 @@ const styles = StyleSheet.create({
   avatarLetter: { fontSize: 20, fontWeight: '700', color: APP_COLORS.white },
   cardBody: { flex: 1 },
   companyName: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
     color: APP_COLORS.textPrimary,
     marginBottom: 4,
   },
   dateRating: {
-    fontSize: 13,
+    fontSize: 11,
     color: APP_COLORS.textMuted,
   },
   actions: { flexDirection: 'row', gap: 10 },
   editBtn: {
-    width: 40,
-    height: 40,
+    width: 35,
+    height: 35,
     borderRadius: 20,
     backgroundColor: APP_COLORS.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },
   deleteBtn: {
-    width: 40,
-    height: 40,
+    width: 35,
+    height: 35,
     borderRadius: 20,
     backgroundColor: APP_COLORS.danger,
     alignItems: 'center',
@@ -535,6 +655,22 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   confirmText: { fontSize: 16, fontWeight: '600', color: APP_COLORS.white },
+  viewSheet: { maxHeight: '85%' },
+  viewReviewMeta: { marginBottom: 12 },
+  viewReviewName: { fontSize: 16, fontWeight: '600', color: APP_COLORS.textPrimary, marginBottom: 4 },
+  viewReviewDate: { fontSize: 14, color: APP_COLORS.textMuted, marginBottom: 8 },
+  viewReviewStars: { flexDirection: 'row', gap: 4 },
+  viewReviewTitle: { fontSize: 16, fontWeight: '600', color: APP_COLORS.textPrimary, marginBottom: 8 },
+  viewReviewScroll: { maxHeight: 200, marginBottom: 16 },
+  viewReviewBody: { fontSize: 15, color: APP_COLORS.textSecondary, lineHeight: 22 },
+  viewReviewCloseBtn: {
+    backgroundColor: APP_COLORS.primary,
+    paddingVertical: 14,
+    borderRadius: APP_SPACING.borderRadius,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  viewReviewCloseText: { fontSize: 16, fontWeight: '600', color: APP_COLORS.white },
   fieldLabel: {
     fontSize: 14,
     fontWeight: '600',
