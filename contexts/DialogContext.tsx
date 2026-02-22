@@ -1,4 +1,5 @@
 import { AppDialog } from '@/components/ui/AppDialog';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import React, { createContext, ReactNode, useCallback, useContext, useState } from 'react';
 
 export interface DialogButton {
@@ -9,6 +10,8 @@ export interface DialogButton {
 export interface DialogOptions {
   title: string;
   message: string;
+  /** Optional icon name (Ionicons) shown above title. */
+  icon?: keyof typeof Ionicons.glyphMap;
   primaryButton: DialogButton;
   secondaryButton?: DialogButton;
 }
@@ -25,6 +28,7 @@ export function DialogProvider({ children }: { children: ReactNode }) {
     visible: boolean;
     title: string;
     message: string;
+    icon?: keyof typeof Ionicons.glyphMap;
     primaryButton: DialogButton;
     secondaryButton?: DialogButton;
   }>({
@@ -43,6 +47,7 @@ export function DialogProvider({ children }: { children: ReactNode }) {
       visible: true,
       title: options.title,
       message: options.message,
+      icon: options.icon,
       primaryButton: options.primaryButton,
       secondaryButton: options.secondaryButton,
     });
@@ -68,6 +73,7 @@ export function DialogProvider({ children }: { children: ReactNode }) {
         onRequestClose={hideDialog}
         title={state.title}
         message={state.message}
+        icon={state.icon}
         primaryButton={{
           text: state.primaryButton.text,
           onPress: handlePrimaryPress,

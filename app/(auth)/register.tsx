@@ -37,12 +37,14 @@ export default function RegisterScreen() {
         showsVerticalScrollIndicator={false}
       >
         <AuthBanner
-          title="How do you want to register?"
-          subtitle="Please select whether you are registering as a candidate or an employer."
+          title={role === 'candidate' ? 'Sign up to find work you love' : 'Sign up to hire talent & professionals'}
+          subtitle="Select your role below, then create your account."
         />
         <View style={styles.content}>
           <Text style={styles.headline}>
-            Find, Manage, & Pay Talent, All In One Place.
+            {role === 'employer'
+              ? 'Find, Manage, & Pay Talent, All In One Place.'
+              : 'Find, Work, Collaborate, & Get Paid All In One Place'}
           </Text>
           <SegmentedControl value={role} onChange={setRole} style={styles.segment} />
           <PrimaryButton
@@ -88,12 +90,13 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   headline: {
+    paddingVertical:20,
     fontFamily: 'Kanit_400Regular',
-    fontSize: 36,
+    fontSize: 32,
     fontWeight: '400',
     color: AUTH_COLORS.textPrimary,
     marginBottom: AUTH_SPACING.gapSection,
-    lineHeight: 50,
+    lineHeight: 40,
     letterSpacing: 0,
     textAlign: 'center',
   },

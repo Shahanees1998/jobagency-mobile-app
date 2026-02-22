@@ -1,4 +1,5 @@
 import { JobCard } from '@/components/jobs';
+import { NotificationBell } from '@/components/ui/NotificationBell';
 import { APP_COLORS, APP_SPACING, TAB_BAR } from '@/constants/appTheme';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDialog } from '@/contexts/DialogContext';
@@ -343,9 +344,7 @@ function CandidateMyJobsScreen() {
       <View style={styles.container}>
         <View style={styles.header}>
           <Text style={styles.pageTitle}>My Jobs</Text>
-          <TouchableOpacity onPress={() => router.push('/notifications')} style={styles.bellBtn} hitSlop={12}>
-            <Ionicons name="notifications-outline" size={24} color={APP_COLORS.textPrimary} />
-          </TouchableOpacity>
+          <NotificationBell size={24} style={styles.bellBtn} />
         </View>
 
         <View style={styles.pillRow}>

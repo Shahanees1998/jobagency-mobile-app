@@ -77,7 +77,18 @@ export default function ApplicationDetailsScreen() {
   const loadApplicationDetails = async () => {
     try {
       const response = await apiClient.getApplicationById(id);
-      if (response.success && response.data) setApplication(response.data);
+      if (response.success && response.data) {
+        setApplication(response.data);
+        // Debug: see what backend returns (check candidate.languages, candidate.certifications)
+        if (__DEV__) {
+          console.log('[ApplicationDetails] Backend response.data:', JSON.stringify(response.data, null, 2));
+          const cand = response.data?.candidate;
+          console.log('[ApplicationDetails] candidate keys:', cand ? Object.keys(cand) : 'no candidate');
+          console.log('[ApplicationDetails] candidate.languages:', cand?.languages);
+          console.log('[ApplicationDetails] candidate.certifications:', cand?.certifications);
+          console.log('[ApplicationDetails] candidate.resume:', cand?.resume);
+        }
+      }
     } catch (error) {
       console.error('Error loading application:', error);
     } finally {
@@ -138,17 +149,31 @@ export default function ApplicationDetailsScreen() {
 
   const isEmployer = user?.role === 'EMPLOYER';
   const c = application.candidate;
+  const resume = c?.resume ?? c?.profile ?? {};
   const u = c?.user;
   const name = u ? [u.firstName, u.lastName].filter(Boolean).join(' ') || u.email || 'Candidate' : 'Candidate';
   const phone = u?.phone || '—';
   const email = u?.email || '—';
   const location = c?.location || '—';
-  const experienceList = parseJsonArray(c?.experience);
-  const educationList = parseJsonArray(c?.education);
-  const skills: string[] = Array.isArray(c?.skills) ? c.skills : [];
-  const languages: string[] = Array.isArray(c?.languages) ? c.languages : [];
+  const experienceList = parseJsonArray(c?.experience ?? resume?.experience);
+  const educationList = parseJsonArray(c?.education ?? resume?.education);
+  const skills: string[] = (() => {
+    const raw = c?.skills ?? resume?.skills;
+    if (Array.isArray(raw)) return raw;
+    if (typeof raw === 'string') return parseJsonArray(raw);
+    return [];
+  })();
+  const languages: string[] = (() => {
+    const raw = c?.languages ?? resume?.languages;
+    if (Array.isArray(raw)) return raw.map((x) => (typeof x === 'string' ? x : String(x?.title ?? x?.name ?? x)));
+    if (typeof raw === 'string') {
+      const arr = parseJsonArray(raw);
+      return arr.map((x) => (typeof x === 'string' ? x : String(x?.title ?? x?.name ?? x)));
+    }
+    return [];
+  })();
   const certificationsList = parseCertifications(
-    Array.isArray(c?.certifications) ? c.certifications : []
+    Array.isArray(c?.certifications) ? c.certifications : Array.isArray(resume?.certifications) ? resume.certifications : []
   );
 
   const renderEmployerCandidateProfile = () => (
@@ -468,7 +493,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 14,
     borderRadius: 12,
-    backgroundColor: '#22C55E',
+    backgroundColor: APP_COLORS.primary,
     alignItems: 'center',
     justifyContent: 'center',
   },

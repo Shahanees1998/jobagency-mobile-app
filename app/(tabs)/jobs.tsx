@@ -1,5 +1,6 @@
 import { EmployerJobCard, JobCard } from '@/components/jobs';
 import { InfoPopup } from '@/components/ui/InfoPopup';
+import { NotificationBell } from '@/components/ui/NotificationBell';
 import { APP_COLORS, TAB_BAR } from '@/constants/appTheme';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDialog } from '@/contexts/DialogContext';
@@ -248,14 +249,9 @@ function CandidateMyJobsScreen() {
       <SafeAreaView edges={['top']} style={styles.headerArea}>
         <View style={styles.header}>
           <Text style={styles.headerTitle}>My Jobs</Text>
-          <TouchableOpacity
-            style={styles.headerIconBtn}
-            onPress={() => router.push('/notifications')}
-          >
-            <View style={styles.iconSquare}>
-              <Ionicons name="notifications-outline" size={20} color="#000" />
-            </View>
-          </TouchableOpacity>
+          <View style={styles.iconSquare}>
+            <NotificationBell size={20} color="#000" />
+          </View>
         </View>
         <View style={styles.tabsRow}>
           {renderTab('Saved')}

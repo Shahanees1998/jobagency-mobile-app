@@ -67,8 +67,8 @@ const styles = StyleSheet.create({
   },
   text: {
     color: '#FFFFFF',
-    fontFamily: 'Kanit_500Medium',
-    fontSize: 18,
+    fontFamily: 'Kanit_400Medium',
+    fontSize: 17,
     fontWeight: '500',
     lineHeight: 18,
     letterSpacing: 3,

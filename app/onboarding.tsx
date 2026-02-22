@@ -7,10 +7,13 @@ import {
   Dimensions,
   FlatList,
   Image,
+  ImageStyle,
   StyleSheet,
   Text,
+  TextStyle,
   TouchableOpacity,
   View,
+  ViewStyle,
   ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -19,8 +22,6 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const ONBOARDING_BG_TOP = '#E8F4FC';
 const SLIDE_WIDTH = SCREEN_WIDTH;
 const IMAGE_HORIZONTAL_MARGIN = 32;
-const IMAGE_MAX_WIDTH = SCREEN_WIDTH - IMAGE_HORIZONTAL_MARGIN * 2;
-const HIGHLIGHT_BLUE = '#2563EB';
 const ACCENT_TEAL = '#84afc6'; // "Trusted" and "Opportunities" color
 
 // Color palette
@@ -37,10 +38,10 @@ const COLORS = {
 const TYPOGRAPHY = {
   titleFamily: 'Kanit',
   bodyFamily: 'Kanit',
-  headingSize: 29,
-  headingWeight: '500',
+  headingSize: 27,
+  headingWeight: '600' as const,
   headingLineHeight: 40,
-  bodySize: 15,
+  bodySize: 17,
   bodyLineHeight: 25,
 };
 
@@ -302,18 +303,18 @@ const styles = StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: '#F9FAFB',
-  },
+  } as ViewStyle,
   slide: {
     width: SLIDE_WIDTH,
     flex: 1,
-  },
+  } as ViewStyle,
   topSection: {
     height: '50%',
     backgroundColor: ONBOARDING_BG_TOP,
     justifyContent: 'center',
     alignItems: 'center',
     width: '100%',
-  },
+  } as ViewStyle,
   imageContainer: {
     width: '100%',
     paddingHorizontal: IMAGE_HORIZONTAL_MARGIN,
@@ -326,7 +327,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     overflow: 'hidden',
-  },
+  } as ViewStyle,
   bannerImage: {
     width: '100%',
     height: '100%',
@@ -334,7 +335,7 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 16,
     borderBottomLeftRadius: 0,
     borderBottomRightRadius: 0,
-  },
+  } as ImageStyle,
   bottomSection: {
     flex: 1,
     backgroundColor: '#F9FAFB',
@@ -343,13 +344,13 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
     alignItems: 'center',
     justifyContent: 'flex-start',
-  },
+  } as ViewStyle,
   bottomContent: {
     flexGrow: 1,
     justifyContent: 'center',
     alignItems: 'center',
     paddingVertical: 8,
-  },
+  } as ViewStyle,
   heading: {
     fontSize: TYPOGRAPHY.headingSize,
     fontWeight: TYPOGRAPHY.headingWeight,
@@ -359,68 +360,68 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     textAlign: 'center',
     letterSpacing: 0,
-  },
+  } as TextStyle,
   headingBold: {
     fontWeight: TYPOGRAPHY.headingWeight,
     fontFamily: TYPOGRAPHY.titleFamily,
     color: COLORS.primary,
-  },
+  } as TextStyle,
   headingAccent: {
     fontWeight: TYPOGRAPHY.headingWeight,
     fontFamily: TYPOGRAPHY.titleFamily,
     color: ACCENT_TEAL,
-  },
+  } as TextStyle,
   body: {
     fontSize: TYPOGRAPHY.bodySize,
     fontFamily: TYPOGRAPHY.bodyFamily,
     color: COLORS.text,
     lineHeight: TYPOGRAPHY.bodyLineHeight,
     textAlign: 'center',
-  },
+  } as TextStyle,
   footer: {
     paddingHorizontal: 24,
     paddingBottom: 32,
     paddingTop: 12,
     backgroundColor: '#F9FAFB',
-  },
+  } as ViewStyle,
   dots: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 12,
     gap: 8,
-  },
+  } as ViewStyle,
   dot: {
     width: 24,
     height: 4,
     borderRadius: 16,
     backgroundColor: COLORS.border,
     opacity: 1,
-  },
+  } as ViewStyle,
   dotActive: {
     width: 40,
     height: 4,
     borderRadius: 16,
     backgroundColor: COLORS.primary,
     opacity: 1,
-  },
+  } as ViewStyle,
   dividerLineWrapper: {
     width: SCREEN_WIDTH,
     marginHorizontal: -24,
     marginBottom: 12,
-  },
+  } as ViewStyle,
   dividerLine: {
     width: '100%',
     height: 1,
     backgroundColor: COLORS.secondary,
     opacity: 0.3,
-  },
+  } as ViewStyle,
   buttons: {
     flexDirection: 'row',
     alignItems: 'stretch',
     gap: 12,
     width: '100%',
-  },
+  } as ViewStyle,
   skipBtn: {
     flex: 1,
     paddingVertical: 16,
@@ -432,13 +433,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     minWidth: 0,
-  },
+  } as ViewStyle,
   skipText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700' as const,
     fontFamily: TYPOGRAPHY.bodyFamily,
     color: COLORS.text,
-  },
+  } as TextStyle,
   nextBtn: {
     flex: 1,
     paddingVertical: 16,
@@ -450,27 +451,27 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     minWidth: 0,
-  },
+  } as ViewStyle,
   nextBtnFull: {
     flex: 1,
-  },
+  } as ViewStyle,
   nextText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
     fontFamily: TYPOGRAPHY.bodyFamily,
     color: COLORS.white,
-  },
+  } as TextStyle,
   illustrationTop: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     width: '100%',
-  },
+  } as ViewStyle,
   gridRow: {
     flexDirection: 'row',
     gap: 20,
     marginBottom: 16,
-  },
+  } as ViewStyle,
   gridCircle: {
     width: 72,
     height: 72,
@@ -478,16 +479,16 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.9)',
     justifyContent: 'center',
     alignItems: 'center',
-  },
+  } as ViewStyle,
   phoneRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 24,
-  },
+  } as ViewStyle,
   personStick: {
     alignItems: 'center',
-  },
+  } as ViewStyle,
   personHead: {
     width: 48,
     height: 48,
@@ -495,14 +496,14 @@ const styles = StyleSheet.create({
     backgroundColor: APP_COLORS.primary,
     opacity: 0.9,
     marginBottom: 8,
-  },
+  } as ViewStyle,
   personBody: {
     width: 56,
     height: 70,
     borderRadius: 12,
     backgroundColor: APP_COLORS.primary,
     opacity: 0.8,
-  },
+  } as ViewStyle,
   phoneMock: {
     width: 140,
     height: 180,
@@ -516,7 +517,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.08,
     shadowRadius: 8,
     elevation: 4,
-  },
+  } as ViewStyle,
   searchBar: {
     width: '100%',
     height: 44,
@@ -525,27 +526,27 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'flex-end',
     paddingRight: 16,
-  },
+  } as ViewStyle,
   cloudRow: {
     position: 'absolute',
     bottom: 20,
     flexDirection: 'row',
     gap: 12,
-  },
+  } as ViewStyle,
   cloud: {
     width: 40,
     height: 24,
     borderRadius: 12,
     backgroundColor: 'rgba(30, 74, 111, 0.15)',
-  },
-  cloudSmall: { width: 28, height: 18 },
-  cloudTiny: { width: 20, height: 14 },
+  } as ViewStyle,
+  cloudSmall: { width: 28, height: 18 } as ViewStyle,
+  cloudTiny: { width: 20, height: 14 } as ViewStyle,
   chatRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 16,
-  },
+  } as ViewStyle,
   bubblesWrap: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -554,15 +555,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-  },
+  } as ViewStyle,
   bubble: {
     backgroundColor: APP_COLORS.primary,
     opacity: 0.85,
-  },
-  bubble1: { width: 56, height: 48, borderRadius: 16 },
-  bubble2: { width: 48, height: 40, borderRadius: 14 },
-  bubble3: { width: 44, height: 36, borderRadius: 12 },
-  bubble4: { width: 52, height: 44, borderRadius: 14 },
+  } as ViewStyle,
+  bubble1: { width: 56, height: 48, borderRadius: 16 } as ViewStyle,
+  bubble2: { width: 48, height: 40, borderRadius: 14 } as ViewStyle,
+  bubble3: { width: 44, height: 36, borderRadius: 12 } as ViewStyle,
+  bubble4: { width: 52, height: 44, borderRadius: 14 } as ViewStyle,
   plantPlaceholder: {
     position: 'absolute',
     bottom: 24,
@@ -573,5 +574,5 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.9)',
     justifyContent: 'center',
     alignItems: 'center',
-  },
+  } as ViewStyle,
 });

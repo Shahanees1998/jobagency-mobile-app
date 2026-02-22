@@ -1,3 +1,4 @@
+import { NotificationBell } from '@/components/ui/NotificationBell';
 import { APP_COLORS, APP_SPACING, TAB_BAR } from '@/constants/appTheme';
 import { useDialog } from '@/contexts/DialogContext';
 import { apiClient } from '@/lib/api';
@@ -176,9 +177,7 @@ export default function EmployerInterviewsScreen() {
     <SafeAreaView style={styles.safe} edges={['top']}>
       <View style={styles.header}>
         <Text style={styles.title}>Interviews Scheduled</Text>
-        <TouchableOpacity onPress={() => router.push('/notifications')} style={styles.bellBtn} hitSlop={12}>
-          <Ionicons name="notifications-outline" size={24} color={APP_COLORS.textPrimary} />
-        </TouchableOpacity>
+        <NotificationBell size={24} style={styles.bellBtn} />
       </View>
       {items.length === 0 ? (
         <View style={styles.empty}>

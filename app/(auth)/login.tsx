@@ -125,7 +125,7 @@ export default function LoginScreen() {
               style={styles.primaryBtn}
             />
             <View style={styles.footer}>
-              <Text style={styles.footerText}>Don't have an account? </Text>
+              <Text style={styles.footerText}>Don&apos;t have an account? </Text>
               <TouchableOpacity
                 onPress={() => router.push('/(auth)/register')}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -150,7 +150,6 @@ const styles = StyleSheet.create({
   },
   scroll: {
     flexGrow: 1,
-    paddingBottom: AUTH_SPACING.contentPaddingV * 4 + 40,
   },
   scrollNarrow: {
     paddingHorizontal: 0,
@@ -163,8 +162,8 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   info: {
-    fontFamily: 'Kanit_400Regular',
-    fontSize: 18,
+    fontFamily: 'Kanit_200Regular',
+    fontSize: 15,
     fontWeight: '400',
     color: '#031019',
     marginBottom: AUTH_SPACING.gapInputs + 4,
@@ -186,8 +185,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   checkbox: {
-    width: 20,
-    height: 20,
+    width: 17,
+    height: 17,
     borderRadius: 4,
     borderWidth: 1.5,
     borderColor: AUTH_COLORS.inputBorder,

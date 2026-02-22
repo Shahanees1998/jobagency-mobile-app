@@ -4,8 +4,8 @@ import { useDialog } from '@/contexts/DialogContext';
 import { apiClient } from '@/lib/api';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import * as DocumentPicker from 'expo-document-picker';
-import { router, Stack } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import { router, Stack, useFocusEffect } from 'expo-router';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -59,10 +59,16 @@ function SectionHeader({
   title,
   onAdd,
   showAdd,
+  onEdit,
+  onDelete,
+  showEditDelete,
 }: {
   title: string;
   onAdd?: () => void;
   showAdd?: boolean;
+  onEdit?: () => void;
+  onDelete?: () => void;
+  showEditDelete?: boolean;
 }) {
   return (
     <View style={styles.sectionHeader}>
@@ -71,6 +77,11 @@ function SectionHeader({
         <TouchableOpacity onPress={onAdd} style={styles.addBtn} hitSlop={12}>
           <Ionicons name="add" size={28} color="#111827" />
         </TouchableOpacity>
+      ) : showEditDelete && (onEdit || onDelete) ? (
+        <EditDeleteIcons
+          onEdit={onEdit ?? (() => {})}
+          onDelete={onDelete ?? (() => {})}
+        />
       ) : null}
     </View>
   );
@@ -79,11 +90,11 @@ function SectionHeader({
 function EditDeleteIcons({ onEdit, onDelete }: { onEdit: () => void; onDelete: () => void }) {
   return (
     <View style={styles.editDeleteRow}>
-      <TouchableOpacity onPress={onEdit} style={styles.iconBtn} hitSlop={8}>
-        <Ionicons name="pencil" size={16} color={APP_COLORS.white} />
+      <TouchableOpacity onPress={onEdit} style={styles.editIconBtn} hitSlop={8} activeOpacity={0.8}>
+        <Ionicons name="create-outline" size={18} color={APP_COLORS.white} />
       </TouchableOpacity>
-      <TouchableOpacity onPress={onDelete} style={[styles.iconBtn, styles.deleteIconBtn]} hitSlop={8}>
-        <Ionicons name="trash-outline" size={16} color={APP_COLORS.white} />
+      <TouchableOpacity onPress={onDelete} style={styles.deleteIconBtn} hitSlop={8} activeOpacity={0.8}>
+        <Ionicons name="trash-outline" size={18} color={APP_COLORS.white} />
       </TouchableOpacity>
     </View>
   );
@@ -178,18 +189,16 @@ export default function MyResumeScreen() {
   const [resume, setResume] = useState<ResumeData>(emptyResume());
   const [profile, setProfile] = useState<any>(null);
 
-  const [summaryModal, setSummaryModal] = useState(false);
-  const [summaryDraft, setSummaryDraft] = useState('');
-
-  const [workModal, setWorkModal] = useState<{ open: boolean; item?: WorkExperience }>({ open: false });
-  const [educationModal, setEducationModal] = useState<{ open: boolean; item?: Education }>({ open: false });
   const [skillsModal, setSkillsModal] = useState(false);
   const [languagesModal, setLanguagesModal] = useState(false);
   const [certsModal, setCertsModal] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ section: string; onConfirm: () => void } | null>(null);
 
-  useEffect(() => {
-    loadResume();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      loadResume();
+    }, [])
+  );
 
   const loadResume = async () => {
     setLoading(true);
@@ -286,57 +295,15 @@ export default function MyResumeScreen() {
     }
   };
 
-  const saveSummary = () => {
-    const next = { ...resume, summary: summaryDraft };
-    setResume(next);
-    setSummaryModal(false);
-    persistResume(next);
+  const openDeleteConfirm = (section: string, onConfirm: () => void) => {
+    setDeleteConfirm({ section, onConfirm });
   };
 
-  const addWork = () => setWorkModal({ open: true });
-  const editWork = (item: WorkExperience) => setWorkModal({ open: true, item });
-  const deleteWork = (id: string) => {
-    const next = { ...resume, workExperience: resume.workExperience.filter((e) => e.id !== id) };
-    setResume(next);
-    persistResume(next);
-  };
-  const saveWork = (item: Omit<WorkExperience, 'id'>) => {
-    const id = workModal.item?.id ?? `w-${Date.now()}`;
-    let next: ResumeData;
-    if (workModal.item) {
-      next = {
-        ...resume,
-        workExperience: resume.workExperience.map((e) => (e.id === id ? { ...item, id } : e)),
-      };
-    } else {
-      next = { ...resume, workExperience: [...resume.workExperience, { ...item, id }] };
+  const confirmDelete = () => {
+    if (deleteConfirm) {
+      deleteConfirm.onConfirm();
+      setDeleteConfirm(null);
     }
-    setResume(next);
-    setWorkModal({ open: false });
-    persistResume(next);
-  };
-
-  const addEducation = () => setEducationModal({ open: true });
-  const editEducation = (item: Education) => setEducationModal({ open: true, item });
-  const deleteEducation = (id: string) => {
-    const next = { ...resume, education: resume.education.filter((e) => e.id !== id) };
-    setResume(next);
-    persistResume(next);
-  };
-  const saveEducation = (item: Omit<Education, 'id'>) => {
-    const id = educationModal.item?.id ?? `e-${Date.now()}`;
-    let next: ResumeData;
-    if (educationModal.item) {
-      next = {
-        ...resume,
-        education: resume.education.map((e) => (e.id === id ? { ...item, id } : e)),
-      };
-    } else {
-      next = { ...resume, education: [...resume.education, { ...item, id }] };
-    }
-    setResume(next);
-    setEducationModal({ open: false });
-    persistResume(next);
   };
 
   if (loading) {
@@ -357,7 +324,7 @@ export default function MyResumeScreen() {
         contentContainerStyle={[styles.content, { paddingBottom: contentBottomPadding }]}
         showsVerticalScrollIndicator={false}
       >
-        {/* Personal details card */}
+        {/* Personal details card – light grey bg, no border; edit icon only top-right */}
         <View style={styles.personalCard}>
           <View style={styles.personalMain}>
             <View style={styles.personalNameBlock}>
@@ -366,13 +333,10 @@ export default function MyResumeScreen() {
               <Text style={styles.personalLine}>{email}</Text>
               <Text style={styles.personalLine}>{location}</Text>
             </View>
-            <View style={styles.personalCardBadge}>
-              <Ionicons name="checkmark" size={22} color="#FFFFFF" />
-            </View>
+            <TouchableOpacity style={styles.personalEditBtn} onPress={() => router.push('/edit-profile')} hitSlop={8} activeOpacity={0.8}>
+              <Ionicons name="create-outline" size={20} color={APP_COLORS.white} />
+            </TouchableOpacity>
           </View>
-          <TouchableOpacity style={styles.personalEditLink} onPress={() => router.push('/edit-profile')}>
-            <Ionicons name="create-outline" size={18} color="#111827" />
-          </TouchableOpacity>
         </View>
 
         {/* Upload resume to prefill */}
@@ -392,192 +356,211 @@ export default function MyResumeScreen() {
           )}
         </TouchableOpacity> */}
 
-        {/* Summary */}
-        <SectionHeader title="Summary" onAdd={() => { setSummaryDraft(resume.summary); setSummaryModal(true); }} showAdd />
+        {/* Summary – full page add/edit */}
+        <SectionHeader
+          title="Summary"
+          onAdd={() => router.push('/add-summary')}
+          showAdd={!resume.summary}
+          onEdit={() => router.push('/add-summary')}
+          onDelete={() => openDeleteConfirm('Summary', () => {
+            const next = { ...resume, summary: '' };
+            setResume(next);
+            persistResume(next);
+          })}
+          showEditDelete={!!resume.summary}
+        />
         {resume.summary ? (
           <View style={styles.sectionContent}>
-            <View style={styles.sectionContentHeader}>
-              <View style={styles.flex1} />
-              <EditDeleteIcons
-                onEdit={() => { setSummaryDraft(resume.summary); setSummaryModal(true); }}
-                onDelete={() => {
-                  const next = { ...resume, summary: '' };
-                  setResume(next);
-                  persistResume(next);
-                }}
-              />
-            </View>
             <Text style={styles.bodyText}>{resume.summary}</Text>
           </View>
         ) : (
-          <TouchableOpacity style={styles.placeholderBox} onPress={() => setSummaryModal(true)} activeOpacity={0.7}>
+          <TouchableOpacity style={styles.placeholderBox} onPress={() => router.push('/add-summary')} activeOpacity={0.7}>
             <View style={styles.placeholderContent}>
-              <Text style={styles.placeholderText}>Add summary</Text>
+              <Text style={styles.placeholderText}>Your summary will appear here</Text>
             </View>
           </TouchableOpacity>
         )
         }
 
-        {/* Work experience */}
-        <SectionHeader title="Work experience" onAdd={addWork} showAdd />
+        {/* Work experience – full screen add/edit */}
+        <SectionHeader title="Work experience" onAdd={() => router.push('/add-work-experience')} showAdd={resume.workExperience.length === 0} />
         {
           resume.workExperience.length === 0 ? (
-            <TouchableOpacity style={styles.placeholderBox} onPress={addWork} activeOpacity={0.7}>
+            <TouchableOpacity style={styles.placeholderBox} onPress={() => router.push('/add-work-experience')} activeOpacity={0.7}>
               <View style={styles.placeholderContent}>
-                <Text style={styles.placeholderText}>Add work experience</Text>
+                <Text style={styles.placeholderText}>Your work experience will appear here</Text>
               </View>
             </TouchableOpacity>
           ) : (
-            resume.workExperience.map((w) => (
-              <View key={w.id} style={styles.entryCard}>
-                <View style={styles.entryHeader}>
-                  <Text style={styles.entryTitle}>{w.title}</Text>
-                  <EditDeleteIcons onEdit={() => editWork(w)} onDelete={() => deleteWork(w.id)} />
+            <>
+              {resume.workExperience.map((w) => (
+                <View key={w.id} style={styles.entryCard}>
+                  <View style={styles.entryHeader}>
+                    <Text style={styles.entryTitle}>{w.title}</Text>
+                    <EditDeleteIcons
+                      onEdit={() => router.push({ pathname: '/add-work-experience', params: { id: w.id } })}
+                      onDelete={() => openDeleteConfirm('Work experience', () => {
+                        const next = { ...resume, workExperience: resume.workExperience.filter((e) => e.id !== w.id) };
+                        setResume(next);
+                        persistResume(next);
+                      })}
+                    />
+                  </View>
+                  <Text style={styles.entrySub}>{w.company}{(w.location ?? (w as any).cityState) ? ` - ${w.location ?? (w as any).cityState}` : ''}</Text>
+                  <Text style={styles.entryMeta}>{w.startDate} to {w.endDate || 'Present'}</Text>
+                  {w.description ? <Text style={styles.bodyText}>{w.description}</Text> : null}
                 </View>
-                <Text style={styles.entrySub}>{w.company}{w.location ? ` - ${w.location}` : ''}</Text>
-                <Text style={styles.entryMeta}>{w.startDate} to {w.endDate || 'Present'}</Text>
-                {w.description ? <Text style={styles.bodyText}>{w.description}</Text> : null}
-              </View>
-            ))
+              ))}
+              <TouchableOpacity style={styles.addAnotherRow} onPress={() => router.push('/add-work-experience')} activeOpacity={0.7}>
+                <Ionicons name="add" size={20} color={APP_COLORS.primary} />
+                <Text style={styles.addAnotherText}>Add work experience</Text>
+              </TouchableOpacity>
+            </>
           )
         }
 
-        {/* Education */}
-        <SectionHeader title="Education" onAdd={addEducation} showAdd />
+        {/* Education – full screen add/edit */}
+        <SectionHeader title="Education" onAdd={() => router.push('/add-education')} showAdd={resume.education.length === 0} />
         {
           resume.education.length === 0 ? (
-            <TouchableOpacity style={styles.placeholderBox} onPress={addEducation} activeOpacity={0.7}>
+            <TouchableOpacity style={styles.placeholderBox} onPress={() => router.push('/add-education')} activeOpacity={0.7}>
               <View style={styles.placeholderContent}>
-                <Text style={styles.placeholderText}>Add education</Text>
+                <Text style={styles.placeholderText}>Your education will appear here</Text>
               </View>
             </TouchableOpacity>
           ) : (
-            resume.education.map((e) => (
-              <View key={e.id} style={styles.entryCard}>
-                <View style={styles.entryHeader}>
-                  <Text style={styles.entryTitle}>{e.degree}</Text>
-                  <EditDeleteIcons onEdit={() => editEducation(e)} onDelete={() => deleteEducation(e.id)} />
+            <>
+              {resume.education.map((e) => (
+                <View key={e.id} style={styles.entryCard}>
+                  <View style={styles.entryHeader}>
+                    <Text style={styles.entryTitle}>{e.degree}</Text>
+                    <EditDeleteIcons
+                      onEdit={() => router.push({ pathname: '/add-education', params: { id: e.id } })}
+                      onDelete={() => openDeleteConfirm('Education', () => {
+                        const next = { ...resume, education: resume.education.filter((x) => x.id !== e.id) };
+                        setResume(next);
+                        persistResume(next);
+                      })}
+                    />
+                  </View>
+                  <Text style={styles.entrySub}>{(e as any).school ?? e.institution}</Text>
+                  <Text style={styles.entryMeta}>{e.dates}</Text>
+                  {e.description ? <Text style={styles.bodyText}>{e.description}</Text> : null}
                 </View>
-                <Text style={styles.entrySub}>{e.institution}</Text>
-                <Text style={styles.entryMeta}>{e.dates}</Text>
-                {e.description ? <Text style={styles.bodyText}>{e.description}</Text> : null}
-              </View>
-            ))
+              ))}
+              <TouchableOpacity style={styles.addAnotherRow} onPress={() => router.push('/add-education')} activeOpacity={0.7}>
+                <Ionicons name="add" size={20} color={APP_COLORS.primary} />
+                <Text style={styles.addAnotherText}>Add education</Text>
+              </TouchableOpacity>
+            </>
           )
         }
 
         {/* Skills */}
-        <SectionHeader title="Skills" onAdd={() => setSkillsModal(true)} showAdd />
+        <SectionHeader
+          title="Skills"
+          onAdd={() => setSkillsModal(true)}
+          showAdd={resume.skills.length === 0}
+          onEdit={() => setSkillsModal(true)}
+          onDelete={() => openDeleteConfirm('Skills', () => {
+            const next = { ...resume, skills: [] };
+            setResume(next);
+            persistResume(next);
+          })}
+          showEditDelete={resume.skills.length > 0}
+        />
         {
           resume.skills.length === 0 ? (
             <TouchableOpacity style={styles.placeholderBox} onPress={() => setSkillsModal(true)} activeOpacity={0.7}>
               <View style={styles.placeholderContent}>
-                <Text style={styles.placeholderText}>Add skills</Text>
+                <Text style={styles.placeholderText}>Your skills will appear here</Text>
               </View>
             </TouchableOpacity>
           ) : (
             <View style={styles.sectionContentRow}>
               <Text style={styles.bodyTextFlex}>{resume.skills.join(', ')}</Text>
-              <EditDeleteIcons
-                onEdit={() => setSkillsModal(true)}
-                onDelete={() => {
-                  const next = { ...resume, skills: [] };
-                  setResume(next);
-                  persistResume(next);
-                }}
-              />
             </View>
           )
         }
 
         {/* Languages */}
-        <SectionHeader title="Languages" onAdd={() => setLanguagesModal(true)} showAdd />
+        <SectionHeader
+          title="Languages"
+          onAdd={() => setLanguagesModal(true)}
+          showAdd={resume.languages.length === 0}
+          onEdit={() => setLanguagesModal(true)}
+          onDelete={() => openDeleteConfirm('Languages', () => {
+            const next = { ...resume, languages: [] };
+            setResume(next);
+            persistResume(next);
+          })}
+          showEditDelete={resume.languages.length > 0}
+        />
         {
           resume.languages.length === 0 ? (
             <TouchableOpacity style={styles.placeholderBox} onPress={() => setLanguagesModal(true)} activeOpacity={0.7}>
               <View style={styles.placeholderContent}>
-                <Text style={styles.placeholderText}>Add languages</Text>
+                <Text style={styles.placeholderText}>Your languages will appear here</Text>
               </View>
             </TouchableOpacity>
           ) : (
             <View style={styles.sectionContentRow}>
               <Text style={styles.bodyTextFlex}>{resume.languages.join(', ')}</Text>
-              <EditDeleteIcons
-                onEdit={() => setLanguagesModal(true)}
-                onDelete={() => {
-                  const next = { ...resume, languages: [] };
-                  setResume(next);
-                  persistResume(next);
-                }}
-              />
             </View>
           )
         }
 
         {/* Certifications & licenses */}
-        <SectionHeader title="Certifications & licenses" onAdd={() => setCertsModal(true)} showAdd />
+        <SectionHeader
+          title="Certifications & licenses"
+          onAdd={() => setCertsModal(true)}
+          showAdd={resume.certifications.length === 0}
+          onEdit={() => setCertsModal(true)}
+          onDelete={() => openDeleteConfirm('Certifications & licenses', () => {
+            const next = { ...resume, certifications: [] };
+            setResume(next);
+            persistResume(next);
+          })}
+          showEditDelete={resume.certifications.length > 0}
+        />
         {
           resume.certifications.length === 0 ? (
             <TouchableOpacity style={styles.placeholderBox} onPress={() => setCertsModal(true)} activeOpacity={0.7}>
               <View style={styles.placeholderContent}>
-                <Text style={styles.placeholderText}>Add certifications</Text>
+                <Text style={styles.placeholderText}>Your certifications will appear here</Text>
               </View>
             </TouchableOpacity>
           ) : (
             <View style={styles.sectionContentRow}>
               <Text style={styles.bodyTextFlex}>{resume.certifications.join(', ')}</Text>
-              <EditDeleteIcons
-                onEdit={() => setCertsModal(true)}
-                onDelete={() => {
-                  const next = { ...resume, certifications: [] };
-                  setResume(next);
-                  persistResume(next);
-                }}
-              />
             </View>
           )
         }
 
         <View style={{ height: 24 }} />
 
-        {/* Summary modal */}
-        <Modal visible={summaryModal} transparent animationType="slide">
-          <Pressable style={BOTTOM_SHEET.overlay} onPress={() => setSummaryModal(false)}>
-            <Pressable style={[BOTTOM_SHEET.sheet, { paddingBottom: insets.bottom + 24 }]} onPress={(e) => e.stopPropagation()}>
+        {/* Delete confirmation – bottom sheet */}
+        <Modal visible={deleteConfirm !== null} transparent animationType="slide">
+          <Pressable style={BOTTOM_SHEET.overlay} onPress={() => setDeleteConfirm(null)}>
+            <Pressable
+              style={[BOTTOM_SHEET.sheet, { paddingBottom: Math.max(insets.bottom, 24) + 24 }]}
+              onPress={(e) => e.stopPropagation()}
+            >
               <View style={BOTTOM_SHEET.handle} />
-              <Text style={BOTTOM_SHEET.sheetTitle}>Summary</Text>
-              <TextInput
-                style={BOTTOM_SHEET.textArea}
-                placeholder="Your summary will appear here"
-                placeholderTextColor={APP_COLORS.textMuted}
-                value={summaryDraft}
-                onChangeText={setSummaryDraft}
-                multiline
-                numberOfLines={5}
-              />
-              <TouchableOpacity style={BOTTOM_SHEET.primaryButton} onPress={saveSummary} activeOpacity={0.85}>
-                <Text style={BOTTOM_SHEET.primaryButtonText}>Save</Text>
-              </TouchableOpacity>
+              <Text style={BOTTOM_SHEET.sheetTitle}>Delete {deleteConfirm?.section}</Text>
+              <View style={styles.sheetTitleUnderline} />
+              <Text style={styles.sheetMessage}>Sure you want to delete?</Text>
+              <View style={styles.sheetActions}>
+                <TouchableOpacity style={styles.sheetCancel} onPress={() => setDeleteConfirm(null)} activeOpacity={0.85}>
+                  <Text style={styles.sheetCancelText}>Cancel</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.sheetDeleteConfirm} onPress={confirmDelete} activeOpacity={0.85}>
+                  <Text style={styles.sheetDeleteConfirmText}>Yes, Delete</Text>
+                </TouchableOpacity>
+              </View>
             </Pressable>
           </Pressable>
         </Modal>
-
-        {/* Work experience modal - inline component for brevity */}
-        <WorkExperienceModal
-          visible={workModal.open}
-          item={workModal.item}
-          onClose={() => setWorkModal({ open: false })}
-          onSave={saveWork}
-          insets={insets}
-        />
-
-        <EducationModal
-          visible={educationModal.open}
-          item={educationModal.item}
-          onClose={() => setEducationModal({ open: false })}
-          onSave={saveEducation}
-          insets={insets}
-        />
 
         <SimpleListModal
           visible={skillsModal}
@@ -626,138 +609,6 @@ export default function MyResumeScreen() {
   );
 }
 
-function WorkExperienceModal({
-  visible,
-  item,
-  onClose,
-  onSave,
-  insets,
-}: {
-  visible: boolean;
-  item?: WorkExperience;
-  onClose: () => void;
-  onSave: (item: Omit<WorkExperience, 'id'>) => void;
-  insets: { bottom: number };
-}) {
-  const [title, setTitle] = useState('');
-  const [company, setCompany] = useState('');
-  const [location, setLocation] = useState('');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
-  const [description, setDescription] = useState('');
-
-  useEffect(() => {
-    if (item) {
-      setTitle(item.title);
-      setCompany(item.company);
-      setLocation(item.location);
-      setStartDate(item.startDate);
-      setEndDate(item.endDate);
-      setDescription(item.description);
-    } else {
-      setTitle('');
-      setCompany('');
-      setLocation('');
-      setStartDate('');
-      setEndDate('');
-      setDescription('');
-    }
-  }, [item, visible]);
-
-  const handleSave = () => {
-    if (!title.trim()) return;
-    onSave({ title: title.trim(), company: company.trim(), location: location.trim(), startDate, endDate, description });
-  };
-
-  return (
-    <Modal visible={visible} transparent animationType="slide">
-      <Pressable style={BOTTOM_SHEET.overlay} onPress={onClose}>
-        <Pressable style={[BOTTOM_SHEET.sheet, { paddingBottom: insets.bottom + 24, maxHeight: '90%' as any }]} onPress={(e) => e.stopPropagation()}>
-          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-            <View style={BOTTOM_SHEET.handle} />
-            <Text style={BOTTOM_SHEET.sheetTitle}>{item ? 'Edit work experience' : 'Add work experience'}</Text>
-            <Text style={BOTTOM_SHEET.fieldLabel}>Job title</Text>
-            <TextInput style={BOTTOM_SHEET.input} placeholder="Senior Software Engineer" value={title} onChangeText={setTitle} placeholderTextColor={APP_COLORS.textMuted} />
-            <Text style={BOTTOM_SHEET.fieldLabel}>Company</Text>
-            <TextInput style={BOTTOM_SHEET.input} placeholder="Zoox Pvt. LTD." value={company} onChangeText={setCompany} placeholderTextColor={APP_COLORS.textMuted} />
-            <Text style={BOTTOM_SHEET.fieldLabel}>Location</Text>
-            <TextInput style={BOTTOM_SHEET.input} placeholder="New York" value={location} onChangeText={setLocation} placeholderTextColor={APP_COLORS.textMuted} />
-            <Text style={BOTTOM_SHEET.fieldLabel}>Start date</Text>
-            <TextInput style={BOTTOM_SHEET.input} placeholder="January 2022" value={startDate} onChangeText={setStartDate} placeholderTextColor={APP_COLORS.textMuted} />
-            <Text style={BOTTOM_SHEET.fieldLabel}>End date</Text>
-            <TextInput style={BOTTOM_SHEET.input} placeholder="Present" value={endDate} onChangeText={setEndDate} placeholderTextColor={APP_COLORS.textMuted} />
-            <Text style={BOTTOM_SHEET.fieldLabel}>Description</Text>
-            <TextInput style={BOTTOM_SHEET.textArea} placeholder="Responsibilities and achievements..." value={description} onChangeText={setDescription} multiline placeholderTextColor={APP_COLORS.textMuted} />
-            <TouchableOpacity style={BOTTOM_SHEET.primaryButton} onPress={handleSave} activeOpacity={0.85}>
-              <Text style={BOTTOM_SHEET.primaryButtonText}>Save</Text>
-            </TouchableOpacity>
-          </ScrollView>
-        </Pressable>
-      </Pressable>
-    </Modal>
-  );
-}
-
-function EducationModal({
-  visible,
-  item,
-  onClose,
-  onSave,
-  insets,
-}: {
-  visible: boolean;
-  item?: Education;
-  onClose: () => void;
-  onSave: (item: Omit<Education, 'id'>) => void;
-  insets: { bottom: number };
-}) {
-  const [degree, setDegree] = useState('');
-  const [institution, setInstitution] = useState('');
-  const [dates, setDates] = useState('');
-  const [description, setDescription] = useState('');
-
-  useEffect(() => {
-    if (item) {
-      setDegree(item.degree);
-      setInstitution(item.institution);
-      setDates(item.dates);
-      setDescription(item.description);
-    } else {
-      setDegree('');
-      setInstitution('');
-      setDates('');
-      setDescription('');
-    }
-  }, [item, visible]);
-
-  const handleSave = () => {
-    if (!degree.trim()) return;
-    onSave({ degree: degree.trim(), institution: institution.trim(), dates, description });
-  };
-
-  return (
-    <Modal visible={visible} transparent animationType="slide">
-      <Pressable style={BOTTOM_SHEET.overlay} onPress={onClose}>
-        <Pressable style={[BOTTOM_SHEET.sheet, { paddingBottom: insets.bottom + 24 }]} onPress={(e) => e.stopPropagation()}>
-          <View style={BOTTOM_SHEET.handle} />
-          <Text style={BOTTOM_SHEET.sheetTitle}>{item ? 'Edit education' : 'Add education'}</Text>
-          <Text style={BOTTOM_SHEET.fieldLabel}>Degree</Text>
-          <TextInput style={BOTTOM_SHEET.input} placeholder="Bachelor of Science in Computer Science" value={degree} onChangeText={setDegree} placeholderTextColor={APP_COLORS.textMuted} />
-          <Text style={BOTTOM_SHEET.fieldLabel}>Institution</Text>
-          <TextInput style={BOTTOM_SHEET.input} placeholder="University name" value={institution} onChangeText={setInstitution} placeholderTextColor={APP_COLORS.textMuted} />
-          <Text style={BOTTOM_SHEET.fieldLabel}>Dates</Text>
-          <TextInput style={BOTTOM_SHEET.input} placeholder="2018 - 2022" value={dates} onChangeText={setDates} placeholderTextColor={APP_COLORS.textMuted} />
-          <Text style={BOTTOM_SHEET.fieldLabel}>Description</Text>
-          <TextInput style={BOTTOM_SHEET.textArea} placeholder="Optional details..." value={description} onChangeText={setDescription} multiline placeholderTextColor={APP_COLORS.textMuted} />
-          <TouchableOpacity style={BOTTOM_SHEET.primaryButton} onPress={handleSave} activeOpacity={0.85}>
-            <Text style={BOTTOM_SHEET.primaryButtonText}>Save</Text>
-          </TouchableOpacity>
-        </Pressable>
-      </Pressable>
-    </Modal>
-  );
-}
-
 function SimpleListModal({
   visible,
   title,
@@ -801,25 +652,24 @@ const styles = StyleSheet.create({
   content: { padding: APP_SPACING.screenPadding, paddingBottom: 32 },
   centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: APP_COLORS.background },
   personalCard: {
-    backgroundColor: APP_COLORS.surfaceGray,
-    borderRadius: APP_SPACING.borderRadius,
+    backgroundColor: '#F5F5F5',
+    borderRadius: 12,
     padding: APP_SPACING.itemPadding,
     marginBottom: 20,
   },
-  personalMain: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  personalMain: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between' },
   personalNameBlock: { flex: 1 },
-  personalName: { fontSize: 20, fontWeight: '700', color: APP_COLORS.textPrimary },
-  personalCardBadge: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: APP_COLORS.primary,
+  personalName: { fontSize: 20, fontWeight: '700', color: APP_COLORS.textPrimary, marginBottom: 4 },
+  personalEditBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 1.5,
+    borderColor: APP_COLORS.primary,
+    backgroundColor: '#1E4154',
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: 12,
   },
-  personalEditLink: { padding: 8, alignSelf: 'flex-start', marginTop: 8 },
-  personalEditBtn: { padding: 4 },
   personalLine: { fontSize: 15, color: APP_COLORS.textSecondary, marginBottom: 4 },
   uploadPrefillBtn: {
     flexDirection: 'row',
@@ -833,11 +683,13 @@ const styles = StyleSheet.create({
   },
   uploadPrefillText: { fontSize: 16, fontWeight: '600', color: APP_COLORS.white },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 },
-  sectionTitle: { fontSize: 18, fontWeight: '700', color: APP_COLORS.textPrimary },
+  sectionTitle: { fontSize: 18, fontWeight: '500', color: APP_COLORS.textPrimary },
   addBtn: { padding: 4 },
   placeholderBox: {
-    backgroundColor: APP_COLORS.surfaceGray,
-    borderRadius: APP_SPACING.borderRadius,
+    backgroundColor: APP_COLORS.white,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
     padding: APP_SPACING.itemPadding,
     marginBottom: 16,
     minHeight: 64,
@@ -856,11 +708,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  placeholderText: { fontSize: 16, fontWeight: '500', color: APP_COLORS.textPrimary },
-  sectionContent: { backgroundColor: APP_COLORS.surfaceGray, borderRadius: APP_SPACING.borderRadius, padding: APP_SPACING.itemPadding, marginBottom: 16 },
+  placeholderText: { fontSize: 13, fontWeight: '400', color: APP_COLORS.textMuted },
+  sectionContent: {
+    backgroundColor: APP_COLORS.white,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    padding: APP_SPACING.itemPadding,
+    marginBottom: 16,
+  },
   sectionContentRow: {
-    backgroundColor: APP_COLORS.surfaceGray,
-    borderRadius: APP_SPACING.borderRadius,
+    backgroundColor: APP_COLORS.white,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
     padding: APP_SPACING.itemPadding,
     marginBottom: 16,
     flexDirection: 'row',
@@ -870,21 +731,32 @@ const styles = StyleSheet.create({
   },
   sectionContentHeader: { flexDirection: 'row', alignItems: 'center', marginBottom: 8 },
   flex1: { flex: 1 },
-  editDeleteRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  iconBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: APP_COLORS.primary,
+  editDeleteRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  editIconBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 1.5,
+    borderColor: APP_COLORS.primary,
+    backgroundColor: '#1E4154',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  deleteIconBtn: { backgroundColor: APP_COLORS.danger },
+  deleteIconBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: APP_COLORS.danger,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   bodyText: { fontSize: 15, lineHeight: 22, color: APP_COLORS.textPrimary, marginTop: 4 },
   bodyTextFlex: { fontSize: 15, lineHeight: 22, color: APP_COLORS.textPrimary, flex: 1 },
   entryCard: {
-    backgroundColor: APP_COLORS.surfaceGray,
-    borderRadius: APP_SPACING.borderRadius,
+    backgroundColor: APP_COLORS.white,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
     padding: APP_SPACING.itemPadding,
     marginBottom: 12,
   },
@@ -915,4 +787,42 @@ const styles = StyleSheet.create({
   },
   entrySub: { fontSize: 15, color: APP_COLORS.textSecondary, marginBottom: 4 },
   entryMeta: { fontSize: 13, color: APP_COLORS.textMuted },
+  addAnotherRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    marginBottom: 16,
+  },
+  addAnotherText: { fontSize: 15, fontWeight: '600', color: APP_COLORS.primary },
+  sheetTitleUnderline: {
+    height: 1,
+    backgroundColor: '#E5E7EB',
+    marginHorizontal: -APP_SPACING.screenPadding,
+    marginTop: 16,
+    marginBottom: 16,
+  },
+  sheetMessage: { fontSize: 16, color: APP_COLORS.textPrimary, textAlign: 'center', marginBottom: 24 },
+  sheetActions: { flexDirection: 'row', gap: 12 },
+  sheetCancel: {
+    flex: 1,
+    height: 52,
+    backgroundColor: '#F3F4F6',
+    borderRadius: APP_SPACING.borderRadius,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sheetCancelText: { fontSize: 16, fontWeight: '600', color: APP_COLORS.textPrimary },
+  sheetDeleteConfirm: {
+    flex: 1,
+    height: 52,
+    backgroundColor: APP_COLORS.danger,
+    borderRadius: APP_SPACING.borderRadius,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  sheetDeleteConfirmText: { fontSize: 16, fontWeight: '600', color: APP_COLORS.white },
 });

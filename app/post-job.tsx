@@ -223,12 +223,17 @@ export default function PostJobScreen() {
         ))}
       </View>
 
-      <KeyboardAvoidingView style={styles.safe} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      <KeyboardAvoidingView
+        style={styles.keyboardWrap}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+      >
         <ScrollView
           style={styles.scroll}
           contentContainerStyle={[styles.scrollContent, { paddingBottom: Math.max(insets.bottom, 24) + 24 }]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
+          keyboardDismissMode="on-drag"
         >
           {step === 0 && (
             <>
@@ -319,10 +324,10 @@ export default function PostJobScreen() {
                   <Text style={styles.perkName} numberOfLines={1}>{name}</Text>
                   <View style={styles.perkActions}>
                     <TouchableOpacity onPress={() => openEditPerk(i)} style={styles.perkEditBtn} activeOpacity={0.8}>
-                      <Ionicons name="refresh" size={18} color={APP_COLORS.primary} />
+                      <Ionicons name="create-outline" size={18} color={APP_COLORS.white} />
                     </TouchableOpacity>
                     <TouchableOpacity onPress={() => openDeletePerk(i)} style={styles.perkDeleteBtn} activeOpacity={0.8}>
-                      <Ionicons name="trash-outline" size={18} color={APP_COLORS.danger} />
+                      <Ionicons name="trash-outline" size={18} color={APP_COLORS.white} />
                     </TouchableOpacity>
                   </View>
                 </View>
@@ -393,6 +398,7 @@ export default function PostJobScreen() {
               <View style={styles.sheetHandleBar} />
             </TouchableOpacity>
             <Text style={styles.sheetTitle}>Add perk & benefit</Text>
+            <View style={styles.sheetTitleUnderline} />
             <Text style={styles.sheetLabel}>Perk & benefit name</Text>
             <TextInput
               style={styles.sheetInput}
@@ -425,6 +431,7 @@ export default function PostJobScreen() {
               <View style={styles.sheetHandleBar} />
             </TouchableOpacity>
             <Text style={styles.sheetTitle}>Edit perk & benefit</Text>
+            <View style={styles.sheetTitleUnderline} />
             <Text style={styles.sheetLabel}>Perk & benefit name</Text>
             <TextInput
               style={styles.sheetInput}
@@ -457,6 +464,7 @@ export default function PostJobScreen() {
               <View style={styles.sheetHandleBar} />
             </TouchableOpacity>
             <Text style={styles.sheetTitle}>Delete Perk & benefit</Text>
+            <View style={styles.sheetTitleUnderline} />
             <Text style={styles.sheetMessage}>Sure you want to delete?</Text>
             <View style={styles.sheetActions}>
               <TouchableOpacity style={styles.sheetCancel} onPress={() => setDeletePerkIndex(null)} activeOpacity={0.85}>
@@ -499,6 +507,7 @@ export default function PostJobScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: APP_COLORS.background },
+  keyboardWrap: { flex: 1 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -516,7 +525,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: 12,
     paddingVertical: 16,
-    backgroundColor: '#F9FAFB',
+    backgroundColor: '#F5F5F5',
   },
   stepItem: {
     flex: 1,
@@ -528,7 +537,7 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#E5E7EB',
+    backgroundColor: 'white',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 6,
@@ -564,7 +573,7 @@ const styles = StyleSheet.create({
   },
   scroll: { flex: 1 },
   scrollContent: { paddingHorizontal: APP_SPACING.screenPadding, paddingTop: 16 },
-  sectionTitle: { fontSize: 16, fontWeight: '700', color: APP_COLORS.textPrimary, marginBottom: 6 },
+  sectionTitle: { fontSize: 16, fontWeight: '500', color: APP_COLORS.textPrimary, marginBottom: 6 },
   sectionSubtext: { fontSize: 14, color: APP_COLORS.textSecondary, lineHeight: 20, marginBottom: 20 },
   benefitsHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 20 },
   benefitsHeaderText: { flex: 1, marginRight: 12 },
@@ -573,10 +582,10 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 12,
-    paddingVertical: 14,
+    paddingVertical: 10,
     paddingHorizontal: 16,
     backgroundColor: '#F3F4F6',
-    borderRadius: 16,
+    borderRadius: 60,
     borderWidth: 1,
     borderColor: '#E5E7EB',
   },
@@ -586,7 +595,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#DBEAFE',
+    backgroundColor: '#1E4154',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -594,7 +603,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#FECACA',
+    backgroundColor: APP_COLORS.danger,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -605,7 +614,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     height: APP_SPACING.inputHeight,
     backgroundColor: '#F3F4F6',
-    borderRadius: APP_SPACING.borderRadius,
+    borderRadius: APP_SPACING.borderRadius + 40, 
     borderWidth: 1,
     borderColor: '#E5E7EB',
     paddingHorizontal: 12,
@@ -618,14 +627,14 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   inputIconDollar: { fontSize: 18, fontWeight: '700', color: '#111827' },
-  input: { flex: 1, fontSize: 16, color: APP_COLORS.textPrimary, paddingVertical: 0 },
+  input: { flex: 1, fontSize: 16, color: APP_COLORS.textPrimary },
   dropdownWrap: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     height: APP_SPACING.inputHeight,
     backgroundColor: '#F3F4F6',
-    borderRadius: APP_SPACING.borderRadius,
+    borderRadius: APP_SPACING.borderRadius + 40,
     borderWidth: 1,
     borderColor: '#E5E7EB',
     paddingHorizontal: 16,
@@ -654,7 +663,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    minHeight: 180,
+    minHeight: 340,
+    maxHeight: 340,
   },
   descToolbarRow: {
     flexDirection: 'row',
@@ -679,13 +689,14 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     fontSize: 16,
     color: APP_COLORS.textPrimary,
-    minHeight: 140,
+    minHeight: 320,
+    maxHeight: 320,
   },
   footer: { marginTop: 24 },
   primaryBtn: {
     flexDirection: 'row',
     height: 54,
-    borderRadius: APP_SPACING.borderRadiusLg,
+    borderRadius: APP_SPACING.borderRadiusLg + 40,
     backgroundColor: APP_COLORS.primary,
     alignItems: 'center',
     justifyContent: 'center',
@@ -743,6 +754,13 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: APP_COLORS.textPrimary,
     textAlign: 'center',
+    marginBottom: 0,
+  },
+  sheetTitleUnderline: {
+    height: 1,
+    backgroundColor: '#E5E7EB',
+    marginHorizontal: -24,
+    marginTop: 16,
     marginBottom: 16,
   },
   sheetLabel: {
@@ -760,7 +778,7 @@ const styles = StyleSheet.create({
   sheetInput: {
     height: 52,
     backgroundColor: '#F3F4F6',
-    borderRadius: APP_SPACING.borderRadius,
+    borderRadius: APP_SPACING.borderRadius + 40,
     borderWidth: 1,
     borderColor: '#E5E7EB',
     paddingHorizontal: 16,
@@ -772,7 +790,7 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 52,
     backgroundColor: '#F3F4F6',
-    borderRadius: APP_SPACING.borderRadius,
+    borderRadius: APP_SPACING.borderRadius + 40,
     borderWidth: 1,
     borderColor: '#E5E7EB',
     alignItems: 'center',
@@ -783,7 +801,7 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 52,
     backgroundColor: APP_COLORS.primary,
-    borderRadius: APP_SPACING.borderRadius,
+    borderRadius: APP_SPACING.borderRadius + 40,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -792,7 +810,7 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 52,
     backgroundColor: APP_COLORS.danger,
-    borderRadius: APP_SPACING.borderRadius,
+    borderRadius: APP_SPACING.borderRadius + 40,
     alignItems: 'center',
     justifyContent: 'center',
   },

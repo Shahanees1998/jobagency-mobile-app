@@ -26,7 +26,7 @@ export default function JobPostedScreen() {
         </View>
         <Text style={styles.title}>Your job is live and ready for applications !!</Text>
         <Text style={styles.subtext}>
-          Your job has been published and is now visible to potential candidates. You'll start receiving applications soon.
+          Your job has been published and is now visible to potential candidates. You&apos;ll start receiving applications soon.
         </Text>
         <TouchableOpacity
           style={styles.primaryBtn}
@@ -65,7 +65,7 @@ const styles = StyleSheet.create({
     width: 100,
     height: 100,
     borderRadius: 20,
-    backgroundColor: ICON_BG,
+    backgroundColor: '#72A4BF',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 28,
@@ -90,7 +90,7 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 54,
     borderRadius: 27,
-    backgroundColor: BTN_BG,
+    backgroundColor: '#1E4154',
     alignItems: 'center',
     justifyContent: 'center',
   },

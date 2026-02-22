@@ -49,6 +49,8 @@ export function AuthInput({
         style={styles.input}
         placeholderTextColor="#031019"
         secureTextEntry={isSecret && !showPassword}
+        multiline={false}
+        scrollEnabled={false}
         {...inputProps}
       />
       {isSecret ? (
@@ -85,11 +87,10 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontFamily: 'Kanit_300Light',
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '300',
     color: AUTH_COLORS.textPrimary,
     paddingVertical: 0,
-    lineHeight: 16,
   },
   iconRight: {
     paddingLeft: 8,

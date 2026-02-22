@@ -1,8 +1,9 @@
 import { APP_COLORS, APP_SPACING } from '@/constants/appTheme';
 import { useAuth } from '@/contexts/AuthContext';
+import { useNotifications } from '@/contexts/NotificationsContext';
 import { apiClient } from '@/lib/api';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -48,6 +49,7 @@ function getGroupKey(createdAt: string): 'Today' | 'Yesterday' | string {
 
 export default function NotificationsScreen() {
   const { user } = useAuth();
+  const { refreshUnreadCount } = useNotifications();
   const [notifications, setNotifications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -69,6 +71,12 @@ export default function NotificationsScreen() {
   useEffect(() => {
     loadNotifications();
   }, [loadNotifications]);
+
+  useFocusEffect(
+    useCallback(() => {
+      apiClient.markAllNotificationsAsRead().then(() => refreshUnreadCount());
+    }, [refreshUnreadCount])
+  );
 
   const onRefresh = () => {
     setRefreshing(true);

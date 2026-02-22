@@ -35,6 +35,7 @@ export function LogoutModal({ visible, onClose, onConfirm, loading }: LogoutModa
         >
           <View style={styles.handle} />
           <Text style={styles.title}>Logout</Text>
+          <View style={styles.titleUnderline} />
           <Text style={styles.message}>Sure you want to log out?</Text>
           <View style={styles.actions}>
             <TouchableOpacity
@@ -88,7 +89,14 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: APP_COLORS.primary,
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: 0,
+  },
+  titleUnderline: {
+    height: 1,
+    backgroundColor: '#E5E7EB',
+    marginHorizontal: -APP_SPACING.screenPadding,
+    marginTop: 16,
+    marginBottom: 16,
   },
   message: {
     fontSize: 16,

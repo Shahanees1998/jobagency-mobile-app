@@ -20,7 +20,7 @@ import {
     useWindowDimensions,
     View,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const TITLES = {
   CANDIDATE: 'Sign up to find work you love',
@@ -38,6 +38,7 @@ export default function CreateAccountScreen() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const { width } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
   const isNarrow = width < 380;
 
   const handleGoogle = () => {
@@ -90,15 +91,21 @@ export default function CreateAccountScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.safe} edges={['top']}>
+    <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
       <KeyboardAvoidingView
         style={styles.keyboard}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
         <ScrollView
-          contentContainerStyle={[styles.scroll, isNarrow && styles.scrollNarrow]}
+          contentContainerStyle={[
+            styles.scroll,
+            isNarrow && styles.scrollNarrow,
+            { paddingBottom: Math.max(AUTH_SPACING.contentPaddingV * 3 + 24, insets.bottom + 24) },
+          ]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
+          keyboardDismissMode="on-drag"
         >
           <AuthBanner
             title={TITLES[role]}
@@ -173,7 +180,6 @@ const styles = StyleSheet.create({
   },
   scroll: {
     flexGrow: 1,
-    paddingBottom: AUTH_SPACING.contentPaddingV * 2,
   },
   scrollNarrow: {
     paddingHorizontal: 0,

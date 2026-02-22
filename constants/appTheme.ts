@@ -16,6 +16,7 @@ export const APP_COLORS = {
   danger: '#DC2626',
   success: '#059669',
   avatarBg: '#93C5FD',
+  themeBlue: '#72A4BF'
 } as const;
 
 export const APP_SPACING = {

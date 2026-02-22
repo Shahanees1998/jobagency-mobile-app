@@ -179,6 +179,46 @@ export default function JobDetailsScreen() {
 
   const handleApply = async () => {
     if (!id) return;
+
+    // Check resume completion before applying (candidates only)
+    if (user?.role === 'CANDIDATE') {
+      try {
+        const profileRes = await apiClient.getCandidateProfile();
+        if (profileRes.success && profileRes.data) {
+          const d = profileRes.data as any;
+          const bio = (d.bio ?? '').trim();
+          const hasWork = Array.isArray(d.workExperience) ? d.workExperience.length > 0 : (() => {
+            try {
+              const exp = typeof d.experience === 'string' ? JSON.parse(d.experience || '[]') : d.experience;
+              return Array.isArray(exp) && exp.length > 0;
+            } catch { return false; }
+          })();
+          const hasEducation = Array.isArray(d.education) ? d.education.length > 0 : (() => {
+            try {
+              const edu = typeof d.education === 'string' ? JSON.parse(d.education || '[]') : d.education;
+              return Array.isArray(edu) && edu.length > 0;
+            } catch { return false; }
+          })();
+          const resumeComplete = bio.length > 0 && (hasWork || hasEducation);
+          if (!resumeComplete) {
+            showDialog({
+              title: 'Complete your resume',
+              message: 'Complete your resume before applying. Add a summary and at least one work experience or education.',
+              icon: 'document-text-outline',
+              primaryButton: {
+                text: 'Go to resume',
+                onPress: () => router.push('/my-resume'),
+              },
+              secondaryButton: { text: 'Cancel' },
+            });
+            return;
+          }
+        }
+      } catch (_) {
+        // If we can't load profile, allow apply attempt (backend may still reject)
+      }
+    }
+
     setApplying(true);
     try {
       const response = await apiClient.applyToJob(id, undefined);

@@ -1,4 +1,5 @@
 import { EmployerJobCard, JobCard } from '@/components/jobs';
+import { NotificationBell } from '@/components/ui/NotificationBell';
 import { APP_COLORS, APP_SPACING, TAB_BAR } from '@/constants/appTheme';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDialog } from '@/contexts/DialogContext';
@@ -262,13 +263,7 @@ function CandidateJobsScreen() {
             <TouchableOpacity onPress={onRefresh} style={styles.iconBtn} hitSlop={12}>
               <Ionicons name="timer-outline" size={24} color={APP_COLORS.textPrimary} />
             </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => router.push('/notifications')}
-              style={styles.iconBtn}
-              hitSlop={12}
-            >
-              <Ionicons name="notifications-outline" size={24} color={APP_COLORS.textPrimary} />
-            </TouchableOpacity>
+            <NotificationBell size={24} style={styles.iconBtn} />
           </View>
         </View>
         <View style={styles.searchWrap}>
@@ -478,15 +473,13 @@ function EmployerDashboardScreen() {
         <View style={styles.header}>
           <View style={styles.greetingBlock}>
             <Text style={styles.greeting}>Hi, {firstName}</Text>
-            <Text style={styles.subGreeting}>Time to level up your job hunt.</Text>
+            <Text style={styles.subGreeting}>Power up your job posting</Text>
           </View>
           <View style={styles.headerIcons}>
             <TouchableOpacity onPress={onRefresh} style={styles.iconBtn} hitSlop={12}>
               <Ionicons name="timer-outline" size={24} color={APP_COLORS.textPrimary} />
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => router.push('/notifications')} style={styles.iconBtn} hitSlop={12}>
-              <Ionicons name="notifications-outline" size={24} color={APP_COLORS.textPrimary} />
-            </TouchableOpacity>
+            <NotificationBell size={24} style={styles.iconBtn} />
           </View>
         </View>
         <View style={styles.searchWrap}>
@@ -497,11 +490,11 @@ function EmployerDashboardScreen() {
           >
             <Ionicons name="search-outline" size={22} color="#6B7280" style={styles.searchBarIcon} />
             <Text style={styles.searchBarPlaceholder} numberOfLines={1}>
-              {searchQuery || 'Job title, keywords, or company...'}
+              {searchQuery || 'Search jobs you posted .....'}
             </Text>
           </TouchableOpacity>
         </View>
-        <Text style={styles.sectionTitle}>Popular Jobs</Text>
+        {jobs.length > 0 && <Text style={styles.sectionTitle}>Your Jobs</Text>}
         <FlatList
           data={jobs}
           keyExtractor={(item, index) => item?.id ?? `job-${index}`}
@@ -524,15 +517,20 @@ function EmployerDashboardScreen() {
             ) : null
           }
           ListEmptyComponent={
-            <View style={styles.empty}>
-              <Text style={styles.emptyText}>No jobs found</Text>
-              <Text style={styles.emptySubtext}>Check back later or try a different search.</Text>
+            <View style={styles.employerEmpty}>
+              <View style={styles.employerEmptyIconWrap}>
+                <Ionicons name="send-outline" size={46} color={'black'} />
+              </View>
+              <Text style={styles.employerEmptyTitle}>Start hiring with your first job post !!</Text>
+              <Text style={styles.employerEmptySubtext}>
+                Your job postings will appear here after you create one. Let&apos;s post your first job and connect with the right talent.
+              </Text>
               <TouchableOpacity
-                style={[styles.createJobBtn, { marginTop: 20 }]}
+                style={styles.createJobBtn}
                 onPress={() => router.push('/post-job')}
                 activeOpacity={0.85}
               >
-                <Text style={styles.createJobBtnText}>Post a job</Text>
+                <Text style={styles.createJobBtnText}>Post your first job</Text>
               </TouchableOpacity>
             </View>
           }
@@ -674,13 +672,13 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 48,
     alignItems: 'center',
-    paddingHorizontal: 24,
+    paddingHorizontal: 12,
   },
   employerEmptyIconWrap: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
-    backgroundColor: APP_COLORS.surfaceGray,
+    width: 80,
+    height: 80,
+    borderRadius: 5,
+    backgroundColor: APP_COLORS.themeBlue,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 24,
@@ -688,14 +686,15 @@ const styles = StyleSheet.create({
     borderColor: APP_COLORS.primary,
   },
   employerEmptyTitle: {
-    fontSize: 18,
-    fontWeight: '800',
+    fontSize: 28,
+    fontWeight: '700',
     color: APP_COLORS.textPrimary,
     textAlign: 'center',
     marginBottom: 12,
+    lineHeight: 35
   },
   employerEmptySubtext: {
-    fontSize: 14,
+    fontSize: 16,
     color: APP_COLORS.textSecondary,
     textAlign: 'center',
     marginBottom: 28,
@@ -707,7 +706,8 @@ const styles = StyleSheet.create({
     backgroundColor: APP_COLORS.primary,
     paddingVertical: 16,
     paddingHorizontal: 32,
-    borderRadius: APP_SPACING.borderRadius,
+    width:'100%',
+    borderRadius: 60,
   },
   createJobBtnText: {
     color: APP_COLORS.white,

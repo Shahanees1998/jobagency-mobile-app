@@ -39,7 +39,7 @@ export const AUTH_SPACING = {
   contentPaddingV: 20,
   inputHeight: 52,
   /** Pill-shaped inputs and buttons */
-  inputBorderRadius: 16,
+  inputBorderRadius: 25,
   buttonBorderRadius: 16,
   buttonHeight: 52,
   gapInputs: 14,

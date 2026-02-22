@@ -1,4 +1,5 @@
 import { APP_COLORS, APP_SPACING } from '@/constants/appTheme';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import React from 'react';
 import {
     Modal,
@@ -20,6 +21,8 @@ export interface AppDialogProps {
   onRequestClose?: () => void;
   title: string;
   message: string;
+  /** Optional icon name (Ionicons) shown above title in a rounded box. */
+  icon?: keyof typeof Ionicons.glyphMap;
   /** Primary CTA (e.g. "Go to Profile"). If primary: true, styled as primary button. */
   primaryButton: AppDialogButton;
   /** Optional secondary (e.g. "Cancel"). */
@@ -31,6 +34,7 @@ function AppDialogComponent({
   onRequestClose,
   title,
   message,
+  icon,
   primaryButton,
   secondaryButton,
 }: AppDialogProps) {
@@ -50,6 +54,11 @@ function AppDialogComponent({
       <Pressable style={styles.overlay} onPress={onRequestClose ?? handleClose}>
         <Pressable style={styles.card} onPress={(e) => e.stopPropagation()}>
           <View style={styles.content}>
+            {icon ? (
+              <View style={styles.iconWrap}>
+                <Ionicons name={icon} size={44} color={APP_COLORS.primary} />
+              </View>
+            ) : null}
             <Text style={styles.title}>{title}</Text>
             <Text style={styles.message}>{message}</Text>
           </View>
@@ -101,6 +110,16 @@ const styles = StyleSheet.create({
   },
   content: {
     marginBottom: 24,
+    alignItems: 'center',
+  },
+  iconWrap: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: '#E8F4FC',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
   },
   title: {
     fontSize: 20,
@@ -124,20 +143,20 @@ const styles = StyleSheet.create({
     flex: 1,
     height: 48,
     backgroundColor: APP_COLORS.surfaceGray,
-    borderRadius: APP_SPACING.borderRadius,
+    borderRadius: APP_SPACING.borderRadius + 40,
     alignItems: 'center',
     justifyContent: 'center',
   },
   secondaryButtonText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '500',
     color: APP_COLORS.textPrimary,
   },
   primaryButton: {
     flex: 1,
     height: 48,
     backgroundColor: APP_COLORS.primary,
-    borderRadius: APP_SPACING.borderRadius,
+    borderRadius: APP_SPACING.borderRadius + 40,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -146,7 +165,7 @@ const styles = StyleSheet.create({
   },
   primaryButtonText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '500',
     color: APP_COLORS.white,
   },
 });

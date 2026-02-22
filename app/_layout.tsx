@@ -10,6 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { DialogProvider } from '@/contexts/DialogContext';
+import { NotificationsProvider } from '@/contexts/NotificationsContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
@@ -176,6 +177,18 @@ function RootLayoutNav() {
         options={{ title: 'My resume', headerShown: true, headerBackTitle: 'Back' }}
       />
       <Stack.Screen
+        name="add-summary"
+        options={{ title: 'Add summary', headerShown: false, headerBackTitle: 'Back' }}
+      />
+      <Stack.Screen
+        name="add-work-experience"
+        options={{ title: 'Add work experience', headerShown: false, headerBackTitle: 'Back' }}
+      />
+      <Stack.Screen
+        name="add-education"
+        options={{ title: 'Add education', headerShown: false, headerBackTitle: 'Back' }}
+      />
+      <Stack.Screen
         name="support"
         options={{ title: 'Support', headerBackTitle: 'Back' }}
       />
@@ -218,10 +231,12 @@ export default function RootLayout() {
   return (
     <AuthProvider>
       <DialogProvider>
-        <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-          <RootLayoutNav />
-          <StatusBar hidden={true} />
-        </ThemeProvider>
+        <NotificationsProvider>
+          <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
+            <RootLayoutNav />
+            <StatusBar hidden={true} />
+          </ThemeProvider>
+        </NotificationsProvider>
       </DialogProvider>
     </AuthProvider>
   );
