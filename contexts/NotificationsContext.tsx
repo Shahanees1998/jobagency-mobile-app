@@ -22,7 +22,7 @@ export function NotificationsProvider({ children }: { children: ReactNode }) {
       const res = await apiClient.getNotifications({ page: 1, limit: 100 });
       const raw = res.success && res.data ? (res.data as any) : {};
       const list = Array.isArray(raw.notifications) ? raw.notifications : Array.isArray(raw) ? raw : [];
-      const total = typeof raw.unreadCount === 'number' ? raw.unreadCount : list.filter((n: any) => !n.read).length;
+      const total = typeof raw.unreadCount === 'number' ? raw.unreadCount : list.filter((n: any) => !n.isRead).length;
       setUnreadCount(Math.min(total, 99));
     } catch {
       setUnreadCount(0);

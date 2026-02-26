@@ -48,7 +48,6 @@ export default function SplashScreen() {
           style={styles.logo}
           resizeMode="contain"
         />
-        
       </View>
       <View style={styles.footer}>
         <LinearGradient
@@ -88,12 +87,6 @@ const styles = StyleSheet.create({
     width: LOGO_SIZE,
     height: LOGO_SIZE,
     marginBottom: 16,
-  },
-  appName: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#1F2937',
-    letterSpacing: 0.5,
   },
   footer: {
     alignItems: 'center',

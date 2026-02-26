@@ -504,6 +504,7 @@ export default function JobDetailsScreen() {
               location={job.location}
               benefits={job.benefits}
               companyLogoLetter={job.companyLogoLetter}
+              companyLogoUrl={companyLogoUri ?? undefined}
               hideBookmark
               hideDislike
             />

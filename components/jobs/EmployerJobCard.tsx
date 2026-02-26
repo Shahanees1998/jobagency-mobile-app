@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
+import { Image, StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
 
 export interface EmployerJobCardProps {
   title: string;
@@ -8,6 +8,7 @@ export interface EmployerJobCardProps {
   location: string;
   benefits?: string[];
   companyLogoLetter?: string;
+  companyLogoUrl?: string | null;
   onPress?: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
@@ -20,6 +21,7 @@ export function EmployerJobCard({
   location,
   benefits = [],
   companyLogoLetter,
+  companyLogoUrl,
   onPress,
   onEdit,
   onDelete,
@@ -60,7 +62,11 @@ export function EmployerJobCard({
       <View style={styles.middleRow}>
         <View style={styles.logoAndInfo}>
           <View style={styles.logo}>
-            <Text style={styles.logoText}>{letter}</Text>
+            {companyLogoUrl ? (
+              <Image source={{ uri: companyLogoUrl }} style={styles.logoImage} resizeMode="cover" />
+            ) : (
+              <Text style={styles.logoText}>{letter}</Text>
+            )}
           </View>
           <View style={styles.companyInfo}>
             <Text style={styles.companyName} numberOfLines={1}>{companyName}</Text>
@@ -122,6 +128,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 8,
+    overflow: 'hidden',
+  },
+  logoImage: {
+    width: '100%',
+    height: '100%',
   },
   logoText: {
     color: '#FFFFFF',

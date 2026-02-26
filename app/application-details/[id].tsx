@@ -81,12 +81,12 @@ export default function ApplicationDetailsScreen() {
         setApplication(response.data);
         // Debug: see what backend returns (check candidate.languages, candidate.certifications)
         if (__DEV__) {
-          console.log('[ApplicationDetails] Backend response.data:', JSON.stringify(response.data, null, 2));
+          //console.log('[ApplicationDetails] Backend response.data:', JSON.stringify(response.data, null, 2));
           const cand = response.data?.candidate;
-          console.log('[ApplicationDetails] candidate keys:', cand ? Object.keys(cand) : 'no candidate');
-          console.log('[ApplicationDetails] candidate.languages:', cand?.languages);
-          console.log('[ApplicationDetails] candidate.certifications:', cand?.certifications);
-          console.log('[ApplicationDetails] candidate.resume:', cand?.resume);
+          //console.log('[ApplicationDetails] candidate keys:', cand ? Object.keys(cand) : 'no candidate');
+          //console.log('[ApplicationDetails] candidate.languages:', cand?.languages);
+          //console.log('[ApplicationDetails] candidate.certifications:', cand?.certifications);
+          //console.log('[ApplicationDetails] candidate.resume:', cand?.resume);
         }
       }
     } catch (error) {

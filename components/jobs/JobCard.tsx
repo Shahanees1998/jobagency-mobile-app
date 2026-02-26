@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import React from 'react';
-import { StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
+import { Image, StyleSheet, Text, TouchableOpacity, View, ViewStyle } from 'react-native';
 
 export interface JobCardProps {
   title: string;
@@ -8,6 +8,7 @@ export interface JobCardProps {
   location: string;
   benefits?: string[];
   companyLogoLetter?: string;
+  companyLogoUrl?: string | null;
   saved?: boolean;
   liked?: boolean;
   showRemoveIcon?: boolean;
@@ -36,6 +37,7 @@ export function JobCard({
   location,
   benefits = [],
   companyLogoLetter,
+  companyLogoUrl,
   saved,
   liked,
   showRemoveIcon,
@@ -65,19 +67,7 @@ export function JobCard({
           {title}
         </Text>
         <View style={styles.topRowIcons}>
-          {!hideLike && onLike != null && (
-            <TouchableOpacity
-              onPress={(e) => { e?.stopPropagation?.(); onLike?.(); }}
-              hitSlop={8}
-              style={styles.iconBtn}
-            >
-              <Ionicons
-                name={liked ? 'heart' : 'heart-outline'}
-                size={iconSz}
-                color={liked ? '#DC2626' : '#031019'}
-              />
-            </TouchableOpacity>
-          )}
+
           {!hideBookmark && (
             <TouchableOpacity
               onPress={(e) => { e?.stopPropagation?.(); onBookmark?.(); }}
@@ -98,22 +88,30 @@ export function JobCard({
       <View style={[styles.middleRow, compact && styles.middleRowCompact]}>
         <View style={styles.logoAndInfo}>
           <View style={[styles.logo, compact && styles.logoCompact]}>
-            <Text style={[styles.logoText, compact && styles.logoTextCompact]}>{letter}</Text>
+            {companyLogoUrl ? (
+              <Image source={{ uri: companyLogoUrl }} style={[styles.logoImage, compact && styles.logoImageCompact]} resizeMode="cover" />
+            ) : (
+              <Text style={[styles.logoText, compact && styles.logoTextCompact]}>{letter}</Text>
+            )}
           </View>
           <View style={styles.companyInfo}>
             <Text style={[styles.companyName, compact && styles.companyNameCompact]} numberOfLines={1}>{companyName}</Text>
             <Text style={[styles.location, compact && styles.locationCompact]} numberOfLines={1}>{location}</Text>
           </View>
         </View>
-        {!hideDislike && (
-          <TouchableOpacity
-            onPress={(e) => { e?.stopPropagation?.(); onDislike?.(); }}
-            hitSlop={8}
-            style={styles.iconBtn}
-          >
-            <Ionicons name="thumbs-down-outline" size={iconSz} color="#031019" />
-          </TouchableOpacity>
-        )}
+        {!hideLike && onLike != null && (
+            <TouchableOpacity
+              onPress={(e) => { e?.stopPropagation?.(); onLike?.(); }}
+              hitSlop={8}
+              style={styles.iconBtn}
+            >
+              <Ionicons
+                name={liked ? 'thumbs-up' : 'thumbs-up-outline'}
+                size={iconSz}
+                color={liked ? '#1E4154' : '#031019'}
+              />
+            </TouchableOpacity>
+          )}
       </View>
 
       {/* Bottom Row: Tags */}
@@ -200,6 +198,16 @@ const styles = StyleSheet.create({
     height: 36,
     borderRadius: 5,
     marginRight: 8,
+  },
+  logoImage: {
+    width: 48,
+    height: 48,
+    borderRadius: 6,
+  },
+  logoImageCompact: {
+    width: 36,
+    height: 36,
+    borderRadius: 5,
   },
   logoText: {
     color: '#FFFFFF',

@@ -12,6 +12,11 @@ import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { DialogProvider } from '@/contexts/DialogContext';
 import { NotificationsProvider } from '@/contexts/NotificationsContext';
 import { useColorScheme } from '@/hooks/use-color-scheme';
+import {
+  handleLastNotificationResponseIfAny,
+  setupNotificationDisplay,
+  setupNotificationHandlers,
+} from '@/lib/pushNotifications';
 import Ionicons from '@expo/vector-icons/Ionicons';
 
 export const unstable_settings = {
@@ -73,6 +78,25 @@ function RootLayoutNav() {
       router.replace('/(auth)/login');
     }
   }, [isAuthenticated, isLoading, segments]);
+
+  // Show notifications in device notification bar (foreground + Android default channel)
+  useEffect(() => {
+    setupNotificationDisplay();
+  }, []);
+
+  // Notification tap: open chat, notifications, job/application details, etc.
+  useEffect(() => {
+    const cleanup = setupNotificationHandlers();
+    return cleanup;
+  }, []);
+
+  // App opened from killed state by tapping a notification
+  useEffect(() => {
+    const t = setTimeout(() => {
+      handleLastNotificationResponseIfAny();
+    }, 800);
+    return () => clearTimeout(t);
+  }, []);
 
   if (!fontsLoaded) {
     return null;

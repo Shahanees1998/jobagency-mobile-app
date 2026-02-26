@@ -64,7 +64,7 @@ const styles = StyleSheet.create({
   primaryBtn: {
     height: 54,
     paddingHorizontal: 32,
-    borderRadius: APP_SPACING.borderRadiusLg,
+    borderRadius: APP_SPACING.borderRadiusLg + 40,
     backgroundColor: APP_COLORS.primary,
     alignItems: 'center',
     justifyContent: 'center',

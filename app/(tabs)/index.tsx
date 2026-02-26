@@ -4,6 +4,7 @@ import { APP_COLORS, APP_SPACING, TAB_BAR } from '@/constants/appTheme';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDialog } from '@/contexts/DialogContext';
 import { apiClient } from '@/lib/api';
+import { imageUriForDisplay } from '@/lib/imageUri';
 import { storage, type JobFilters } from '@/lib/storage';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useFocusEffect } from 'expo-router';
@@ -48,8 +49,9 @@ function CandidateJobsScreen() {
 
   const loadJobs = useCallback(async (pageNum = 1, search = '', filterOverride?: JobFilters | null) => {
     const f = filterOverride ?? filters;
-    console.log('[Home] loadJobs called, page:', pageNum, 'search:', search, 'filters:', f);
-    if (pageNum > 1) {
+    if (pageNum === 1) {
+      setLoading(true);
+    } else {
       loadingMoreRef.current = true;
       setLoading(true);
     }
@@ -67,8 +69,6 @@ function CandidateJobsScreen() {
         salary: f?.salary && f.salary !== 'all' ? f.salary : undefined,
         education: f?.education && f.education !== 'all' ? f.education : undefined,
       });
-      console.log('[Home] getJobs response:', response.success, 'data keys:', response.data ? Object.keys(response.data as object) : null);
-
       if (response.success && response.data) {
         const raw = response.data as any;
         const list = Array.isArray(raw?.jobs) ? raw.jobs : Array.isArray(raw) ? raw : [];
@@ -88,9 +88,6 @@ function CandidateJobsScreen() {
         } else {
           setHasMore(list.length >= limit);
         }
-        console.log('[Home] jobs set, count:', list.length, 'hasMore:', pageNum === 1 ? (list.length >= limit) : 'n/a');
-      } else {
-        console.log('[Home] getJobs not success or no data:', response);
       }
     } catch (error) {
       console.error('[Home] Error loading jobs:', error);
@@ -98,7 +95,6 @@ function CandidateJobsScreen() {
       setLoading(false);
       setRefreshing(false);
       loadingMoreRef.current = false;
-      console.log('[Home] loadJobs done, setLoading(false)');
     }
   }, [filters]);
 
@@ -109,9 +105,7 @@ function CandidateJobsScreen() {
   useFocusEffect(
     useCallback(() => {
       let isFocused = true;
-      console.log('[Home] useFocusEffect: focus, loading filters...');
       loadFilters().then((f) => {
-        console.log('[Home] loadFilters resolved, isFocused:', isFocused, 'filters:', f);
         if (!isFocused) return;
         setFilters(f ?? null);
         setPage(1);
@@ -119,16 +113,9 @@ function CandidateJobsScreen() {
       });
       return () => {
         isFocused = false;
-        console.log('[Home] useFocusEffect: blur');
       };
     }, [loadFilters, loadJobs, searchQuery])
   );
-
-  useEffect(() => {
-    loadFilters().then((f) => {
-      if (f) setFilters(f);
-    });
-  }, [loadFilters]);
 
   const onRefresh = useCallback(() => {
     setRefreshing(true);
@@ -175,6 +162,7 @@ function CandidateJobsScreen() {
       location: item.location || item.employer?.location || 'Location',
       benefits: benefits.length ? benefits : fallbackBenefits.slice(0, 5),
       companyLogoLetter: item.employer?.companyName?.charAt(0) || item.companyName?.charAt(0),
+      companyLogoUrl: imageUriForDisplay(item.employer?.companyLogo) ?? undefined,
     };
   };
 
@@ -196,6 +184,7 @@ function CandidateJobsScreen() {
         location: summary.location,
         benefits: summary.benefits,
         companyLogoLetter: summary.companyLogoLetter,
+        companyLogoUrl: summary.companyLogoUrl,
       });
       setSavedJobIds((prev) => (prev.includes(jobId) ? prev : [...prev, jobId]));
     }
@@ -230,6 +219,7 @@ function CandidateJobsScreen() {
         location={card.location}
         benefits={card.benefits}
         companyLogoLetter={card.companyLogoLetter}
+        companyLogoUrl={card.companyLogoUrl}
         saved={savedJobIds.includes(item.id)}
         liked={isCandidate ? item.saved === true : false}
         onPress={() => router.push(`/job-details/${item.id}`)}
@@ -241,7 +231,6 @@ function CandidateJobsScreen() {
   };
 
   if (loading && jobs.length === 0) {
-    console.log('[Home] Candidate: showing loading (loading=true, jobs=0)');
     return (
       <SafeAreaView style={styles.safe} edges={['top']}>
         <View style={styles.loadingContainer}>
@@ -327,6 +316,7 @@ function EmployerDashboardScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [companyName, setCompanyName] = useState('');
+  const [companyLogo, setCompanyLogo] = useState<string | null>(null);
   const [employerId, setEmployerId] = useState<string>('');
   const [filters, setFilters] = useState<JobFilters | null>(null);
   const [page, setPage] = useState(1);
@@ -347,6 +337,7 @@ function EmployerDashboardScreen() {
       if (res.success && res.data) {
         const d = res.data as any;
         setCompanyName(d.companyName || '');
+        setCompanyLogo(d.companyLogo ?? null);
         setEmployerId(d.id ?? d.employerId ?? '');
       }
     } catch (_) {}
@@ -447,6 +438,7 @@ function EmployerDashboardScreen() {
 
   const mapJobToCard = (item: any) => {
     const benefits = item.benefits ? (Array.isArray(item.benefits) ? item.benefits : [item.benefits]) : [];
+    const logoUrl = imageUriForDisplay(item.employer?.companyLogo ?? companyLogo);
     return {
       id: item.id,
       title: item.title || 'Job Title',
@@ -454,6 +446,7 @@ function EmployerDashboardScreen() {
       location: item.location || 'Location',
       benefits: benefits.length ? benefits : [],
       companyLogoLetter: (companyName || item.employer?.companyName || item.companyName || '?').charAt(0),
+      companyLogoUrl: logoUrl ?? undefined,
     };
   };
 
@@ -543,6 +536,7 @@ function EmployerDashboardScreen() {
                 location={card.location}
                 benefits={card.benefits}
                 companyLogoLetter={card.companyLogoLetter}
+                companyLogoUrl={card.companyLogoUrl}
                 onPress={() => router.push(`/job-details/${item.id}`)}
                 onEdit={() => router.push(`/edit-job/${item.id}`)}
                 onDelete={() => handleDeleteJob(item)}
@@ -557,7 +551,6 @@ function EmployerDashboardScreen() {
 
 export default function IndexScreen() {
   const { user } = useAuth();
-  console.log('[Home] IndexScreen render, user:', user?.id, 'role:', user?.role);
   if (user?.role === 'CANDIDATE') return <CandidateJobsScreen />;
   if (user?.role === 'EMPLOYER') return <EmployerDashboardScreen />;
   return (

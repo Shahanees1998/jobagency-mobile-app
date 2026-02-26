@@ -13,6 +13,7 @@ import {
 import { router } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { apiClient } from '@/lib/api';
+import { imageUriForDisplay } from '@/lib/imageUri';
 import { NotificationBell } from '@/components/ui/NotificationBell';
 import { APP_COLORS, APP_SPACING, TAB_BAR } from '@/constants/appTheme';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -93,8 +94,9 @@ export default function ChatsScreen() {
 
   const getAvatarImage = (chat: any) => {
     const other = getOtherParticipant(chat);
-    const u = other?.user ?? other;
-    return u?.profileImage;
+    if (!other) return null;
+    const raw = other?.user?.profileImage ?? other?.profileImage ?? other?.companyLogo;
+    return imageUriForDisplay(raw) ?? null;
   };
 
   const formatTimestamp = (iso: string) => {

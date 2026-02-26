@@ -4,6 +4,7 @@ import { APP_COLORS, APP_SPACING, TAB_BAR } from '@/constants/appTheme';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDialog } from '@/contexts/DialogContext';
 import { apiClient } from '@/lib/api';
+import { imageUriForDisplay } from '@/lib/imageUri';
 import { SavedJobSummary, storage } from '@/lib/storage';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
@@ -14,6 +15,7 @@ import {
     Modal,
     Pressable,
     RefreshControl,
+    Image,
     StyleSheet,
     Text,
     TextInput,
@@ -74,15 +76,6 @@ function CandidateMyJobsScreen() {
         const totalFromApi = typeof raw?.total === 'number' ? raw.total : (typeof raw?.data?.total === 'number' ? raw.data.total : null);
         const totalPagesFromApi = typeof raw?.totalPages === 'number' ? raw.totalPages : (typeof raw?.data?.totalPages === 'number' ? raw.data.totalPages : null);
         if (__DEV__) {
-          console.log('[Applications] loadApplications', {
-            pageNum,
-            limit,
-            listLength: list.length,
-            total: totalFromApi,
-            totalPages: totalPagesFromApi,
-            hasApplicationsKey: !!raw?.applications,
-            hasDataApplications: !!raw?.data?.applications,
-          });
         }
         if (pageNum === 1) setApplications(list);
         else setApplications((prev) => [...prev, ...list]);
@@ -142,15 +135,22 @@ function CandidateMyJobsScreen() {
     const employer = job.employer || {};
     const companyName = employer.companyName ?? job.companyName ?? 'Company';
     const location = job.location ?? employer.location ?? 'Location';
-    const benefits = Array.isArray(job.benefits) ? job.benefits : job.perks ? [].concat(job.perks) : [];
+    let benefits: string[] = [];
+    if (Array.isArray(job.benefits)) benefits = job.benefits;
+    else if (job.perks) benefits = [].concat(job.perks);
+    else if (typeof job.benefits === 'string') {
+      try { const p = JSON.parse(job.benefits); benefits = Array.isArray(p) ? p : []; } catch { benefits = job.benefits ? [job.benefits] : []; }
+    }
+    const companyLogoUrl = imageUriForDisplay(employer.companyLogo) ?? undefined;
     return {
       id: job.id || app.id,
       applicationId: app.id,
       title: job.title || 'Job',
       companyName,
       location,
-      benefits: benefits.length ? benefits : ['Health Insurance', 'Paid time off', 'RSU', 'Life insurance', 'Disability insurance'].slice(0, 5),
+      benefits,
       companyLogoLetter: (companyName || '?').charAt(0).toUpperCase(),
+      companyLogoUrl,
     };
   };
 
@@ -159,8 +159,9 @@ function CandidateMyJobsScreen() {
       title={item.title}
       companyName={item.companyName}
       location={item.location}
-      benefits={item.benefits}
+      benefits={Array.isArray(item.benefits) ? item.benefits : []}
       companyLogoLetter={item.companyLogoLetter}
+      companyLogoUrl={item.companyLogoUrl}
       saved
       onPress={() => router.push(`/job-details/${item.id}`)}
       onBookmark={() => handleUnsave(item.id)}
@@ -229,7 +230,11 @@ function CandidateMyJobsScreen() {
           </View>
           <View style={styles.companyRow}>
             <View style={styles.logoDark}>
-              <Text style={styles.logoLetter}>{card.companyLogoLetter}</Text>
+              {card.companyLogoUrl ? (
+                <Image source={{ uri: card.companyLogoUrl }} style={styles.logoImage} resizeMode="cover" />
+              ) : (
+                <Text style={styles.logoLetter}>{card.companyLogoLetter}</Text>
+              )}
             </View>
             <View style={styles.companyInfo}>
               <Text style={styles.companyName} numberOfLines={1}>{card.companyName}</Text>
@@ -934,12 +939,14 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 8,
+    overflow: 'hidden',
     backgroundColor: '#1F2937',
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 12,
   },
   logoLetter: { color: APP_COLORS.white, fontSize: 18, fontWeight: '700' },
+  logoImage: { width: 40, height: 40, borderRadius: 8 },
   companyRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 12 },
   companyInfo: { flex: 1, minWidth: 0 },
   companyName: { fontSize: 15, color: APP_COLORS.textPrimary, fontWeight: '500' },

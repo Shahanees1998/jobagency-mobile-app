@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "623368939937",
+    "project_id": "nextjob-424cc",
+    "storage_bucket": "nextjob-424cc.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:623368939937:android:6382a459d3797076a0c3e0",
+        "android_client_info": {
+          "package_name": "com.shah11.jobPortalApp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBVn4kM2VZ8_z6vdyd_MEdcfNR3kX94lFE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

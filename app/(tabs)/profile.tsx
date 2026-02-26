@@ -3,8 +3,13 @@ import { APP_COLORS, APP_SPACING, TAB_BAR } from '@/constants/appTheme';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDialog } from '@/contexts/DialogContext';
 import { apiClient } from '@/lib/api';
+import { imageUriForDisplay } from '@/lib/imageUri';
+import {
+  getLastFcmRegistrationResult,
+  registerPushTokenWithBackend,
+} from '@/lib/pushNotifications';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -70,12 +75,53 @@ export default function ProfileScreen() {
   const [uploading, setUploading] = useState(false);
   const [logoutModalVisible, setLogoutModalVisible] = useState(false);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [fcmStatus, setFcmStatus] = useState(getLastFcmRegistrationResult());
+  const [fcmRetrying, setFcmRetrying] = useState(false);
+  const [pushBackendStatus, setPushBackendStatus] = useState<{
+    ok: boolean;
+    fcmConfigured: boolean;
+    tokenCount: number;
+    message: string;
+  } | null>(null);
   const scrollPaddingBottom = TAB_BAR.height + insets.bottom + TAB_BAR.extraBottom;
   const isEmployer = user?.role === 'EMPLOYER';
+
+  const refreshFcmStatus = () => setFcmStatus(getLastFcmRegistrationResult());
+  const fetchPushBackendStatus = async () => {
+    try {
+      const res = await apiClient.getPushStatus();
+      if (res.success && res.data && typeof res.data === 'object' && 'message' in res.data) {
+        setPushBackendStatus({
+          ok: !!res.data.ok,
+          fcmConfigured: !!res.data.fcmConfigured,
+          tokenCount: typeof res.data.tokenCount === 'number' ? res.data.tokenCount : 0,
+          message: String(res.data.message ?? ''),
+        });
+      } else {
+        setPushBackendStatus(null);
+      }
+    } catch {
+      setPushBackendStatus(null);
+    }
+  };
+  const handleFcmRetry = async () => {
+    setFcmRetrying(true);
+    await registerPushTokenWithBackend();
+    setFcmStatus(getLastFcmRegistrationResult());
+    await fetchPushBackendStatus();
+    setFcmRetrying(false);
+  };
 
   useEffect(() => {
     loadProfile();
   }, [isEmployer]);
+
+  useFocusEffect(
+    React.useCallback(() => {
+      refreshFcmStatus();
+      fetchPushBackendStatus();
+    }, [])
+  );
 
   const loadProfile = async () => {
     try {
@@ -178,6 +224,12 @@ export default function ProfileScreen() {
       })
     : 'Feb 01, 2026';
 
+  // Employer: show company logo (from profile) so it matches company profile screen; fallback to user image
+  const avatarUri = isEmployer
+    ? (imageUriForDisplay(profile?.companyLogo) ?? profile?.user?.profileImage ?? user.profileImage)
+    : user.profileImage;
+  const companyName = isEmployer ? (profile?.companyName ?? '') : '';
+
   return (
     <>
       <SafeAreaView style={styles.safe} edges={['top']}>
@@ -189,11 +241,11 @@ export default function ProfileScreen() {
           <View style={styles.header}>
             <TouchableOpacity onPress={handleImagePick} disabled={uploading || isEmployer} activeOpacity={isEmployer ? 1 : 0.8}>
               <View style={styles.avatarWrap}>
-                {user.profileImage ? (
-                  <Image source={{ uri: user.profileImage }} style={styles.avatar} />
+                {avatarUri ? (
+                  <Image source={{ uri: avatarUri }} style={styles.avatar} />
                 ) : (
                   <View style={styles.avatarPlaceholder}>
-                    <Ionicons name="person" size={44} color="#FFFFFF" />
+                    <Ionicons name={isEmployer ? 'business' : 'person'} size={44} color="#FFFFFF" />
                   </View>
                 )}
                 {uploading && (
@@ -204,6 +256,9 @@ export default function ProfileScreen() {
               </View>
             </TouchableOpacity>
             <Text style={styles.name}>{displayName}</Text>
+            {companyName ? (
+              <Text style={styles.companySubtitle}>{companyName}</Text>
+            ) : null}
             <Text style={styles.email}>{user.email ?? ''}</Text>
           </View>
 
@@ -213,6 +268,40 @@ export default function ProfileScreen() {
               label="Profile"
               onPress={() => router.push(isEmployer ? '/edit-employer-profile' : '/edit-profile')}
             />
+          </View>
+
+          <View style={styles.pushStatusBlock}>
+            <Text style={styles.pushStatusLabel}>Push notifications</Text>
+            <Text style={styles.pushStatusText}>
+              {fcmStatus === null
+                ? 'Not tried yet (login again or tap Retry)'
+                : fcmStatus.status === 'success'
+                  ? 'Registered'
+                  : fcmStatus.status === 'no_token'
+                    ? `No token: ${fcmStatus.message}`
+                    : fcmStatus.status === 'permission_denied'
+                      ? 'Permission denied'
+                      : fcmStatus.status === 'backend_rejected'
+                        ? `Backend rejected: ${fcmStatus.error}`
+                        : `Error: ${fcmStatus.message}`}
+            </Text>
+            {pushBackendStatus !== null && (
+              <Text style={styles.pushBackendStatusText}>
+                Backend: {pushBackendStatus.message}
+                {pushBackendStatus.tokenCount > 0
+                  ? ` (${pushBackendStatus.tokenCount} device${pushBackendStatus.tokenCount !== 1 ? 's' : ''})`
+                  : ''}
+              </Text>
+            )}
+            <TouchableOpacity
+              style={[styles.pushRetryBtn, fcmRetrying && styles.pushRetryBtnDisabled]}
+              onPress={handleFcmRetry}
+              disabled={fcmRetrying}
+            >
+              <Text style={styles.pushRetryBtnText}>
+                {fcmRetrying ? 'Retrying...' : 'Retry registration'}
+              </Text>
+            </TouchableOpacity>
           </View>
 
           <Text style={styles.sectionLabel}>
@@ -336,6 +425,13 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     textAlign: 'center',
   },
+  companySubtitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: APP_COLORS.textPrimary,
+    marginBottom: 2,
+    textAlign: 'center',
+  },
   email: {
     fontSize: 14,
     color: APP_COLORS.textMuted,
@@ -344,6 +440,44 @@ const styles = StyleSheet.create({
   menuBlock: {
     paddingHorizontal: APP_SPACING.screenPadding,
     paddingTop: 24,
+  },
+  pushStatusBlock: {
+    marginHorizontal: APP_SPACING.screenPadding,
+    marginTop: 16,
+    padding: 14,
+    backgroundColor: APP_COLORS.white,
+    borderRadius: MENU_ITEM_RADIUS,
+  },
+  pushStatusLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: APP_COLORS.textPrimary,
+    marginBottom: 6,
+  },
+  pushStatusText: {
+    fontSize: 13,
+    color: APP_COLORS.textMuted,
+    marginBottom: 10,
+  },
+  pushBackendStatusText: {
+    fontSize: 12,
+    color: APP_COLORS.textMuted,
+    marginBottom: 8,
+  },
+  pushRetryBtn: {
+    alignSelf: 'flex-start',
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    backgroundColor: APP_COLORS.primary,
+    borderRadius: 8,
+  },
+  pushRetryBtnDisabled: {
+    opacity: 0.6,
+  },
+  pushRetryBtnText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
   sectionLabel: {
     fontSize: 16,

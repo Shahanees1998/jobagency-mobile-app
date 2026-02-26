@@ -3,41 +3,32 @@ import { useDialog } from '@/contexts/DialogContext';
 import { apiClient } from '@/lib/api';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useLocalSearchParams } from 'expo-router';
-import React, { useCallback, useEffect, useState } from 'react';
-import { StyleSheet, Text, TouchableOpacity, View, ScrollView } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  KeyboardAvoidingView,
+  Platform,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-const DIGITS = 4;
+const DIGITS = 6;
 const RESEND_COOLDOWN_SEC = 60;
 
-const KEYPAD_ROWS: (string | 'back')[][] = [
-  ['1', '2', '3'],
-  ['4', '5', '6'],
-  ['7', '8', '9'],
-  ['', '0', 'back'],
-];
-
-const KEY_LETTERS: Record<string, string> = {
-  '2': 'ABC',
-  '3': 'DEF',
-  '4': 'GHI',
-  '5': 'JKL',
-  '6': 'MNO',
-  '7': 'PQRS',
-  '8': 'TUV',
-  '9': 'WXYZ',
-};
-
 export default function EnterOtpScreen() {
-  const TEST_IMMEDIATE_NAV = true; // set true to bypass verification for quick testing
   const { email = '' } = useLocalSearchParams<{ email?: string }>();
   const { showDialog } = useDialog();
-  const [otp, setOtp] = useState<string[]>(Array(DIGITS).fill(''));
-  const [focusIndex, setFocusIndex] = useState(0);
+  const [otpValue, setOtpValue] = useState('');
   const [resendSec, setResendSec] = useState(RESEND_COOLDOWN_SEC);
   const [loading, setLoading] = useState(false);
+  const inputRef = useRef<TextInput>(null);
 
-  const otpString = otp.join('');
+  const rawDigits = otpValue.replace(/\D/g, '').slice(0, DIGITS);
+  const otpString = rawDigits.length === DIGITS ? rawDigits : '';
+  const otpArray = rawDigits.split('').concat(Array(Math.max(0, DIGITS - rawDigits.length)).fill(''));
 
   useEffect(() => {
     if (resendSec <= 0) return;
@@ -45,42 +36,13 @@ export default function EnterOtpScreen() {
     return () => clearTimeout(t);
   }, [resendSec]);
 
-  const setDigit = useCallback((index: number, value: string) => {
-    setOtp((prev) => {
-      const next = [...prev];
-      next[index] = value;
-      return next;
-    });
-    if (index < DIGITS - 1) setFocusIndex(index + 1);
-  }, []);
-
-  const handleKey = useCallback(
-    (key: string) => {
-      if (key === 'back') {
-        const idx = otp.some((d) => d === '') ? otp.findIndex((d) => d === '') - 1 : DIGITS - 1;
-        const i = Math.max(0, idx);
-        setOtp((prev) => {
-          const next = [...prev];
-          next[i] = '';
-          return next;
-        });
-        setFocusIndex(i);
-        return;
-      }
-      if (key === '') return;
-      const i = otp.findIndex((d) => d === '');
-      if (i === -1) return;
-      setDigit(i, key);
-    },
-    [otp, setDigit]
-  );
+  const handleOtpChange = (text: string) => {
+    const cleaned = text.replace(/\D/g, '').slice(0, DIGITS);
+    setOtpValue(cleaned);
+  };
 
   const handleVerify = async () => {
     if (otpString.length !== DIGITS) return;
-    if (TEST_IMMEDIATE_NAV) {
-      router.push({ pathname: '/(auth)/reset-password', params: { email, token: otpString } });
-      return;
-    }
     setLoading(true);
     try {
       const response = await apiClient.verifyOTP(email, otpString);
@@ -114,8 +76,7 @@ export default function EnterOtpScreen() {
           });
         }
         setResendSec(RESEND_COOLDOWN_SEC);
-        setOtp(Array(DIGITS).fill(''));
-        setFocusIndex(0);
+        setOtpValue('');
       } else {
         showDialog({ title: 'Error', message: response.error || 'Failed to resend code', primaryButton: { text: 'OK' } });
       }
@@ -126,86 +87,80 @@ export default function EnterOtpScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} hitSlop={12}>
-          <Ionicons name="arrow-back" size={24} color={AUTH_COLORS.textPrimary} />
-        </TouchableOpacity>
-      </View>
-      <View style={styles.content}>
-        <Text style={styles.title}>Enter OTP code</Text>
-        <Text style={styles.description}>
-          We have sent a OTP code to your email. Please enter it below to verify your account.
-        </Text>
-        <View style={styles.boxRow}>
-          {Array.from({ length: DIGITS }).map((_, i) => (
-            <View
-              key={i}
+      <KeyboardAvoidingView
+        style={styles.keyboardAvoid}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 16 : 0}
+      >
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} hitSlop={12}>
+            <Ionicons name="arrow-back" size={24} color={AUTH_COLORS.textPrimary} />
+          </TouchableOpacity>
+        </View>
+        <View style={styles.content}>
+          <Text style={styles.title}>Enter OTP code</Text>
+          <Text style={styles.description}>
+            We have sent an OTP code to your email. Enter it below to verify your account.
+          </Text>
+          <TouchableOpacity
+            style={styles.boxRow}
+            onPress={() => inputRef.current?.focus()}
+            activeOpacity={1}
+          >
+            {Array.from({ length: DIGITS }).map((_, i) => (
+              <View
+                key={i}
+                style={[
+                  styles.box,
+                  otpArray[i] !== '' && styles.boxFilled,
+                ]}
+              >
+                <Text style={styles.boxText}>{otpArray[i] || ''}</Text>
+              </View>
+            ))}
+            <TextInput
+              ref={inputRef}
+              style={styles.hiddenInput}
+              value={otpValue}
+              onChangeText={handleOtpChange}
+              keyboardType="number-pad"
+              maxLength={DIGITS}
+              autoFocus
+              accessibilityLabel="OTP code input"
+            />
+          </TouchableOpacity>
+          <Text style={styles.countdown}>
+            {resendSec > 0 ? (
+              <>You can resend the code in <Text style={styles.countdownNumber}>{resendSec}</Text> seconds</>
+            ) : (
+              'You can resend the code now'
+            )}
+          </Text>
+          <TouchableOpacity
+            onPress={handleResend}
+            disabled={resendSec > 0}
+            style={styles.resendWrap}
+          >
+            <Text
               style={[
-                styles.box,
-                focusIndex === i && styles.boxFocused,
-                otp[i] !== '' && styles.boxFilled,
+                styles.resendText,
+                resendSec > 0 && styles.resendDisabled,
               ]}
             >
-              <Text style={styles.boxText}>{otp[i] || ''}</Text>
-            </View>
-          ))}
+              Resend code
+            </Text>
+          </TouchableOpacity>
         </View>
-        <Text style={styles.countdown}>
-          {resendSec > 0 ? (
-            <>You can resend the code in <Text style={styles.countdownNumber}>{resendSec}</Text> seconds</>
-          ) : (
-            'You can resend the code now'
-          )}
-        </Text>
         <TouchableOpacity
-          onPress={handleResend}
-          disabled={resendSec > 0}
-          style={styles.resendWrap}
+          style={[styles.primaryBtn, (otpString.length !== DIGITS || loading) && styles.primaryBtnDisabled]}
+          onPress={handleVerify}
+          disabled={otpString.length !== DIGITS || loading}
         >
-          <Text
-            style={[
-              styles.resendText,
-              resendSec > 0 && styles.resendDisabled,
-            ]}
-          >
-            Resend code
+          <Text style={styles.primaryBtnText}>
+            {loading ? 'Verifying...' : 'Verify'}
           </Text>
         </TouchableOpacity>
-      </View>
-      <TouchableOpacity
-        style={[styles.primaryBtn, (otpString.length !== DIGITS || loading) && styles.primaryBtnDisabled]}
-        onPress={handleVerify}
-        disabled={otpString.length !== DIGITS || loading}
-      >
-        <Text style={styles.primaryBtnText}>
-          {loading ? 'Verifying...' : 'Verify'}
-        </Text>
-      </TouchableOpacity>
-      <View style={styles.keypad}>
-        {KEYPAD_ROWS.map((row, rowIdx) => (
-          <View key={rowIdx} style={styles.keypadRow}>
-            {row.map((key, colIdx) => (
-              <TouchableOpacity
-                key={colIdx}
-                style={[styles.keypadKey, key === '' && styles.keypadKeyEmpty]}
-                onPress={() => key !== '' && handleKey(key)}
-                disabled={key === ''}
-              >
-                {key === 'back' ? (
-                  <Ionicons name="backspace-outline" size={24} color={AUTH_COLORS.textPrimary} />
-                ) : key === '' ? null : (
-                  <>
-                    <Text style={styles.keypadKeyText}>{key}</Text>
-                    {KEY_LETTERS[key as string] ? (
-                      <Text style={styles.keypadLetters}>{KEY_LETTERS[key as string]}</Text>
-                    ) : null}
-                  </>
-                )}
-              </TouchableOpacity>
-            ))}
-          </View>
-        ))}
-      </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -222,49 +177,56 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: AUTH_SPACING.contentPaddingH,
     paddingTop: 16,
-    alignItems: 'flex-start',
+    alignItems: 'center',
     maxWidth: 400,
     width: '100%',
     alignSelf: 'center',
   },
   title: {
-    fontSize: 22,
-    fontWeight: '700',
+    fontSize: 20,
+    fontWeight: '600',
     color: AUTH_COLORS.textPrimary,
     marginBottom: 8,
-    textAlign: 'left',
+    textAlign: 'center',
   },
   description: {
     fontSize: AUTH_TYPO.bodySmall,
     color: AUTH_COLORS.textSecondary,
-    textAlign: 'left',
-    marginBottom: 28,
+    textAlign: 'center',
+    marginBottom: 20,
     paddingHorizontal: 8,
   },
+  keyboardAvoid: { flex: 1 },
   boxRow: {
     flexDirection: 'row',
-    gap: 10,
+    gap: 6,
     marginBottom: 16,
     flexWrap: 'nowrap',
-    justifyContent: 'flex-start',
+    justifyContent: 'center',
+    position: 'relative',
   },
   box: {
-    width: 72,
-    height: 52,
-    borderRadius: 56,
+    width: 40,
+    height: 44,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: '#E6E6E6',
     backgroundColor: '#F5F5F5',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  boxFocused: { borderColor: AUTH_COLORS.primary },
   boxFilled: { borderColor: AUTH_COLORS.primary },
   boxText: {
     fontFamily: 'Kanit_500Medium',
-    fontSize: 24,
-    fontWeight: '500',
+    fontSize: 18,
+    fontWeight: '600',
     color: AUTH_COLORS.textPrimary,
+  },
+  hiddenInput: {
+    position: 'absolute',
+    width: 1,
+    height: 1,
+    opacity: 0,
   },
   countdown: {
     fontSize: AUTH_TYPO.bodySmall,
@@ -278,44 +240,13 @@ const styles = StyleSheet.create({
   resendWrap: { marginBottom: 24, alignSelf: 'center' },
   resendText: {
     fontFamily: 'Kanit_400Regular',
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: '400',
     color: AUTH_COLORS.link,
     textDecorationLine: 'underline',
     textAlign: 'center',
   },
   resendDisabled: { color: AUTH_COLORS.inputPlaceholder },
-  keypad: {
-    marginTop: 'auto',
-    paddingHorizontal: 12,
-    paddingBottom: 12,
-    backgroundColor: '#939393',
-  },
-  keypadRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 12,
-    marginBottom: 12,
-  },
-  keypadKey: {
-    width: 72,
-    height: 52,
-    borderRadius: 8,
-    backgroundColor: AUTH_COLORS.inputBg,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  keypadKeyEmpty: { backgroundColor: 'transparent' },
-  keypadKeyText: {
-    fontSize: 22,
-    fontWeight: '600',
-    color: AUTH_COLORS.textPrimary,
-  },
-  keypadLetters: {
-    fontSize: 12,
-    color: AUTH_COLORS.textSecondary,
-    marginTop: 4,
-  },
   primaryBtn: {
     width: '90%',
     maxWidth: 420,
@@ -326,6 +257,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignSelf: 'center',
     marginBottom: 12,
+    marginTop: 42,
   },
   primaryBtnDisabled: { opacity: 0.6 },
   primaryBtnText: {

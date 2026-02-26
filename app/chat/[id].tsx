@@ -19,6 +19,8 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDialog } from '@/contexts/DialogContext';
 import { apiClient } from '@/lib/api';
+import { imageUriForDisplay } from '@/lib/imageUri';
+import { subscribeToChat } from '@/lib/pusher';
 import { APP_COLORS, APP_SPACING } from '@/constants/appTheme';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -68,6 +70,24 @@ export default function ChatDetailScreen() {
     loadChatAndMessages();
   }, [id]);
 
+  // Real-time: subscribe to Pusher for this chat
+  useEffect(() => {
+    if (!id || !user?.id) return;
+    let unsubscribe: (() => void) | null = null;
+    subscribeToChat(id, (payload) => {
+      setMessages((prev) => {
+        if (prev.some((m) => m.id === payload.id)) return prev;
+        return [...prev, payload];
+      });
+      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
+    }).then((fn) => {
+      unsubscribe = fn;
+    });
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, [id, user?.id]);
+
   const loadChatAndMessages = async () => {
     if (!id) return;
     setLoading(true);
@@ -85,7 +105,8 @@ export default function ChatDetailScreen() {
           : (chat.application?.job?.employer ?? chat.otherParticipant);
         const displayName = other?.companyName ?? [other?.user?.firstName, other?.user?.lastName].filter(Boolean).join(' ') ?? 'Chat';
         const letter = (displayName || '?').charAt(0).toUpperCase();
-        const avatarImage = other?.user?.profileImage ?? other?.profileImage;
+        const rawAvatar = other?.user?.profileImage ?? other?.profileImage ?? other?.companyLogo;
+        const avatarImage = imageUriForDisplay(rawAvatar) ?? undefined;
         setChatInfo({ displayName, avatarLetter: letter, avatarImage });
       } else {
         setChatInfo({ displayName: 'Chat', avatarLetter: '?' });
@@ -111,7 +132,10 @@ export default function ChatDetailScreen() {
     try {
       const response = await apiClient.sendMessage(id, text);
       if (response.success && response.data) {
-        setMessages((prev) => [...prev, response.data]);
+        setMessages((prev) => {
+          if (prev.some((m) => m.id === response.data.id)) return prev;
+          return [...prev, response.data];
+        });
         setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
       } else {
         setMessageText(text);
@@ -138,7 +162,10 @@ export default function ChatDetailScreen() {
       }
       const response = await apiClient.sendMessage(id, uploadRes.data.url, 'IMAGE');
       if (response.success && response.data) {
-        setMessages((prev) => [...prev, response.data]);
+        setMessages((prev) => {
+          if (prev.some((m) => m.id === response.data.id)) return prev;
+          return [...prev, response.data];
+        });
         setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
       } else {
         showDialog({ title: 'Error', message: response.error || 'Failed to send image', primaryButton: { text: 'OK' } });
@@ -459,8 +486,8 @@ export default function ChatDetailScreen() {
 
         <KeyboardAvoidingView
           style={styles.flex1}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          keyboardVerticalOffset={0}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'padding'}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
         >
           <FlatList
             ref={flatListRef}
@@ -469,6 +496,8 @@ export default function ChatDetailScreen() {
             keyExtractor={(item) => item.key}
             contentContainerStyle={styles.messagesList}
             showsVerticalScrollIndicator={false}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
             onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
             ListEmptyComponent={
               <View style={styles.emptyMessages}>

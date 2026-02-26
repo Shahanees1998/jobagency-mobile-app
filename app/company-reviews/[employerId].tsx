@@ -486,6 +486,7 @@ export default function CompanyProfileScreen() {
                       location={job.location || ''}
                       benefits={job.benefits || []}
                       companyLogoLetter={letter}
+                      companyLogoUrl={imageUriForDisplay(job.employer?.companyLogo) ?? undefined}
                       onPress={() => router.push(`/job-details/${job.id}`)}
                     />
                   </View>

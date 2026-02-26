@@ -2,12 +2,15 @@ import { APP_COLORS, APP_SPACING } from '@/constants/appTheme';
 import { useDialog } from '@/contexts/DialogContext';
 import { apiClient } from '@/lib/api';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   KeyboardAvoidingView,
+  Modal,
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -16,6 +19,14 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+
+function formatDateLabel(d: Date): string {
+  return d.toLocaleDateString(undefined, { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
+}
+
+function formatTimeLabel(d: Date): string {
+  return d.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit', hour12: true });
+}
 
 export default function EditInterviewScreen() {
   const params = useLocalSearchParams<{ applicationId: string; jobId?: string }>();
@@ -26,9 +37,10 @@ export default function EditInterviewScreen() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [application, setApplication] = useState<any>(null);
-  const [date, setDate] = useState('');
-  const [time, setTime] = useState('');
+  const [interviewDateTime, setInterviewDateTime] = useState<Date | null>(null);
   const [location, setLocation] = useState('');
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
 
   useEffect(() => {
     if (!jobId || !applicationId) {
@@ -43,9 +55,7 @@ export default function EditInterviewScreen() {
         const app = list.find((a: any) => a.id === applicationId);
         setApplication(app);
         if (app?.interviewDate) {
-          const d = new Date(app.interviewDate);
-          setDate(d.toLocaleDateString('en-CA')); // YYYY-MM-DD
-          setTime(d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }));
+          setInterviewDateTime(new Date(app.interviewDate));
         }
         if (app?.interviewLocation) setLocation(app.interviewLocation);
       } catch (e) {
@@ -58,17 +68,8 @@ export default function EditInterviewScreen() {
 
   const handleSubmit = async () => {
     if (!jobId || !applicationId) return;
-    if (!date.trim()) {
-      showDialog({ title: 'Error', message: 'Please enter interview date', primaryButton: { text: 'OK' } });
-      return;
-    }
-    if (!time.trim()) {
-      showDialog({ title: 'Error', message: 'Please enter interview time', primaryButton: { text: 'OK' } });
-      return;
-    }
-    const dateObj = new Date(`${date}T${time.includes(':') ? time : time + ':00'}`);
-    if (Number.isNaN(dateObj.getTime())) {
-      showDialog({ title: 'Error', message: 'Please use a valid date and time', primaryButton: { text: 'OK' } });
+    if (!interviewDateTime) {
+      showDialog({ title: 'Error', message: 'Please select interview date and time', primaryButton: { text: 'OK' } });
       return;
     }
     setSubmitting(true);
@@ -79,7 +80,7 @@ export default function EditInterviewScreen() {
         'INTERVIEW_SCHEDULED',
         undefined,
         {
-          interviewDate: dateObj.toISOString(),
+          interviewDate: interviewDateTime.toISOString(),
           interviewLocation: location.trim() || undefined,
           interviewNotes: undefined,
         }
@@ -142,26 +143,112 @@ export default function EditInterviewScreen() {
           <View style={styles.selectRow}>
             <Text style={styles.selectRowText} numberOfLines={1}>{candidateName}</Text>
           </View>
-          <View style={styles.inputRow}>
-            <TextInput
-              style={styles.input}
-              placeholder="Select interview date"
-              placeholderTextColor={APP_COLORS.textMuted}
-              value={date}
-              onChangeText={setDate}
-            />
+          <TouchableOpacity style={styles.selectRow} onPress={() => setShowDatePicker(true)} activeOpacity={0.85}>
+            <Text style={[styles.selectRowText, !interviewDateTime && styles.selectRowPlaceholder]} numberOfLines={1}>
+              {interviewDateTime ? formatDateLabel(interviewDateTime) : 'Select interview date'}
+            </Text>
             <Ionicons name="calendar-outline" size={20} color={APP_COLORS.textMuted} />
-          </View>
-          <View style={styles.inputRow}>
-            <TextInput
-              style={styles.input}
-              placeholder="Select interview time"
-              placeholderTextColor={APP_COLORS.textMuted}
-              value={time}
-              onChangeText={setTime}
-            />
+          </TouchableOpacity>
+          {showDatePicker && (
+            Platform.OS === 'ios' ? (
+              <Modal visible transparent animationType="slide">
+                <Pressable style={styles.pickerModalOverlay} onPress={() => setShowDatePicker(false)}>
+                  <View style={styles.pickerModalContent}>
+                    <View style={styles.pickerModalHeader}>
+                      <TouchableOpacity onPress={() => setShowDatePicker(false)} hitSlop={12}>
+                        <Text style={styles.pickerModalDone}>Done</Text>
+                      </TouchableOpacity>
+                    </View>
+                    <DateTimePicker
+                      value={interviewDateTime ?? new Date()}
+                      mode="date"
+                      display="spinner"
+                      minimumDate={new Date()}
+                      onChange={(_, selectedDate) => {
+                        if (selectedDate) {
+                          setInterviewDateTime((prev) => {
+                            const d = selectedDate;
+                            if (prev) return new Date(d.getFullYear(), d.getMonth(), d.getDate(), prev.getHours(), prev.getMinutes(), 0, 0);
+                            return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 9, 0, 0, 0);
+                          });
+                        }
+                      }}
+                    />
+                  </View>
+                </Pressable>
+              </Modal>
+            ) : (
+              <DateTimePicker
+                value={interviewDateTime ?? new Date()}
+                mode="date"
+                display="default"
+                minimumDate={new Date()}
+                onChange={(_, selectedDate) => {
+                  setShowDatePicker(false);
+                  if (selectedDate) {
+                    setInterviewDateTime((prev) => {
+                      const d = selectedDate;
+                      if (prev) return new Date(d.getFullYear(), d.getMonth(), d.getDate(), prev.getHours(), prev.getMinutes(), 0, 0);
+                      return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 9, 0, 0, 0);
+                    });
+                  }
+                }}
+              />
+            )
+          )}
+          <TouchableOpacity style={styles.selectRow} onPress={() => setShowTimePicker(true)} activeOpacity={0.85}>
+            <Text style={[styles.selectRowText, !interviewDateTime && styles.selectRowPlaceholder]} numberOfLines={1}>
+              {interviewDateTime ? formatTimeLabel(interviewDateTime) : 'Select interview time'}
+            </Text>
             <Ionicons name="time-outline" size={20} color={APP_COLORS.textMuted} />
-          </View>
+          </TouchableOpacity>
+          {showTimePicker && (
+            Platform.OS === 'ios' ? (
+              <Modal visible transparent animationType="slide">
+                <Pressable style={styles.pickerModalOverlay} onPress={() => setShowTimePicker(false)}>
+                  <View style={styles.pickerModalContent}>
+                    <View style={styles.pickerModalHeader}>
+                      <TouchableOpacity onPress={() => setShowTimePicker(false)} hitSlop={12}>
+                        <Text style={styles.pickerModalDone}>Done</Text>
+                      </TouchableOpacity>
+                    </View>
+                    <DateTimePicker
+                      value={interviewDateTime ?? new Date()}
+                      mode="time"
+                      display="spinner"
+                      is24Hour={false}
+                      onChange={(_, selectedTime) => {
+                        if (selectedTime) {
+                          setInterviewDateTime((prev) => {
+                            const t = selectedTime;
+                            const base = prev ?? new Date();
+                            return new Date(base.getFullYear(), base.getMonth(), base.getDate(), t.getHours(), t.getMinutes(), 0, 0);
+                          });
+                        }
+                      }}
+                    />
+                  </View>
+                </Pressable>
+              </Modal>
+            ) : (
+              <DateTimePicker
+                value={interviewDateTime ?? new Date()}
+                mode="time"
+                display="default"
+                is24Hour={false}
+                onChange={(_, selectedTime) => {
+                  setShowTimePicker(false);
+                  if (selectedTime) {
+                    setInterviewDateTime((prev) => {
+                      const t = selectedTime;
+                      const base = prev ?? new Date();
+                      return new Date(base.getFullYear(), base.getMonth(), base.getDate(), t.getHours(), t.getMinutes(), 0, 0);
+                    });
+                  }
+                }}
+              />
+            )
+          )}
           <View style={[styles.inputRow, styles.inputRowLocation]}>
             <Ionicons name="location-outline" size={20} color={APP_COLORS.textMuted} style={styles.locationIcon} />
             <TextInput
@@ -231,6 +318,7 @@ const styles = StyleSheet.create({
     marginBottom: 14,
   },
   selectRowText: { fontSize: 16, color: APP_COLORS.textPrimary, flex: 1 },
+  selectRowPlaceholder: { color: APP_COLORS.textMuted },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -255,4 +343,8 @@ const styles = StyleSheet.create({
   },
   primaryBtnDisabled: { opacity: 0.7 },
   primaryBtnText: { color: '#fff', fontSize: 16, fontWeight: '700' },
+  pickerModalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+  pickerModalContent: { backgroundColor: APP_COLORS.white, borderTopLeftRadius: 16, borderTopRightRadius: 16, paddingBottom: 34 },
+  pickerModalHeader: { flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: 16, paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: '#E5E7EB' },
+  pickerModalDone: { fontSize: 17, fontWeight: '600', color: APP_COLORS.primary },
 });

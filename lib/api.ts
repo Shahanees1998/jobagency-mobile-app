@@ -1,5 +1,5 @@
 // API Client for Job Portal Mobile App
-const API_BASE_URL = 'https://job-agency-1.vercel.app';
+const API_BASE_URL = 'http://64.227.52.105';
 
 export interface ApiResponse<T = any> {
   success: boolean;
@@ -38,9 +38,9 @@ class ApiClient {
     options: RequestInit = {}
   ): Promise<ApiResponse<T>> {
     const url = `${this.baseURL}${endpoint}`;
-    const headers: HeadersInit = {
+    const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      ...options.headers,
+      ...(options.headers as Record<string, string> | undefined),
     };
 
     if (this.accessToken) {
@@ -113,7 +113,7 @@ class ApiClient {
       method: 'POST',
       body,
     });
-    console.log('[Register] Response success:', result.success, result.error ? `error: ${result.error}` : '');
+    //console.log('[Register] Response success:', result.success, result.error ? `error: ${result.error}` : '');
     return result;
   }
 
@@ -552,7 +552,6 @@ class ApiClient {
 
     const query = queryParams.toString();
     const url = `/api/candidates/applications?${query}`;
-    if (__DEV__) console.log('[API] getMyApplications', url);
     return this.request(url);
   }
 
@@ -635,6 +634,11 @@ class ApiClient {
 
   async getChatById(chatId: string): Promise<ApiResponse<any>> {
     return this.request(`/api/chats/${chatId}`);
+  }
+
+  /** Public config (Pusher key/cluster for real-time chat). No auth required. */
+  async getConfig(): Promise<ApiResponse<{ pusherKey: string | null; pusherCluster: string }>> {
+    return this.request('/api/config');
   }
 
   async getChatMessages(chatId: string, params?: {
@@ -773,6 +777,29 @@ class ApiClient {
     return this.request('/api/notifications/mark-all-read', {
       method: 'PUT',
     });
+  }
+
+  /** Register FCM device token for push notifications (call after login) */
+  async registerFcmToken(token: string, platform?: 'ios' | 'android'): Promise<ApiResponse> {
+    return this.request('/api/users/fcm-token', {
+      method: 'POST',
+      body: JSON.stringify({ token, platform }),
+    });
+  }
+
+  /** Unregister FCM token (call on logout) */
+  async unregisterFcmToken(token: string): Promise<ApiResponse> {
+    return this.request('/api/users/fcm-token', {
+      method: 'DELETE',
+      body: JSON.stringify({ token }),
+    });
+  }
+
+  /** Get push notification readiness for current user (backend FCM + token count). */
+  async getPushStatus(): Promise<
+    ApiResponse<{ ok: boolean; fcmConfigured: boolean; tokenCount: number; message: string }>
+  > {
+    return this.request('/api/users/push-status', { method: 'GET' });
   }
 
   // Support APIs

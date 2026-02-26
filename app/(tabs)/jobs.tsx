@@ -5,6 +5,7 @@ import { APP_COLORS, TAB_BAR } from '@/constants/appTheme';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDialog } from '@/contexts/DialogContext';
 import { apiClient } from '@/lib/api';
+import { imageUriForDisplay } from '@/lib/imageUri';
 import { SavedJobSummary, storage } from '@/lib/storage';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useFocusEffect } from 'expo-router';
@@ -25,14 +26,21 @@ function applicationToCard(app: any) {
   const employer = job.employer || {};
   const companyName = employer.companyName ?? job.companyName ?? 'Company';
   const location = job.location ?? employer.location ?? 'Location';
-  const benefits = Array.isArray(job.benefits) ? job.benefits : job.perks ? [].concat(job.perks) : [];
+  let benefits: string[] = [];
+  if (Array.isArray(job.benefits)) benefits = job.benefits;
+  else if (job.perks) benefits = [].concat(job.perks);
+  else if (typeof job.benefits === 'string') {
+    try { const p = JSON.parse(job.benefits); benefits = Array.isArray(p) ? p : []; } catch { benefits = job.benefits ? [job.benefits] : []; }
+  }
+  const companyLogoUrl = imageUriForDisplay(employer.companyLogo) ?? undefined;
   return {
     id: job.id || app.id,
     title: job.title || 'Job',
     companyName,
     location,
-    benefits: benefits.length ? benefits : ['Health Insurance', 'Paid time off', 'RSU', 'Life insurance', 'Disability insurance'].slice(0, 5),
+    benefits,
     companyLogoLetter: (companyName || '?').charAt(0).toUpperCase(),
+    companyLogoUrl,
   };
 }
 
@@ -278,8 +286,9 @@ function CandidateMyJobsScreen() {
                   title={card.title}
                   companyName={card.companyName}
                   location={card.location}
-                  benefits={card.benefits}
+                  benefits={Array.isArray(card.benefits) ? card.benefits : []}
                   companyLogoLetter={card.companyLogoLetter}
+                  companyLogoUrl={card.companyLogoUrl}
                   saved={activeTab === 'Saved'}
                   showRemoveIcon={activeTab === 'Applied'}
                   hideDislike={activeTab === 'Applied' || activeTab === 'Interviews'}

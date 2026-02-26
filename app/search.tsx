@@ -2,6 +2,7 @@ import { JobCard } from '@/components/jobs';
 import { APP_COLORS, APP_SPACING, TAB_BAR } from '@/constants/appTheme';
 import { useAuth } from '@/contexts/AuthContext';
 import { apiClient } from '@/lib/api';
+import { imageUriForDisplay } from '@/lib/imageUri';
 import { storage, type JobFilters, type RecentSearch } from '@/lib/storage';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useFocusEffect, useNavigation } from 'expo-router';
@@ -265,6 +266,7 @@ export default function SearchScreen() {
       location: item.location || item.employer?.location || 'Location',
       benefits: benefits.length ? benefits : fallbackBenefits.slice(0, 5),
       companyLogoLetter: item.employer?.companyName?.charAt(0) || item.companyName?.charAt(0),
+      companyLogoUrl: imageUriForDisplay(item.employer?.companyLogo) ?? undefined,
     };
   };
 
@@ -284,6 +286,7 @@ export default function SearchScreen() {
         location: summary.location,
         benefits: summary.benefits,
         companyLogoLetter: summary.companyLogoLetter,
+        companyLogoUrl: summary.companyLogoUrl,
       });
       setSavedJobIds((prev) => (prev.includes(jobId) ? prev : [...prev, jobId]));
     }
@@ -327,6 +330,7 @@ export default function SearchScreen() {
                   location={card.location}
                   benefits={card.benefits}
                   companyLogoLetter={card.companyLogoLetter}
+                  companyLogoUrl={card.companyLogoUrl}
                   saved={savedJobIds.includes(item.id)}
                   onPress={() => router.push(`/job-details/${item.id}`)}
                   onBookmark={() => toggleSaved(item)}

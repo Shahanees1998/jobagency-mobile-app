@@ -8,6 +8,7 @@ export interface SavedJobSummary {
   location: string;
   benefits?: string[];
   companyLogoLetter?: string;
+  companyLogoUrl?: string;
 }
 
 const STORAGE_KEYS = {

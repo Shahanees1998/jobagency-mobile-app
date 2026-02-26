@@ -2,12 +2,14 @@ import { APP_COLORS, APP_SPACING } from '@/constants/appTheme';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNotifications } from '@/contexts/NotificationsContext';
 import { apiClient } from '@/lib/api';
+import { subscribeToUserNotifications } from '@/lib/pusher';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { router, useFocusEffect } from 'expo-router';
-import React, { useCallback, useEffect, useState } from 'react';
+import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
+  Modal,
   RefreshControl,
   StyleSheet,
   Text,
@@ -50,9 +52,15 @@ function getGroupKey(createdAt: string): 'Today' | 'Yesterday' | string {
 export default function NotificationsScreen() {
   const { user } = useAuth();
   const { refreshUnreadCount } = useNotifications();
+  const params = useLocalSearchParams<{ id?: string }>();
   const [notifications, setNotifications] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [selectedNotification, setSelectedNotification] = useState<any>(null);
+  const [markAllLoading, setMarkAllLoading] = useState(false);
+  const openedFromPushRef = useRef(false);
+
+  const hasUnread = notifications.some((n) => !n.isRead);
 
   const loadNotifications = useCallback(async () => {
     try {
@@ -72,16 +80,80 @@ export default function NotificationsScreen() {
     loadNotifications();
   }, [loadNotifications]);
 
+  const notificationUnsubscribeRef = useRef<(() => void) | null>(null);
+  // Real-time: subscribe to user notification channel so new notifications (e.g. job approved) appear without refresh
   useFocusEffect(
     useCallback(() => {
-      apiClient.markAllNotificationsAsRead().then(() => refreshUnreadCount());
-    }, [refreshUnreadCount])
+      const userId = user?.id;
+      if (!userId) return () => {};
+      notificationUnsubscribeRef.current = null;
+      subscribeToUserNotifications(userId, () => {
+        loadNotifications();
+        refreshUnreadCount();
+      }).then((fn) => {
+        notificationUnsubscribeRef.current = fn;
+      });
+      return () => {
+        const fn = notificationUnsubscribeRef.current;
+        if (typeof fn === 'function') {
+          fn();
+          notificationUnsubscribeRef.current = null;
+        }
+      };
+    }, [user?.id, loadNotifications, refreshUnreadCount])
   );
+
+  // Open notification popup when navigated from push tap with ?id=notificationId
+  useEffect(() => {
+    const notificationId = params.id;
+    if (!notificationId || notifications.length === 0 || openedFromPushRef.current) return;
+    const item = notifications.find((n) => n.id === notificationId);
+    if (item) {
+      openedFromPushRef.current = true;
+      setSelectedNotification(item);
+      apiClient.markNotificationAsRead(item.id).catch(() => {});
+      loadNotifications();
+      refreshUnreadCount();
+    }
+  }, [params.id, notifications, loadNotifications, refreshUnreadCount]);
 
   const onRefresh = () => {
     setRefreshing(true);
     loadNotifications();
   };
+
+  const openNotificationDetail = useCallback(
+    async (item: any) => {
+      if (!item?.id) return;
+      setSelectedNotification(item);
+      try {
+        await apiClient.markNotificationAsRead(item.id);
+        await loadNotifications();
+        refreshUnreadCount();
+      } catch {
+        // keep modal open
+      }
+    },
+    [loadNotifications, refreshUnreadCount]
+  );
+
+  const closeDetail = useCallback(() => setSelectedNotification(null), []);
+
+  const markAllAsRead = useCallback(async () => {
+    if (markAllLoading || !hasUnread) return;
+    setMarkAllLoading(true);
+    try {
+      const res = await apiClient.markAllNotificationsAsRead();
+      if (res.success) {
+        await loadNotifications();
+        refreshUnreadCount();
+      }
+    } catch {
+      // ignore
+    } finally {
+      setMarkAllLoading(false);
+    }
+  }, [markAllLoading, hasUnread, loadNotifications, refreshUnreadCount]);
 
   const groups: { key: string; items: any[] }[] = [];
   const seen = new Set<string>();
@@ -121,7 +193,20 @@ export default function NotificationsScreen() {
             <Ionicons name="arrow-back" size={24} color="#000" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Notifications</Text>
-          <View style={styles.headerSpacer} />
+          {hasUnread ? (
+            <TouchableOpacity
+              onPress={markAllAsRead}
+              disabled={markAllLoading}
+              style={styles.markAllBtn}
+              hitSlop={8}
+            >
+              <Text style={[styles.markAllText, markAllLoading && styles.markAllTextDisabled]}>
+                {markAllLoading ? '...' : 'Mark all read'}
+              </Text>
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.headerSpacer} />
+          )}
         </View>
       </SafeAreaView>
 
@@ -157,7 +242,7 @@ export default function NotificationsScreen() {
             return (
               <TouchableOpacity
                 style={[styles.card, !item.isRead ? styles.cardUnread : styles.cardRead]}
-                onPress={() => { if (item.id) apiClient.markNotificationAsRead(item.id).then(() => loadNotifications()); }}
+                onPress={() => openNotificationDetail(item)}
                 activeOpacity={0.85}
               >
                 <View style={styles.logoBox}>
@@ -172,6 +257,40 @@ export default function NotificationsScreen() {
           }}
         />
       )}
+
+      <Modal
+        visible={!!selectedNotification}
+        transparent
+        animationType="fade"
+        onRequestClose={closeDetail}
+      >
+        <TouchableOpacity
+          style={styles.modalOverlay}
+          activeOpacity={1}
+          onPress={closeDetail}
+        >
+          <TouchableOpacity
+            style={styles.modalContent}
+            activeOpacity={1}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <Text style={styles.modalTitle}>
+              {selectedNotification?.title || 'Notification'}
+            </Text>
+            <Text style={styles.modalMessage}>
+              {selectedNotification?.message || ''}
+            </Text>
+            <Text style={styles.modalTime}>
+              {selectedNotification
+                ? formatNotificationDate(selectedNotification.createdAt || selectedNotification.created_at || '')
+                : ''}
+            </Text>
+            <TouchableOpacity style={styles.modalButton} onPress={closeDetail} activeOpacity={0.85}>
+              <Text style={styles.modalButtonText}>OK</Text>
+            </TouchableOpacity>
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
@@ -206,6 +325,22 @@ const styles = StyleSheet.create({
   headerSpacer: {
     width: 40,
   },
+  markAllBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    justifyContent: 'center',
+    minWidth: 100,
+    alignItems: 'flex-end',
+  },
+  markAllText: {
+    fontFamily: 'Kanit',
+    fontSize: 14,
+    fontWeight: '600',
+    color: APP_COLORS.primary,
+  },
+  markAllTextDisabled: {
+    color: '#9CA3AF',
+  },
   centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
   list: { paddingHorizontal: APP_SPACING.screenPadding, paddingBottom: 24 },
   sectionHeader: {
@@ -224,10 +359,12 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   cardUnread: {
-    backgroundColor: '#F2F7FB' // Light blue
+    backgroundColor: '#E8F2FA',
+    borderLeftWidth: 4,
+    borderLeftColor: APP_COLORS.primary,
   },
   cardRead: {
-    backgroundColor: '#F9FAFB' // Light gray
+    backgroundColor: '#F9FAFB',
   },
   logoBox: {
     width: 48,
@@ -298,6 +435,53 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   buttonText: {
+    fontFamily: 'Kanit',
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalContent: {
+    width: '100%',
+    maxWidth: 360,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 20,
+  },
+  modalTitle: {
+    fontFamily: 'Kanit',
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#031019',
+    marginBottom: 12,
+  },
+  modalMessage: {
+    fontFamily: 'Kanit',
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#374151',
+    lineHeight: 22,
+    marginBottom: 12,
+  },
+  modalTime: {
+    fontSize: 13,
+    color: '#9CA3AF',
+    marginBottom: 20,
+  },
+  modalButton: {
+    height: 48,
+    backgroundColor: APP_COLORS.primary,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalButtonText: {
     fontFamily: 'Kanit',
     fontSize: 16,
     fontWeight: '600',
